@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: "ADRL-Rescue: Autonomous Disaster Response Drone using Reinforcement Learning"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - name: "Nihaal Gharat"
+    orcid: ""
+repository-code: "https://github.com/NihaalGharat/ADRL-Rescue"
+license: MIT
+preferred-citation:
+  type: software
+  title: "ADRL-Rescue: Autonomous Disaster Response Drone using Reinforcement Learning"
+  author:
+    - name: "Nihaal Gharat"
+  year: 2026
+  url: "https://github.com/NihaalGharat/ADRL-Rescue"
