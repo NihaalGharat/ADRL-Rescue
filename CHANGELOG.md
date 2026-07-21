@@ -63,6 +63,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-07-20
+
+### Added
+
+- Unity project foundation initialized
+- ProjectVersion.txt configured for Unity 2022.3.62f1 LTS
+- Package manifest with approved packages:
+  - TextMeshPro 3.0.6
+  - Input System 1.7.0
+  - AI Navigation 1.1.5
+  - ML-Agents 1.1.1
+- Tags configured: Drone, Victim, Obstacle, Hazard, Environment, SpawnPoint
+- Layers configured: Drone, Victim, Obstacle, Terrain, Sensor, Environment
+- Physics settings configured (gravity -9.81, fixed timestep 0.02s)
+- Time settings configured (fixed timestep 0.02s, max timestep 0.1s)
+- Quality settings configured (Low/Medium/High, VSync off, target 60+ FPS)
+- Input Manager with standard axes
+
+---
+
 ## [Unreleased]
 
 ### Planned (Phase 1)
