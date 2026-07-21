@@ -9,7 +9,7 @@
 | **Document ID** | `DOC-017` |
 | **Version** | `1.0.0` |
 | **Status** | `ACTIVE` |
-| **Author** | Nihaal Gharat |
+| **Author** | Nihaal Gharat (Lead Software Architect), Bhavya Damani (Co-Developer) |
 | **Effective Date** | 2026-07-20 |
 | **Authority** | Derived from [00_PROJECT_CHARTER.md](00_PROJECT_CHARTER.md) |
 
@@ -2691,7 +2691,7 @@ All major systems communicate through interfaces, making it easy to:
 |:---------|:------|
 | Document ID | DOC-017 |
 | Version | 1.0.0 |
-| Author | Nihaal Gharat |
+| Author | Nihaal Gharat (Lead Software Architect), Bhavya Damani (Co-Developer) |
 | Created | 2026-07-20 |
 | Last Modified | 2026-07-20 |
 | Next Review | Before Phase 1 implementation |

@@ -5,12 +5,19 @@ type: software
 authors:
   - name: "Nihaal Gharat"
     orcid: ""
+    role: "Project Founder & Lead Software Architect"
+  - name: "Bhavya Damani"
+    orcid: ""
+    role: "Co-Developer & Unity Developer"
 repository-code: "https://github.com/NihaalGharat/ADRL-Rescue"
 license: MIT
 preferred-citation:
   type: software
   title: "ADRL-Rescue: Autonomous Disaster Response Drone using Reinforcement Learning"
-  author:
+  authors:
     - name: "Nihaal Gharat"
+      role: "Project Founder & Lead Software Architect"
+    - name: "Bhavya Damani"
+      role: "Co-Developer & Unity Developer"
   year: 2026
   url: "https://github.com/NihaalGharat/ADRL-Rescue"

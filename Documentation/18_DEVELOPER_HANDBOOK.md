@@ -9,7 +9,7 @@
 | **Document ID** | `DOC-018` |
 | **Version** | `1.0.0` |
 | **Status** | `ACTIVE` |
-| **Author** | Nihaal Gharat |
+| **Author** | Nihaal Gharat (Project Founder), Bhavya Damani (Co-Developer) |
 | **Effective Date** | 2026-07-20 |
 | **Authority** | Derived from [00_PROJECT_CHARTER.md](00_PROJECT_CHARTER.md) |
 

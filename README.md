@@ -304,7 +304,7 @@ If you use this project in your research, please cite:
 
 ```bibtex
 @software{gharat2026adrl,
-  author = {Nihaal Gharat},
+  author = {Nihaal Gharat and Bhavya Damani},
   title = {ADRL-Rescue: Autonomous Disaster Response Drone using Reinforcement Learning},
   year = {2026},
   version = {0.1.0},
@@ -322,11 +322,23 @@ If you use this project in your research, please cite:
 
 ---
 
+## Authors
+
+| Name | Role | GitHub |
+|:-----|:-----|:-------|
+| **Nihaal Gharat** | Project Founder & Lead Software Architect | [NihaalGharat](https://github.com/NihaalGharat) |
+| **Bhavya Damani** | Co-Developer & Unity Developer | [Bhavya031205](https://github.com/Bhavya031205) |
+
+---
+
 ## Contact
 
-**Nihaal Gharat**
+**Nihaal Gharat** — Project Founder
 - GitHub: [NihaalGharat](https://github.com/NihaalGharat)
 - Project: [ADRL-Rescue](https://github.com/NihaalGharat/ADRL-Rescue)
+
+**Bhavya Damani** — Co-Developer
+- GitHub: [Bhavya031205](https://github.com/Bhavya031205)
 
 ---
 

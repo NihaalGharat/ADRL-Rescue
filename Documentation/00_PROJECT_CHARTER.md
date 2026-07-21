@@ -66,7 +66,7 @@
 | **Full Name** | Adaptive Autonomous Disaster Response Drone using Reinforcement Learning |
 | **Tagline** | *The drone does not follow paths. It learns to find them.* |
 | **Repository** | [github.com/NihaalGharat/ADRL-Rescue](https://github.com/NihaalGharat/ADRL-Rescue) |
-| **Author** | Nihaal Gharat |
+| **Author** | Nihaal Gharat (Project Founder), Bhavya Damani (Co-Developer) |
 | **Current Version** | `0.1.0` |
 | **Project Status** | 🟡 Foundation Phase |
 | **License** | MIT License |
@@ -1557,7 +1557,7 @@ These principles guide every architectural and implementation decision in the pr
 |:---------|:------|
 | Document ID | DOC-000 |
 | Version | 1.0.0 |
-| Author | Nihaal Gharat |
+| Author | Nihaal Gharat (Project Founder), Bhavya Damani (Co-Developer) |
 | Created | 2026-07-20 |
 | Last Modified | 2026-07-20 |
 | Next Review | v1.0.0 Release |
