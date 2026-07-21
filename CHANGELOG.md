@@ -67,6 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Phase 2.1 — Unity Foundation
+
 - Unity project foundation initialized
 - ProjectVersion.txt configured for Unity 2022.3.62f1 LTS
 - Package manifest with approved packages:
@@ -80,6 +82,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Time settings configured (fixed timestep 0.02s, max timestep 0.1s)
 - Quality settings configured (Low/Medium/High, VSync off, target 60+ FPS)
 - Input Manager with standard axes
+
+#### Phase 2.2 — Project Structure & Assembly Definitions
+
+- Folder hierarchy established under `Assets/ADRL/`
+- Assembly Definitions created:
+  - ADRL.Core (no dependencies)
+  - ADRL.Drone (depends on Core)
+  - ADRL.AI (depends on Core, Drone)
+  - ADRL.Environment (depends on Core)
+  - ADRL.Sensors (depends on Core)
+  - ADRL.Training (depends on Core, Drone, AI, Environment, Sensors)
+  - ADRL.UI (depends on Core)
+  - ADRL.Editor (depends on all, Editor-only)
+- Namespace Guide created (`Documentation/NAMESPACE_GUIDE.md`)
+- No circular dependencies
+- Clean dependency tree established
 
 ---
 

@@ -1,0 +1,17 @@
+{
+    "name": "ADRL.AI",
+    "rootNamespace": "ADRL.AI",
+    "references": [
+        "ADRL.Core",
+        "ADRL.Drone"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

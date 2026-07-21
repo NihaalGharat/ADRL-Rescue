@@ -1,0 +1,20 @@
+{
+    "name": "ADRL.Training",
+    "rootNamespace": "ADRL.Training",
+    "references": [
+        "ADRL.Core",
+        "ADRL.Drone",
+        "ADRL.AI",
+        "ADRL.Environment",
+        "ADRL.Sensors"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

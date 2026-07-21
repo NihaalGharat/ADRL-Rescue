@@ -1,0 +1,24 @@
+{
+    "name": "ADRL.Editor",
+    "rootNamespace": "ADRL.Editor",
+    "references": [
+        "ADRL.Core",
+        "ADRL.Drone",
+        "ADRL.AI",
+        "ADRL.Environment",
+        "ADRL.Sensors",
+        "ADRL.Training",
+        "ADRL.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
