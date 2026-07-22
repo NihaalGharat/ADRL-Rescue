@@ -1,8 +1,8 @@
 # ADRL-Rescue Namespace Guide
 
-**Version:** 1.0  
-**Phase:** 2.2 — Project Structure & Assembly Definitions  
-**Date:** 22/07/2026
+**Version:** 1.1  
+**Phase:** 5.0 — Environment Framework  
+**Date:** 23/07/2026
 
 ---
 
@@ -28,6 +28,7 @@ ADRL.Drone
 ├── ADRL.Drone.Behaviours
 ├── ADRL.Drone.Components
 ├── ADRL.Drone.Controllers
+├── ADRL.Drone.Events
 ├── ADRL.Drone.Interfaces
 ├── ADRL.Drone.Navigation
 └── ADRL.Drone.Physics
@@ -40,12 +41,15 @@ ADRL.AI
 └── ADRL.AI.Training
 
 ADRL.Environment
+├── ADRL.Environment.Core
+├── ADRL.Environment.Events
 ├── ADRL.Environment.Hazards
+├── ADRL.Environment.Interfaces
 ├── ADRL.Environment.Obstacles
 ├── ADRL.Environment.Procedural
+├── ADRL.Environment.Spawning
 ├── ADRL.Environment.Terrain
-├── ADRL.Environment.Victims
-└── ADRL.Environment.Spawning
+└── ADRL.Environment.Victims
 
 ADRL.Sensors
 ├── ADRL.Sensors.Detection
@@ -275,14 +279,29 @@ namespace ADRL.AI.Policies
 
 ### Environment System
 ```csharp
-namespace ADRL.Environment.Terrain
+namespace ADRL.Environment.Core
 {
-    public class TerrainGenerator { }
+    public class EnvironmentManager { }
+}
+
+namespace ADRL.Environment.Interfaces
+{
+    public interface IEnvironmentObject { }
+}
+
+namespace ADRL.Environment.Victims
+{
+    public class Victim { }
+}
+
+namespace ADRL.Environment.Hazards
+{
+    public class Hazard { }
 }
 
 namespace ADRL.Environment.Spawning
 {
-    public class VictimSpawner { }
+    public class SpawnManager { }
 }
 ```
 

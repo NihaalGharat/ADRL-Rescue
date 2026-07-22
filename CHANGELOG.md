@@ -132,33 +132,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated NAMESPACE_GUIDE.md with new `ADRL.Core.Resources` namespace entry
 - No existing public APIs broken — fully backward compatible
 
-### Planned (Phase 1)
+### Phase 4.0 — Modular Drone Framework (2026-07-23)
 
-- Basic drone physics
-- Flight controller
-- Core managers (GameManager, EpisodeManager, ConfigurationManager)
+- **DroneController** — MonoBehaviour orchestrator composing IMotor, DroneHealth, DroneEnergy, DroneStateMachine via method injection
+- **DroneState** — Typed enum: Uninitialized, Initializing, Idle, Active, Paused, Emergency, Disabled, Destroyed
+- **DroneStateMachine** — Dictionary-based valid transition graph with `TryTransitionTo` and `CanTransitionTo`; publishes `DroneStateChangedEvent` on transitions
+- **DroneMotor** — IMotor implementation with `Move`, `Rotate`, `Stop`, `EmergencyStop`; config-driven (MaxSpeed, RotationSpeed)
+- **DroneHealth** — Damage/repair system; publishes `DroneDamagedEvent`, `DroneDestroyedEvent`; reads MaxHealth, CollisionDamage from `DroneConfig`
+- **DroneEnergy** — Battery system with `Consume`, `Recharge`, threshold detection; publishes `BatteryLowEvent`, `BatteryCriticalEvent`; reads MaxEnergy, EnergyDrainRate from `DroneConfig`
+- **IMotor** — Motor interface for decoupled movement (future physics implementations)
+- **INavigationSystem**, **IPathProvider**, **INavigationTarget** — Navigation interfaces for future pathfinding/obstacle avoidance
+- **5 new events** in `ADRL.Drone.Events`: `DroneActivatedEvent`, `DroneStateChangedEvent`, `BatteryLowEvent`, `BatteryCriticalEvent`, `EmergencyStopEvent`
+- **Energy drain** tracked in DroneController.Update() — triggers EmergencyStop when depleted
+- **Thread-safe drone ID generation** via `Interlocked.Increment`
+- All code in ADRL.Drone assembly (`ADRL.Drone.Controllers`, `ADRL.Drone.Components`, `ADRL.Drone.Interfaces`, `ADRL.Drone.Events` namespaces)
+- Zero changes to ADRL.Core, GameBootstrap, Bootstrapper, EventBus, or ConfigRegistry
+- Zero AI, zero physics, zero ML-Agent — fully decoupled for future milestones
+- Removed 3 `.gitkeep` files from directories that now contain implementation scripts
 
-### Planned (Phase 2)
+### Phase 5.0 — Environment Framework (2026-07-23)
 
-- Ray sensor implementation
-- Thermal sensor implementation
-- Vision sensor implementation
-- Collision detection system
-- ML-Agents integration
-
-### Planned (Phase 4)
-
-- Reward system implementation
-- PPO training pipeline
-- TensorBoard integration
-- ONNX model export
-
-### Planned (Phase 5)
-
-- HUD implementation
-- Debug overlay
-- Performance optimization
-- Final documentation
+- **EnvironmentManager** — MonoBehaviour orchestrator with EnvironmentState lifecycle (Uninitialized → Initializing → Ready → Running → Resetting → Completed/Failed); method injection of EventBus; reads EnvironmentConfig from ResourceLocator
+- **EnvironmentState** — Typed enum: Uninitialized, Initializing, Ready, Running, Resetting, Completed, Failed
+- **IEnvironmentObject** — Interface contract for environment entities supporting Initialize, Reset, Cleanup, Id
+- **ISpawnable** — Interface for spawnable entities with OnSpawned callback
+- **SpawnPoint** — MonoBehaviour with category, position, rotation for placement
+- **SpawnManager** — Category-based spawn point registry with random selection and query
+- **Victim** — MonoBehaviour implementing IEnvironmentObject with VictimState (Unknown/Waiting/Detected/Rescued/Lost), ID, and discovery lifecycle
+- **VictimState** — Typed enum: Unknown, Waiting, Detected, Rescued, Lost
+- **Hazard** — MonoBehaviour implementing IEnvironmentObject with HazardType, active state, ID
+- **HazardType** — Typed enum: Fire, Smoke, Chemical, Structural, Electrical, Debris
+- **HazardManager** — Plain C# registry tracking hazards with reset, clear, active count
+- **4 new events** in `ADRL.Environment.Events`: `EnvironmentInitializedEvent`, `EnvironmentResetEvent`, `VictimRegisteredEvent`, `HazardRegisteredEvent`
+- **Auto-registration** — `EnvironmentManager.Initialize` discovers existing victims, hazards, and spawn points in the scene
+- **Zero new configs** — reuses existing `EnvironmentConfig` from ADRL.Core.Configuration
+- **Zero new asmdefs** — reuses existing `ADRL.Environment.asmdef` (references ADRL.Core)
+- All code in ADRL.Environment assembly (`ADRL.Environment.Core`, `ADRL.Environment.Interfaces`, `ADRL.Environment.Spawning`, `ADRL.Environment.Victims`, `ADRL.Environment.Hazards`, `ADRL.Environment.Events` namespaces)
+- Zero changes to ADRL.Core, ADRL.Drone, GameBootstrap, Bootstrapper, EventBus, or ConfigRegistry
+- Zero AI, zero physics, zero ML-Agent, zero procedural generation — fully decoupled
+- Removed 3 `.gitkeep` files from directories that now contain implementation scripts
 
 ---
 
@@ -167,9 +179,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | Version | Phase | Description |
 |---------|-------|-------------|
 | v0.1.0 | Foundation | Repository architecture and documentation |
-| v0.2.0 | Unity Foundation | Core managers, drone physics, basic flight |
-| v0.3.0 | Sensors & AI | Sensor implementations, ML-Agents integration |
-| v0.4.0 | Environment | Procedural generation, disaster types |
+| v0.2.0 | Unity Foundation | Core framework, resource management, drone framework |
+| v0.3.0 | Environment | Environment framework, disaster types |
+| v0.4.0 | Sensors & AI | Sensor implementations, ML-Agents integration |
 | v0.5.0 | Training | Reward system, PPO training pipeline |
 | v0.6.0 | Polish | UI, performance, final documentation |
 | v1.0.0 | Release | Full stable release |
