@@ -330,18 +330,32 @@ namespace ADRL.AI.Agents
 
 ### Event Pattern
 
-Use events from ADRL.Core.Events:
+Use EventBus from ADRL.Core.Events:
 
 ```csharp
-namespace ADRL.Core.Events
+namespace ADRL.Drone.Controllers
 {
-    public static class GameEvents
+    using ADRL.Core.Events;
+
+    public class DroneController : MonoBehaviour
     {
-        public static event System.Action OnGameStarted;
-        public static event System.Action OnGameEnded;
-        
-        public static void StartGame() => OnGameStarted?.Invoke();
-        public static void EndGame() => OnGameEnded?.Invoke();
+        private EventBus _eventBus;
+
+        private void Start()
+        {
+            _eventBus = GameBootstrap.EventBus;
+            _eventBus.Subscribe<SimulationStartedEvent>(OnSimulationStarted);
+        }
+
+        private void OnDestroy()
+        {
+            _eventBus?.Unsubscribe<SimulationStartedEvent>(OnSimulationStarted);
+        }
+
+        private void OnSimulationStarted(SimulationStartedEvent eventData)
+        {
+            // Handle simulation start
+        }
     }
 }
 ```

@@ -103,6 +103,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 2.3 — Core Framework & Configuration System (2026-07-22)
+
+- **Bootstrap System** — `GameBootstrap` initialization pipeline + `Bootstrapper` MonoBehaviour entry point
+- **Configuration Framework** — 8 ScriptableObject configs (Project, Runtime, Simulation, Drone, Environment, Sensor, Reward, Training)
+- **Event Framework** — Typed `EventBus` with 15 event types for simulation lifecycle, drone state, and victim events
+- **Service Layer** — `IService` interface + instance-based `ServiceLocator` registry
+- **Simulation Framework** — `SimulationManager` state machine with episode lifecycle and pause/resume support
+- **Utility Library** — `Logger` (structured, level-based), `MathExtensions` (remap, clamp, vector helpers), `UnityExtensions` (GetOrAddComponent, DestroyChildren, SetLayerRecursively)
+- All configs use `[CreateAssetMenu]` for inspector creation
+- All code follows namespace conventions documented in NAMESPACE_GUIDE
+- Updated NAMESPACE_GUIDE.md Event Pattern section to reference EventBus
+- Removed 6 `.gitkeep` files from directories that now contain implementation scripts
+
 ### Planned (Phase 1)
 
 - Basic drone physics
