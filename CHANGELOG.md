@@ -116,6 +116,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated NAMESPACE_GUIDE.md Event Pattern section to reference EventBus
 - Removed 6 `.gitkeep` files from directories that now contain implementation scripts
 
+### Phase 3.0 — Runtime Asset & Resource Management Framework (2026-07-23)
+
+- **ConfigRegistry** — Type-safe registry for all 8 ScriptableObject configs with runtime lookup (`Get<T>`, `TryGet<T>`)
+- **PrefabRegistry** — Metadata registry for future prefabs organized by category (Drone, Victim, Environment, Obstacle, Hazard, Effects, UI)
+- **RuntimeAssetCache** — Generic caching layer (`Dictionary<string, object>`) preventing duplicate `Resources.Load` calls
+- **AssetProvider** — Static utility wrapping `Resources.Load<T>` with cache integration (`Load`, `TryLoad`, `Exists`, `Unload`, `UnloadAll`)
+- **AssetValidation** — `ValidationResult`-based validation for configs and prefabs during bootstrap (non-fatal, never crashes)
+- **ResourceLocator** — Static accessor providing centralized access to ConfigRegistry, PrefabRegistry, and RuntimeAssetCache
+- **Editor Validation Tools** — 3 menu items under `Tools/ADRL/`: Validate Project, Validate Configurations, Validate References
+- **Editor Menu Items** — Quick-access documentation links (Namespace Guide, Developer Handbook)
+- **Bootstrap Integration** — `GameBootstrap.Initialize` extended with 5 optional config params; `Bootstrapper` gets serialized fields for all 8 configs
+- All runtime code in ADRL.Core assembly (`ADRL.Core.Resources` namespace)
+- All editor code in ADRL.Editor assembly (`ADRL.Editor.Validation` namespace)
+- Updated NAMESPACE_GUIDE.md with new `ADRL.Core.Resources` namespace entry
+- No existing public APIs broken — fully backward compatible
+
 ### Planned (Phase 1)
 
 - Basic drone physics
@@ -129,14 +145,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vision sensor implementation
 - Collision detection system
 - ML-Agents integration
-
-### Planned (Phase 3)
-
-- Procedural terrain generation
-- Building placement system
-- Obstacle spawning
-- Victim system
-- Disaster environments (Earthquake, Flood, Landslide, Collapse)
 
 ### Planned (Phase 4)
 

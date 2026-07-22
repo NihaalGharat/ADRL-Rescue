@@ -19,6 +19,7 @@ ADRL.Core
 ├── ADRL.Core.Bootstrap
 ├── ADRL.Core.Configuration
 ├── ADRL.Core.Events
+├── ADRL.Core.Resources
 ├── ADRL.Core.Services
 ├── ADRL.Core.Simulation
 └── ADRL.Core.Utilities
@@ -58,6 +59,7 @@ ADRL.Training
 ADRL.UI
 
 ADRL.Editor
+└── ADRL.Editor.Validation
 ```
 
 ---

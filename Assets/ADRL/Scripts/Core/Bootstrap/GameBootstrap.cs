@@ -2,6 +2,7 @@ namespace ADRL.Core.Bootstrap
 {
     using ADRL.Core.Configuration;
     using ADRL.Core.Events;
+    using ADRL.Core.Resources;
     using ADRL.Core.Services;
     using ADRL.Core.Simulation;
 
@@ -20,7 +21,12 @@ namespace ADRL.Core.Bootstrap
         public static void Initialize(
             ProjectConfig projectConfig,
             RuntimeConfig runtimeConfig,
-            SimulationConfig simulationConfig)
+            SimulationConfig simulationConfig,
+            DroneConfig droneConfig = null,
+            EnvironmentConfig environmentConfig = null,
+            SensorConfig sensorConfig = null,
+            RewardConfig rewardConfig = null,
+            TrainingConfig trainingConfig = null)
         {
             if (_initialized)
                 return;
@@ -32,7 +38,13 @@ namespace ADRL.Core.Bootstrap
             EventBus = new EventBus();
             Services = new ServiceLocator();
 
+            ResourceLocator.Initialize();
+            RegisterAllConfigs(droneConfig, environmentConfig, sensorConfig, rewardConfig, trainingConfig);
+
             ApplyRuntimeSettings();
+
+            var validationResult = AssetValidation.ValidateAll(ResourceLocator.Configs, ResourceLocator.Prefabs);
+            AssetValidation.LogResults(validationResult);
 
             Simulation = SimulationManager.CreateInstance(simulationConfig);
             Simulation.Initialize(EventBus);
@@ -42,6 +54,35 @@ namespace ADRL.Core.Bootstrap
             EventBus.Publish(new BootstrapCompletedEvent());
 
             _initialized = true;
+        }
+
+        private static void RegisterAllConfigs(
+            DroneConfig droneConfig,
+            EnvironmentConfig environmentConfig,
+            SensorConfig sensorConfig,
+            RewardConfig rewardConfig,
+            TrainingConfig trainingConfig)
+        {
+            var registry = ResourceLocator.Configs;
+
+            registry.Register(ProjectConfig);
+            registry.Register(RuntimeConfig);
+            registry.Register(SimulationConfig);
+
+            if (droneConfig != null)
+                registry.Register(droneConfig);
+
+            if (environmentConfig != null)
+                registry.Register(environmentConfig);
+
+            if (sensorConfig != null)
+                registry.Register(sensorConfig);
+
+            if (rewardConfig != null)
+                registry.Register(rewardConfig);
+
+            if (trainingConfig != null)
+                registry.Register(trainingConfig);
         }
 
         private static void ApplyRuntimeSettings()
