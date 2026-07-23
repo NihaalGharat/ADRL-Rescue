@@ -106,6 +106,8 @@ namespace ADRL.Environment.Procedural
             public float MinSpacing { get; set; }
 
             public int TotalGenerated { get; set; }
+
+            public List<Vector3> PlacedPositions { get; set; } = new();
         }
     }
 }

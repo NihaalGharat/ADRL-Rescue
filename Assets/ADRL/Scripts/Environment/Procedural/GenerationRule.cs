@@ -1,8 +1,9 @@
 namespace ADRL.Environment.Procedural
 {
+    using ADRL.Environment.Procedural.Rules;
     using UnityEngine;
 
-    public abstract class GenerationRule
+    public abstract class GenerationRule : IGenerationRule
     {
         private string _name = "Generation Rule";
         private bool _enabled = true;

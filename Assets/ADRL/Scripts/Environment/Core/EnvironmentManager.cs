@@ -10,6 +10,7 @@ namespace ADRL.Environment.Core
     using ADRL.Environment.Victims;
     using ADRL.Environment.Obstacles;
     using ADRL.Environment.Procedural;
+    using ADRL.Environment.Procedural.Rules;
     using ADRL.Environment.WorldObjects;
     using UnityEngine;
 
@@ -169,6 +170,11 @@ namespace ADRL.Environment.Core
 
             _proceduralGenerator = new ProceduralGenerator();
             _proceduralGenerator.Initialize(settings);
+
+            _proceduralGenerator.AddRule(new VictimGenerationRule(this));
+            _proceduralGenerator.AddRule(new HazardGenerationRule(_hazardManager));
+            _proceduralGenerator.AddRule(new ObstacleGenerationRule(_obstacleManager));
+
             _proceduralGenerator.Generate(_worldObjectRegistry);
         }
 

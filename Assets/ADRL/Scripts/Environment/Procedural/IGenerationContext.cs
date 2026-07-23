@@ -1,5 +1,6 @@
 namespace ADRL.Environment.Procedural
 {
+    using System.Collections.Generic;
     using ADRL.Environment.WorldObjects;
     using UnityEngine;
 
@@ -15,6 +16,8 @@ namespace ADRL.Environment.Procedural
 
         float MinSpacing { get; }
 
-        int TotalGenerated { get; }
+        int TotalGenerated { get; set; }
+
+        List<Vector3> PlacedPositions { get; }
     }
 }

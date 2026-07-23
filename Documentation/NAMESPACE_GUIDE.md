@@ -1,7 +1,7 @@
 # ADRL-Rescue Namespace Guide
 
-**Version:** 1.4  
-**Phase:** 5.3 — Procedural Environment Foundation  
+**Version:** 1.5  
+**Phase:** 5.4 — Concrete Procedural Generation Rules  
 **Date:** 23/07/2026
 
 ---
@@ -47,6 +47,7 @@ ADRL.Environment
 ├── ADRL.Environment.Interfaces
 ├── ADRL.Environment.Obstacles
 ├── ADRL.Environment.Procedural
+│   └── ADRL.Environment.Procedural.Rules
 ├── ADRL.Environment.Spawning
 ├── ADRL.Environment.Terrain
 ├── ADRL.Environment.Validation
@@ -330,6 +331,15 @@ namespace ADRL.Environment.Procedural
     public class GenerationSettings { }
     public abstract class GenerationRule { }
     public interface IGenerationContext { }
+    public static class PlacementUtility { }
+}
+
+namespace ADRL.Environment.Procedural.Rules
+{
+    public interface IGenerationRule { }
+    public class VictimGenerationRule { }
+    public class HazardGenerationRule { }
+    public class ObstacleGenerationRule { }
 }
 ```
 

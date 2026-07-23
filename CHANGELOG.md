@@ -215,6 +215,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 5 new files across existing directory (`Procedural/`)
 - Removed `.gitkeep` from Procedural directory
 
+### Phase 5.4 — Concrete Procedural Generation Rules (2026-07-23)
+
+- **IGenerationRule** — Interface in `ADRL.Environment.Procedural.Rules` providing Name, Enabled, Priority, MaxCount, and Generate(IGenerationContext); enables non-abstract rule implementations and test mocking
+- **GenerationRule implements IGenerationRule** — Existing abstract base class now implements the interface; fully backward compatible, zero behavior change
+- **IGenerationContext extended** — Added `PlacedPositions` (`List<Vector3>`) for cross-category minimum spacing enforcement across rules; added `TotalGenerated` setter for per-rule tracking
+- **PlacementUtility** — Static utility in `ADRL.Environment.Procedural` for shared placement logic: `GetRandomPositionInBounds`, `HasMinimumSpacing` (checks registry + placed positions), `TryFindValidPosition` (retry loop); eliminates duplicate algorithms across rules
+- **VictimGenerationRule** — Concrete rule (Priority 3) generating victims within bounds using EnvironmentConfig MinVictims/MaxVictims; prefab loaded via ResourceLocator.Prefabs + AssetProvider; registers through EnvironmentManager.RegisterVictim
+- **HazardGenerationRule** — Concrete rule (Priority 2) generating hazards using EnvironmentConfig.HazardDensity; assigns random HazardType; registers through HazardManager
+- **ObstacleGenerationRule** — Concrete rule (Priority 1) generating obstacles using EnvironmentConfig MinObstacles/MaxObstacles; assigns random ObstacleType (skips Unknown); registers through ObstacleManager.RegisterObstacle (which uses WorldObjectRegistry)
+- **Deterministic generation order** — Victims → Hazards → Obstacles; all rules use System.Random from IGenerationContext for seed-reproducible output
+- **EnvironmentManager integration** — InitializeProceduralGenerator creates and adds all three rules with explicit constructor dependencies (no singletons)
+- **ResourceLocator pattern** — All rules load prefabs via `ResourceLocator.Prefabs.TryGetPath` + `AssetProvider.Load<GameObject>`; gracefully return 0 when prefabs not registered
+- Zero changes to ADRL.Core, ADRL.Drone, ADRL.AI, ADRL.Sensors, ADRL.Training
+- Zero AI, zero physics, zero ML-Agent — fully decoupled generation rules
+- 5 new files across 1 new directory (`Procedural/Rules/`)
+- 4 existing files modified (GenerationRule, IGenerationContext, ProceduralGenerator, EnvironmentManager)
+
 ---
 
 ## Version Roadmap
