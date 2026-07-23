@@ -179,6 +179,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Method decomposition** — Extracted `CreateTerrainData()`, `CreateTerrainGameObject()`, `ValidateSettings()`, `CleanupTerrainData()` from `Generate()` for readability and testability
 - No API breaking changes, no new assemblies, no new namespaces, no new dependencies
 
+### Phase 3.3 — Procedural Heightmap Generation (2026-07-23)
+
+- **IHeightmapGenerator** — Interface in `ADRL.Environment.Terrain` with single `Generate(TerrainSettings, int seed, int resolution) → float[,]`; pure height computation, no Unity Terrain, no events, no lifecycle
+- **HeightmapGenerator** — fBM (fractal Brownian motion) implementation using multi-octave Perlin noise; configurable Octaves, Persistence, Lacunarity; deterministic (same seed + settings → identical heightmap); falls back to single-octave Perlin when `UseFractalNoise = false`
+- **TerrainSettings** — Extended with 5 new `[SerializeField]` fields: Octaves (4), Persistence (0.5), Lacunarity (2), HeightMultiplier (1), UseFractalNoise (true); all with inspector validation
+- **TerrainGenerator** — Added `HeightmapGenerator` property (IHeightmapGenerator); delegates heightmap generation to interface, defaults to `HeightmapGenerator` if not set; removed inline Perlin noise code
+- **EnvironmentManager** — Wires `HeightmapGenerator = new HeightmapGenerator()` into TerrainGenerator during initialization
+- All new code in ADRL.Environment.Terrain namespace (IHeightmapGenerator, HeightmapGenerator)
+- Zero new assemblies, zero namespace changes, zero event changes, zero breaking API changes
+- Zero terrain textures, materials, biomes, vegetation, water, erosion, disasters, victims, obstacles, navigation, ML-Agent, drone, or sensor changes
+
 ### Phase 4.0 — Modular Drone Framework (2026-07-23)
 
 - **DroneController** — MonoBehaviour orchestrator composing IMotor, DroneHealth, DroneEnergy, DroneStateMachine via method injection

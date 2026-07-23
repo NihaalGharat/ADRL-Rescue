@@ -6,8 +6,6 @@ namespace ADRL.Environment.Terrain
 
     public class TerrainGenerator
     {
-        private const float SeedOffsetMultiplier = 0.1f;
-        private const float SeedOffsetSeparator = 1000f;
         private const float TerrainCenterFactor = 0.5f;
 
         private TerrainSettings _settings;
@@ -22,6 +20,8 @@ namespace ADRL.Environment.Terrain
         public TerrainSettings Settings => _settings;
 
         public bool IsGenerated { get; private set; }
+
+        public IHeightmapGenerator HeightmapGenerator { get; set; }
 
         public void Initialize(TerrainSettings settings)
         {
@@ -142,22 +142,8 @@ namespace ADRL.Environment.Terrain
         private void GenerateHeightmap()
         {
             var resolution = _terrainData.heightmapResolution;
-            var heights = new float[resolution, resolution];
-            var noiseScale = _settings.NoiseScale;
-            var combinedOffset = _activeSeed + _settings.SeedOffset;
-            var offsetX = combinedOffset * SeedOffsetMultiplier;
-            var offsetZ = combinedOffset * SeedOffsetMultiplier + SeedOffsetSeparator;
-
-            for (var z = 0; z < resolution; z++)
-            {
-                for (var x = 0; x < resolution; x++)
-                {
-                    var nx = x * noiseScale + offsetX;
-                    var nz = z * noiseScale + offsetZ;
-                    heights[z, x] = Mathf.PerlinNoise(nx, nz);
-                }
-            }
-
+            var generator = HeightmapGenerator ?? new HeightmapGenerator();
+            var heights = generator.Generate(_settings, _activeSeed, resolution);
             _terrainData.SetHeights(0, 0, heights);
         }
 

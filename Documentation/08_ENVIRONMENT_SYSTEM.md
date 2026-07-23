@@ -91,17 +91,49 @@ ScriptableObject (`[CreateAssetMenu]`) for terrain-level configuration:
 | HeightScale | float | 50 | Maximum terrain height |
 | NoiseScale | float | 0.02 | Perlin noise frequency |
 | SeedOffset | int | 0 | Additional seed displacement |
+| Octaves | int | 4 | Number of fBM octaves |
+| Persistence | float | 0.5 | Amplitude multiplier per octave |
+| Lacunarity | float | 2 | Frequency multiplier per octave |
+| HeightMultiplier | float | 1 | Post-generation height scaling factor |
+| UseFractalNoise | bool | true | Enable multi-octave fBM (false = single octave) |
 | AutoGenerate | bool | true | Generate terrain during initialization |
+
+### IHeightmapGenerator
+
+Interface (`ADRL.Environment.Terrain`) for heightmap generation algorithms:
+
+| Method | Description |
+|--------|-------------|
+| Generate(TerrainSettings, int seed, int resolution) | Returns normalized float[,] heightmap |
+
+Pure height computation: no Unity Terrain objects, no GameObjects, no events, no lifecycle.
+
+### HeightmapGenerator
+
+Default implementation of IHeightmapGenerator using **fractal Brownian motion (fBM)** via multi-octave Perlin noise:
+
+```
+for each octave:
+    frequency *= lacunarity
+    amplitude *= persistence
+    noiseValue += amplitude * PerlinNoise(x * frequency, z * frequency)
+```
+
+- Output clamped to [0, 1], then multiplied by HeightMultiplier
+- Fully deterministic: identical settings + seed → identical heightmap
+- Falls back to single-octave Perlin noise when UseFractalNoise = false
+- Stateless: no references, no cleanup required
 
 ### TerrainGenerator
 
 Concrete generator class (`ADRL.Environment.Terrain`) with deterministic heightmap generation:
 
-| Method | Description |
+| Member | Description |
 |--------|-------------|
 | Initialize(TerrainSettings) | Configure generator with settings |
-| Generate(int seed, EventBus) | Create Unity Terrain with Perlin noise heightmap; publishes terrain events |
+| Generate(int seed, EventBus) | Create Unity Terrain with heightmap; publishes terrain events |
 | Reset() | Destroy and release generated terrain |
+| HeightmapGenerator (property) | IHeightmapGenerator instance; defaults to HeightmapGenerator if not set |
 
 **Generation pipeline:**
 
@@ -110,17 +142,19 @@ EnvironmentBootstrap.Boot()
     ↓
 EnvironmentManager.Initialize()
     ↓
-InitializeTerrainGenerator()     ← NEW: terrain generated before objects
+InitializeTerrainGenerator()     ← terrain generated before objects
     ↓
 TerrainGenerator.Initialize()
     ↓
-Generate Heightmap (Perlin noise, seed from SeedManager)
+HeightmapGenerator.Generate()    ← fBM Perlin heightmap (IHeightmapGenerator)
+    ↓
+TerrainData.SetHeights()
     ↓
 Create Terrain GameObject (centered at origin)
     ↓
 Publish TerrainGeneratedEvent
     ↓
-InitializeProceduralGenerator()  ← existing: objects placed on terrain
+InitializeProceduralGenerator()  ← objects placed on terrain
 ```
 
 - Fully deterministic: identical seed + identical settings → identical terrain
@@ -369,4 +403,4 @@ stateDiagram-v2
 
 ---
 
-*Last updated: July 2026*
+*Last updated: July 2026 — Phase 3.3 (Procedural Heightmap Generation)*

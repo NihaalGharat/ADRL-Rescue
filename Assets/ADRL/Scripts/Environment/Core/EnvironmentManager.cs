@@ -168,7 +168,10 @@ namespace ADRL.Environment.Core
             if (settings == null)
                 return;
 
-            _terrainGenerator = new TerrainGenerator();
+            _terrainGenerator = new TerrainGenerator
+            {
+                HeightmapGenerator = new HeightmapGenerator()
+            };
             _terrainGenerator.Initialize(settings);
             _terrainGenerator.Generate(SeedManager.CurrentSeed, _eventBus);
 
