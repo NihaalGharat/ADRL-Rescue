@@ -232,6 +232,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 5 new files across 1 new directory (`Procedural/Rules/`)
 - 4 existing files modified (GenerationRule, IGenerationContext, ProceduralGenerator, EnvironmentManager)
 
+### Phase 5.5 — Scenario & Mission Profile Framework (2026-07-23)
+
+- **ScenarioType** — Extensible enum: Earthquake, UrbanFire, Flood, IndustrialAccident, ForestFire, Custom
+- **ScenarioDifficulty** — Extensible enum: Easy, Medium, Hard, Expert, Custom
+- **ScenarioState** — Lifecycle enum: Unloaded, Loaded, Starting, Running, Resetting, Completed, Failed, Unloading
+- **IScenario** — Interface contract: ScenarioId, ScenarioName, ScenarioType, Difficulty, Seed, Initialize(), Reset(), Validate()
+- **ScenarioProfile** — ScriptableObject with Metadata (name, description, author, version), Configuration references (EnvironmentConfig, GenerationSettings), Generation overrides (Seed, OverrideSeed, EnableProceduralGeneration), Count/Density overrides (VictimCount, HazardDensity, ObstacleCount), Mission settings (Duration, Success/Failure Thresholds), and Reserved fields (Weather, Lighting, TimeOfDay, Wind, DifficultyScaling); computed override methods (GetVictimCount, GetHazardDensity, GetObstacleCount, GetEffectiveSeed) return override value or fallback to EnvironmentConfig/GenerationSettings
+- **ScenarioManager** — MonoBehaviour orchestrator with method-injected EnvironmentManager and EventBus dependencies; lifecycle (Initialize → LoadScenario → StartScenario → Running → Complete/Fail → Reset → Unload); auto-fails on mission duration expiry via Update(); no singleton, no direct object generation — delegates entirely to EnvironmentManager; registers ScenarioProfile configs (EnvironmentConfig, GenerationSettings) in ConfigRegistry during LoadScenario for deterministic config override
+- **ScenarioValidator** — Static validation utility (WorldObjectValidator/ProceduralValidator pattern) with ValidateProfile, ValidateSeed, ValidateGenerationSettings, ValidateEnvironmentConfig, ValidateMissionSettings, ValidateAll — all returning `bool + out string message`; validates null references, seed negativity, spacing/attempt bounds, terrain size consistency, min/max ordering, mission threshold ranges; avoids exceptions for configuration errors
+- **ScenarioEvents** — 5 new event types in ADRL.Environment.Events implementing IEvent: `ScenarioLoadedEvent(scenarioId, scenarioName, scenarioType)`, `ScenarioStartedEvent(scenarioId)`, `ScenarioResetEvent(scenarioId)`, `ScenarioCompletedEvent(scenarioId, completionTime)`, `ScenarioFailedEvent(scenarioId, reason)`
+- **Config override via registration** — ScenarioManager registers ScenarioProfile's EnvironmentConfig and GenerationSettings in ConfigRegistry during LoadScenario; EnvironmentManager reads these overridden configs during its own Initialize(), creating a deterministic config pipeline: ScenarioProfile → ConfigRegistry → EnvironmentManager → ProceduralGenerator
+- Zero changes to existing Environment systems (EnvironmentManager, ProceduralGenerator, rules, events, validators)
+- Zero changes to ADRL.Core, ADRL.Drone, ADRL.AI, ADRL.Sensors, ADRL.Training
+- Zero AI, zero physics, zero ML-Agent — fully decoupled scenario framework
+- 8 new files across 2 new directories (`Scenarios/`, `Events/`)
+- 0 existing files modified
+
 ---
 
 ## Version Roadmap

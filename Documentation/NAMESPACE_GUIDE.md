@@ -1,7 +1,7 @@
 # ADRL-Rescue Namespace Guide
 
-**Version:** 1.5  
-**Phase:** 5.4 — Concrete Procedural Generation Rules  
+**Version:** 1.6  
+**Phase:** 5.5 — Scenario & Mission Profile Framework  
 **Date:** 23/07/2026
 
 ---
@@ -48,6 +48,7 @@ ADRL.Environment
 ├── ADRL.Environment.Obstacles
 ├── ADRL.Environment.Procedural
 │   └── ADRL.Environment.Procedural.Rules
+├── ADRL.Environment.Scenarios
 ├── ADRL.Environment.Spawning
 ├── ADRL.Environment.Terrain
 ├── ADRL.Environment.Validation
@@ -340,6 +341,17 @@ namespace ADRL.Environment.Procedural.Rules
     public class VictimGenerationRule { }
     public class HazardGenerationRule { }
     public class ObstacleGenerationRule { }
+}
+
+namespace ADRL.Environment.Scenarios
+{
+    public enum ScenarioType { }
+    public enum ScenarioDifficulty { }
+    public enum ScenarioState { }
+    public interface IScenario { }
+    public class ScenarioProfile { }
+    public class ScenarioManager { }
+    public static class ScenarioValidator { }
 }
 ```
 
