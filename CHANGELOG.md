@@ -172,6 +172,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zero AI, zero physics, zero ML-Agent, zero procedural generation — fully decoupled
 - Removed 3 `.gitkeep` files from directories that now contain implementation scripts
 
+### Phase 5.1 — Environment Expansion & World Object Framework (2026-07-23)
+
+- **IWorldObject** — Interface contract for all environment objects: Id, Category, IsActive, Initialize, Reset, Cleanup
+- **WorldObjectCategory** — Extensible enum: Unknown, Victim, Hazard, Obstacle, Resource, Landmark
+- **WorldObjectBase** — MonoBehaviour base component implementing IWorldObject with serialized ID/category, IsActive state, and virtual lifecycle hooks
+- **WorldObjectRegistry** — Instance-based (no singleton) registry with dual lookup (by ID and by category); supports Register, Unregister, GetById, GetByCategory, ResetAll, Clear
+- **3 new events** in `ADRL.Environment.Events`: `WorldObjectRegisteredEvent(id, category)`, `WorldObjectRemovedEvent(id, category)`, `WorldObjectResetEvent(id)`
+- **WorldObjectValidator** — Static utility for runtime/editor validation: ValidateId, ValidateCategory, CheckDuplicateRegistration, CheckMissingReferences
+- **EnvironmentManager integration** — Owns WorldObjectRegistry lifecycle: initializes in Initialize(), resets in ResetEnvironment(), cleans up in OnDestroy()
+- Zero changes to existing Environment systems (Victim, Hazard, Spawnpoint, or their managers)
+- Zero changes to ADRL.Core, ADRL.Drone, ADRL.AI, ADRL.Sensors, ADRL.Training
+- Zero AI, zero physics, zero ML-Agent, zero procedural generation
+- 6 new files across 2 new directories (`WorldObjects/`, `Validation/`)
+
+### Phase 5.2 — Obstacle & Environmental Object Framework (2026-07-23)
+
+- **ObstacleType** — Extensible enum: Unknown, Building, CollapsedStructure, Vehicle, Tree, Wall, Debris
+- **ObstacleState** — Lifecycle enum: Inactive, Active, Destroyed
+- **Obstacle** — MonoBehaviour extending WorldObjectBase with ObstacleType + ObstacleState; auto-sets WorldObjectCategory.Obstacle on init; extensible for physics/navigation
+- **ObstacleManager** — Instance-based manager using existing WorldObjectRegistry; typed registration, unregistration, and query methods (by type, by active, by destroyed)
+- **4 new events** in `ADRL.Environment.Events`: `ObstacleRegisteredEvent(id)`, `ObstacleRemovedEvent(id)`, `ObstacleActivatedEvent(id)`, `ObstacleDeactivatedEvent(id)`
+- **WorldObjectValidator extension** — Added `ValidateObstacleType()` method
+- **EnvironmentManager integration** — Owns ObstacleManager lifecycle; auto-discovers obstacles in scene; publishes ObstacleRegisteredEvent on registration
+- Zero changes to existing Environment systems (Victim, Hazard, Spawnpoint, WorldObject, or their managers)
+- Zero changes to ADRL.Core, ADRL.Drone, ADRL.AI, ADRL.Sensors, ADRL.Training
+- Zero AI, zero physics, zero ML-Agent, zero procedural generation
+- 5 new files across existing directories (`Obstacles/`, `Events/`)
+
 ---
 
 ## Version Roadmap

@@ -8,6 +8,8 @@ namespace ADRL.Environment.Core
     using ADRL.Environment.Hazards;
     using ADRL.Environment.Spawning;
     using ADRL.Environment.Victims;
+    using ADRL.Environment.Obstacles;
+    using ADRL.Environment.WorldObjects;
     using UnityEngine;
 
     public class EnvironmentManager : MonoBehaviour
@@ -16,12 +18,15 @@ namespace ADRL.Environment.Core
         private SpawnManager _spawnManager;
 
         private HazardManager _hazardManager;
+        private WorldObjectRegistry _worldObjectRegistry;
+        private ObstacleManager _obstacleManager;
         private EventBus _eventBus;
         private EnvironmentConfig _config;
         private EnvironmentState _state = EnvironmentState.Uninitialized;
         private readonly List<Victim> _victims = new();
         private int _nextVictimId = 1;
         private int _nextHazardId = 1;
+        private int _nextObstacleId = 1;
 
         public EnvironmentState State => _state;
 
@@ -30,6 +35,8 @@ namespace ADRL.Environment.Core
         public HazardManager HazardManager => _hazardManager;
 
         public SpawnManager SpawnManager => _spawnManager;
+
+        public ObstacleManager ObstacleManager => _obstacleManager;
 
         public void Initialize(EventBus eventBus)
         {
@@ -43,6 +50,8 @@ namespace ADRL.Environment.Core
             if (_hazardManager == null)
                 _hazardManager = new HazardManager();
 
+            InitializeWorldObjectRegistry();
+            InitializeObstacleManager();
             RegisterExistingObjects();
             _state = EnvironmentState.Ready;
             _eventBus.Publish(new EnvironmentInitializedEvent());
@@ -89,9 +98,12 @@ namespace ADRL.Environment.Core
                 _victims[i].Reset();
 
             _hazardManager.ResetAll();
+            _obstacleManager?.ResetAll();
+            _worldObjectRegistry?.ResetAll();
 
             _nextVictimId = 1;
             _nextHazardId = 1;
+            _nextObstacleId = 1;
             _state = EnvironmentState.Ready;
             _eventBus.Publish(new EnvironmentResetEvent());
         }
@@ -107,6 +119,36 @@ namespace ADRL.Environment.Core
         public void FailEnvironment()
         {
             _state = EnvironmentState.Failed;
+        }
+
+        private void InitializeWorldObjectRegistry()
+        {
+            _worldObjectRegistry = new WorldObjectRegistry();
+            _worldObjectRegistry.Initialize();
+        }
+
+        private void CleanupWorldObjectRegistry()
+        {
+            _worldObjectRegistry?.Clear();
+            _worldObjectRegistry = null;
+        }
+
+        private void InitializeObstacleManager()
+        {
+            _obstacleManager = new ObstacleManager();
+            _obstacleManager.Initialize(_worldObjectRegistry);
+        }
+
+        private void CleanupObstacleManager()
+        {
+            _obstacleManager?.Clear();
+            _obstacleManager = null;
+        }
+
+        private void OnDestroy()
+        {
+            CleanupObstacleManager();
+            CleanupWorldObjectRegistry();
         }
 
         private void RegisterExistingObjects()
@@ -132,6 +174,25 @@ namespace ADRL.Environment.Core
             {
                 _spawnManager?.RegisterSpawnPoint(spawnPoints[i]);
             }
+
+            var existingObstacles = FindObjectsByType<Obstacle>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+            for (var i = 0; i < existingObstacles.Length; i++)
+            {
+                RegisterObstacle(existingObstacles[i]);
+            }
+        }
+
+        private int RegisterObstacle(Obstacle obstacle)
+        {
+            if (obstacle == null)
+                return -1;
+
+            var obstacleId = _nextObstacleId++;
+            obstacle.SetId(obstacleId);
+            _obstacleManager?.RegisterObstacle(obstacle);
+            _eventBus.Publish(new ObstacleRegisteredEvent(obstacleId));
+            return obstacleId;
         }
     }
 }

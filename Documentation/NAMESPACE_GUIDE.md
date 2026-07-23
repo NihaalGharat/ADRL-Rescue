@@ -1,7 +1,7 @@
 # ADRL-Rescue Namespace Guide
 
-**Version:** 1.1  
-**Phase:** 5.0 — Environment Framework  
+**Version:** 1.3  
+**Phase:** 5.2 — Obstacle & Environmental Object Framework  
 **Date:** 23/07/2026
 
 ---
@@ -49,7 +49,9 @@ ADRL.Environment
 ├── ADRL.Environment.Procedural
 ├── ADRL.Environment.Spawning
 ├── ADRL.Environment.Terrain
-└── ADRL.Environment.Victims
+├── ADRL.Environment.Validation
+├── ADRL.Environment.Victims
+└── ADRL.Environment.WorldObjects
 
 ADRL.Sensors
 ├── ADRL.Sensors.Detection
@@ -289,6 +291,11 @@ namespace ADRL.Environment.Interfaces
     public interface IEnvironmentObject { }
 }
 
+namespace ADRL.Environment.Validation
+{
+    public static class WorldObjectValidator { }
+}
+
 namespace ADRL.Environment.Victims
 {
     public class Victim { }
@@ -302,6 +309,19 @@ namespace ADRL.Environment.Hazards
 namespace ADRL.Environment.Spawning
 {
     public class SpawnManager { }
+}
+
+namespace ADRL.Environment.WorldObjects
+{
+    public class WorldObjectBase { }
+}
+
+namespace ADRL.Environment.Obstacles
+{
+    public class Obstacle { }
+    public class ObstacleManager { }
+    public enum ObstacleType { }
+    public enum ObstacleState { }
 }
 ```
 
