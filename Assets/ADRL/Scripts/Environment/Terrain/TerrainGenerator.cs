@@ -111,6 +111,18 @@ namespace ADRL.Environment.Terrain
             if (_settings.NoiseScale <= 0f)
                 return "NoiseScale must be greater than zero";
 
+            if (_settings.Octaves < 1)
+                return "Octaves must be at least 1";
+
+            if (_settings.Persistence <= 0f)
+                return "Persistence must be greater than zero";
+
+            if (_settings.Lacunarity < 1f)
+                return "Lacunarity must be at least 1";
+
+            if (_settings.HeightMultiplier <= 0f)
+                return "HeightMultiplier must be greater than zero";
+
             return null;
         }
 

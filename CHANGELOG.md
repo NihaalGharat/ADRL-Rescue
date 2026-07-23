@@ -190,6 +190,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zero new assemblies, zero namespace changes, zero event changes, zero breaking API changes
 - Zero terrain textures, materials, biomes, vegetation, water, erosion, disasters, victims, obstacles, navigation, ML-Agent, drone, or sensor changes
 
+### Phase 3.3.1 — Heightmap Framework Hardening (2026-07-23)
+
+- **Remove dead code** — Deleted unused `NormalizedMin`/`NormalizedMax` constants from `HeightmapGenerator`
+- **Null safety** — Added `ArgumentNullException` on null `settings` in `HeightmapGenerator.Generate()`
+- **Settings validation** — Extended `TerrainGenerator.ValidateSettings()` with runtime checks for Octaves (< 1), Persistence (<= 0), Lacunarity (< 1), HeightMultiplier (<= 0)
+- No API breaking changes, no new assemblies, no namespace changes, no event changes
+
 ### Phase 4.0 — Modular Drone Framework (2026-07-23)
 
 - **DroneController** — MonoBehaviour orchestrator composing IMotor, DroneHealth, DroneEnergy, DroneStateMachine via method injection

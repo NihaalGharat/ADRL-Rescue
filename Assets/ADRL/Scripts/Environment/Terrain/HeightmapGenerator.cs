@@ -6,11 +6,12 @@ namespace ADRL.Environment.Terrain
     {
         private const float SeedOffsetMultiplier = 0.1f;
         private const float SeedOffsetSeparator = 1000f;
-        private const float NormalizedMin = 0f;
-        private const float NormalizedMax = 1f;
 
         public float[,] Generate(TerrainSettings settings, int seed, int resolution)
         {
+            if (settings == null)
+                throw new System.ArgumentNullException(nameof(settings));
+
             var heights = new float[resolution, resolution];
             var combinedOffset = seed + settings.SeedOffset;
             var offsetX = combinedOffset * SeedOffsetMultiplier;
