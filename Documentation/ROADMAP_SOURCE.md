@@ -1,3 +1,13 @@
+> ⚠️ **Deprecated**
+>
+> This document is retained for historical reference only.
+> The authoritative development roadmap is maintained in
+> **[04_DEVELOPMENT_ROADMAP.md](04_DEVELOPMENT_ROADMAP.md)**.
+>
+> This document should not be updated further.
+
+---
+
 # ADRL-Rescue
 ## Adaptive Autonomous Disaster Response Drone using Reinforcement Learning
 

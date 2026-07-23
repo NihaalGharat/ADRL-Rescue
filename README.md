@@ -28,7 +28,7 @@ ADRL-Rescue is currently in active development.
 
 Version v0.2.0 implements the core framework, resource management, drone framework, environment framework, procedural generation, and scenario systems.
 
-**Sensors, AI, ML-Agents, and training begin in Phase 7.**
+**Sensors and ML-Agents begin in v0.4.0 (Sensors & AI). Training begins in v0.5.0 (Training).**
 
 | Milestone | Status |
 |:----------|:-------|
@@ -38,11 +38,13 @@ Version v0.2.0 implements the core framework, resource management, drone framewo
 | Drone Framework | ✅ Complete (Controller, Motor, Health, Energy) |
 | Environment Framework | ✅ Complete (Hazards, Obstacles, Victims, Scenarios) |
 | Procedural Generation | ✅ Complete (3 rule types, placement utility) |
-| Sensor Implementation | 🔲 Pending (Phase 7) |
-| ML-Agents / AI | 🔲 Pending (Phase 7) |
-| Training Pipeline | 🔲 Pending (Phase 7) |
-| UI / Polish | 🔲 Pending (Phase 7) |
+| Sensor Implementation | 🔲 Pending (v0.4.0) |
+| ML-Agents / AI | 🔲 Pending (v0.4.0) |
+| Training Pipeline | 🔲 Pending (v0.5.0) |
+| UI / Polish | 🔲 Pending (v0.6.0) |
 | Stable Release | 🔲 Pending (v1.0.0) |
+
+**Documentation Status:** ✅ Frozen (v0.2.0 Baseline)
 
 ---
 
@@ -258,9 +260,9 @@ graph TD
 | Phase | Version | Description | Status |
 |-------|---------|-------------|--------|
 | Foundation | v0.1.0 | Repository architecture and documentation | ✅ Complete |
-| Unity Foundation | v0.2.0 | Core managers, drone physics, basic flight | 🔲 Pending |
-| Sensors & AI | v0.3.0 | Sensor implementations, ML-Agents integration | 🔲 Pending |
-| Environment | v0.4.0 | Procedural generation, disaster types | 🔲 Pending |
+| Unity Foundation | v0.2.0 | Core framework, resource management, drone framework | ✅ Complete |
+| Environment | v0.3.0 | Environment framework, disaster types | 🔲 Pending |
+| Sensors & AI | v0.4.0 | Sensor implementations, ML-Agents integration | 🔲 Pending |
 | Training | v0.5.0 | Reward system, PPO training pipeline | 🔲 Pending |
 | Polish | v0.6.0 | UI, performance, final documentation | 🔲 Pending |
 | Release | v1.0.0 | Full stable release | 🔲 Pending |

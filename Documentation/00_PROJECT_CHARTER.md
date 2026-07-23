@@ -49,7 +49,6 @@
 | 24 | [Repository Audit Checklist](#24-repository-audit-checklist) | 30 |
 | 25 | [Quality Assurance](#25-quality-assurance) | 31 |
 | 26 | [Versioning Strategy](#26-versioning-strategy) | 32 |
-| 27 | [Future Roadmap](#27-future-roadmap) | 33 |
 | 28 | [Engineering Principles](#28-engineering-principles) | 34 |
 | 29 | [Golden Rules](#29-golden-rules) | 35 |
 | 30 | [Project Philosophy](#30-project-philosophy) | 36 |
@@ -67,8 +66,8 @@
 | **Tagline** | *The drone does not follow paths. It learns to find them.* |
 | **Repository** | [github.com/NihaalGharat/ADRL-Rescue](https://github.com/NihaalGharat/ADRL-Rescue) |
 | **Author** | Nihaal Gharat (Project Founder), Bhavya Damani (Co-Developer) |
-| **Current Version** | `0.1.0` |
-| **Project Status** | 🟡 Foundation Phase |
+| **Current Version** | `0.2.0` |
+| **Project Status** | 🟡 Unity Foundation (v0.2.0) |
 | **License** | MIT License |
 | **Intended Audience** | AI researchers, robotics students, Unity developers, RL practitioners |
 
@@ -365,619 +364,65 @@ TensorBoard provides real-time visualization of training metrics including episo
 
 # 9. System Overview
 
-## 9.1 Top-Level System Decomposition
+The ADRL-Rescue system is decomposed into five subsystems: Game Manager, Environment System, Drone System, Training System, and UI System. Each subsystem has a single responsibility and communicates through defined interfaces.
 
-```mermaid
-graph TD
-    GM[🎮 Game Manager] --> ENV[🌍 Environment System]
-    GM --> DRONE[🚁 Drone System]
-    GM --> TRAIN[🧠 Training System]
-    GM --> UI[🖥️ UI System]
-    
-    ENV --> GEN[Procedural Generator]
-    ENV --> TERR[Terrain System]
-    ENV --> VICT[Victim System]
-    ENV --> OBS[Obstacle System]
-    
-    DRONE --> SENS[Sensor Suite]
-    DRONE --> PROC[Observation Processor]
-    DRONE --> MEM[Memory System]
-    DRONE --> AI[Decision Engine]
-    DRONE --> FC[Flight Controller]
-    
-    TRAIN --> PPO[PPO Trainer]
-    TRAIN --> REW[Reward System]
-    TRAIN --> TB[TensorBoard]
-    TRAIN --> ONNX[ONNX Export]
-```
-
-## 9.2 System Responsibilities
-
-| System | Responsibility | Key Components |
-|:-------|:---------------|:---------------|
-| Game Manager | Orchestrate simulation lifecycle | Episode control, state tracking |
-| Environment System | Generate and manage disaster worlds | Terrain, buildings, victims, obstacles |
-| Drone System | Autonomous agent behavior | Sensors, memory, decisions, flight |
-| Training System | RL training pipeline | PPO, rewards, logging, export |
-| UI System | User interface and debugging | HUD, debug overlay, controls |
-
-## 9.3 Inter-System Communication
-
-```mermaid
-sequenceDiagram
-    participant GM as Game Manager
-    participant ENV as Environment
-    participant DRONE as Drone
-    participant TRAIN as Training
-
-    GM->>ENV: Generate new environment
-    ENV->>DRONE: Provide observations
-    DRONE->>TRAIN: Collect experience
-    TRAIN->>DRONE: Return actions
-    DRONE->>ENV: Execute movement
-    ENV->>TRAIN: Calculate reward
-    TRAIN->>TRAIN: Update policy
-    TRAIN->>GM: Report episode result
-```
+For the complete architecture, subsystem responsibilities, and inter-system communication diagrams, see [02_PROJECT_ARCHITECTURE.md](02_PROJECT_ARCHITECTURE.md).
 
 ---
 
 # 10. Complete Software Architecture
 
-## 10.1 Game Manager
+The software architecture follows an event-driven, modular design with clear separation of concerns across five subsystems. Each subsystem is independently testable and loosely coupled through the EventBus and ServiceLocator patterns.
 
-The Game Manager is the central orchestrator. It controls the simulation lifecycle.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Generating: StartSimulation
-    Generating --> Active: Environment Ready
-    Active --> Paused: Pause
-    Paused --> Active: Resume
-    Active --> Ending: Episode Complete
-    Active --> Ending: Drone Crashed
-    Ending --> Generating: New Episode
-    Ending --> Idle: Training Done
-```
-
-**Responsibilities:**
-- Initialize and start episodes
-- Track global simulation state
-- Coordinate between systems
-- Handle episode termination
-- Manage reset and respawn
-
-## 10.2 Environment System
-
-Responsible for generating procedurally created disaster environments.
-
-```mermaid
-graph TD
-    PG[Procedural Generator] --> TG[Terrain Generator]
-    PG --> BG[Building Generator]
-    PG --> OG[Obstacle Generator]
-    PG --> VG[Victim Generator]
-    PG --> HG[Hazard Generator]
-    
-    TG -->|Heightmap| T[Terrain]
-    BG -->|Prefabs| B[Buildings]
-    OG -->|Prefabs| O[Obstacles]
-    VG -->|Positions| V[Victims]
-    HG -->|Effects| H[Hazards]
-```
-
-## 10.3 Drone System
-
-The autonomous agent composed of modular subsystems.
-
-```mermaid
-graph TD
-    S[Sensors] --> OP[Observation Processor]
-    OP --> M[Memory]
-    M --> AI[Decision Engine - PPO]
-    AI --> FC[Flight Controller]
-    FC --> P[Physics]
-```
-
-## 10.4 Training System
-
-Manages the RL training pipeline.
-
-```mermaid
-graph TD
-    PY[Python Script] --> ML[ML-Agents]
-    ML --> ENV[Unity Environment]
-    ENV --> OBS[Observations]
-    OBS --> NET[Neural Network]
-    NET --> ACT[Actions]
-    ACT --> ENV
-    ENV --> REW[Reward]
-    REW --> UPD[Policy Update]
-    UPD --> NET
-    NET --> ONNX[ONNX Export]
-```
+For detailed architecture diagrams, system states, and component relationships, see [02_PROJECT_ARCHITECTURE.md](02_PROJECT_ARCHITECTURE.md).
 
 ---
 
 # 11. Drone Architecture
 
-## 11.1 Subsystem Decomposition
+The drone system is a modular, component-based architecture composed of a DroneController that orchestrates state management, motor control, health, and energy subsystems. The drone follows an interface-first design with IMotor, INavigationSystem, and INavigationTarget abstractions.
 
-```mermaid
-graph TD
-    subgraph Drone Agent
-        SM[Sensor Manager] --> OP[Observation Processor]
-        OP --> MEM[Drone Memory]
-        MEM --> NN[PPO Neural Network]
-        NN --> FC[Flight Controller]
-        FC --> RB[Rigidbody Physics]
-    end
-    
-    RS[Ray Sensors 13x] --> SM
-    TS[Thermal Sensor] --> SM
-    VS[Vision Sensor] --> SM
-    CS[Collision Sensor] --> SM
-```
-
-## 11.2 Flight Controller
-
-| Property | Value | Description |
-|:---------|:------|:------------|
-| Mass | 2.0 kg | Lightweight for agility |
-| Drag | 3.0 | Air resistance coefficient |
-| Angular Drag | 5.0 | Rotation damping |
-| Max Speed | 10 m/s | Velocity limit |
-| Max Rotation Speed | 90°/s | Turn rate limit |
-
-**Action Space (Continuous):**
-
-| Action | Range | Axis | Description |
-|:-------|:------|:-----|:------------|
-| MoveX | [-1, 1] | X | Left/Right strafe |
-| MoveY | [-1, 1] | Y | Ascend/Descend |
-| MoveZ | [-1, 1] | Z | Forward/Back |
-| RotateY | [-1, 1] | Y | Yaw rotation |
-
-## 11.3 Sensor Manager
-
-Collects and aggregates data from all onboard sensors each physics frame.
-
-## 11.4 Observation Processor
-
-Transforms raw sensor data into a normalized vector the neural network can process.
-
-## 11.5 Drone Memory
-
-Stores environmental knowledge over time:
-- Visited positions
-- Obstacle locations
-- Victim detections
-- Exploration map
-
-## 11.6 Decision Engine
-
-The PPO neural network that maps observations to actions.
-
-**Network Architecture:**
-
-| Layer | Size | Activation | Purpose |
-|:------|:-----|:-----------|:--------|
-| Input | 44 neurons | — | Observation vector |
-| Hidden 1 | 256 neurons | ReLU | Feature extraction |
-| Hidden 2 | 256 neurons | ReLU | Feature extraction |
-| Output | 4 neurons | Tanh | Action commands |
-
-## 11.7 Navigation
-
-The drone uses its memory to track explored areas and identify unexplored regions, guiding intelligent exploration without hardcoded waypoints.
+For the complete drone architecture, component specifications, and navigation system, see [07_DRONE_SYSTEM.md](07_DRONE_SYSTEM.md).
 
 ---
 
 # 12. Environment Architecture
 
-## 12.1 Terrain System
+The environment system manages procedurally generated disaster environments through EnvironmentManager, world objects (victims, hazards, obstacles), procedural generation rules, and scenario profiles. All environment components follow IEnvironmentObject and IWorldObject interfaces.
 
-Procedurally generates terrain using Perlin noise with disaster-specific modifications.
-
-| Disaster Type | Terrain Characteristics |
-|:--------------|:------------------------|
-| Earthquake | Uneven, cracked surface, sinkholes |
-| Flood | Flat with water bodies, muddy areas |
-| Landslide | Steep slopes, loose debris |
-| Building Collapse | Urban terrain, rubble piles |
-
-## 12.2 Disaster Generator
-
-Each disaster type has unique environmental features:
-
-```mermaid
-graph TD
-    DG[Disaster Generator] --> EQ[Earthquake]
-    DG --> FL[Flood]
-    DG --> LS[Landslide]
-    DG --> BC[Building Collapse]
-    
-    EQ --> EQ1[Cracked Terrain]
-    EQ --> EQ2[Collapsed Structures]
-    EQ --> EQ3[Fire Hazards]
-    
-    FL --> FL1[Rising Water]
-    FL --> FL2[Floating Debris]
-    FL --> FL3[Submerged Areas]
-    
-    LS --> LS1[Steep Slopes]
-    LS --> LS2[Rockfall]
-    LS --> LS3[Narrow Passages]
-    
-    BC --> BC1[Urban Rubble]
-    BC --> BC2[Structural Damage]
-    BC --> BC3[Confined Spaces]
-```
-
-## 12.3 Victim Generator
-
-Places victims at random valid positions within the environment.
-
-| Property | Range | Description |
-|:---------|:------|:------------|
-| Health | 50–100 | Victim health points |
-| Thermal Signature | 0.7–1.0 | Heat emission strength |
-| Detection Radius | 10m | Sensor detection range |
-| Rescue Radius | 2m | Distance required for rescue |
-
-## 12.4 Obstacle Generator
-
-Randomly places obstacles ensuring drone navigation is possible.
-
-| Obstacle Type | Size | Hazard Level |
-|:--------------|:-----|:-------------|
-| Rocks | Small–Large | Medium |
-| Trees | Medium | Low |
-| Debris | Small–Medium | High |
-| Rubble | Medium–Large | High |
-| Vehicles | Medium | Medium |
-
-## 12.5 Procedural Generation
-
-Every episode creates a unique world by randomizing:
-- Terrain heightmap
-- Building positions and orientations
-- Obstacle placement
-- Victim locations
-- Drone spawn point
-- Hazard positions
-
-## 12.6 Domain Randomization
-
-Ensures the AI generalizes by varying:
-- Environment size
-- Obstacle density
-- Victim count
-- Hazard frequency
-- Lighting conditions
+For the complete environment architecture, disaster types, and generation rules, see [08_ENVIRONMENT_SYSTEM.md](08_ENVIRONMENT_SYSTEM.md).
 
 ---
 
 # 13. Sensor Architecture
 
-## 13.1 Sensor Overview
-
 > **Core Rule:** The drone only knows what its sensors detect. It never has access to ground truth.
 
-```mermaid
-graph LR
-    RS[Ray Sensors<br/>13 rays] --> SM[Sensor Manager]
-    TS[Thermal Sensor<br/>Heat map] --> SM
-    VS[Vision Sensor<br/>FOV cone] --> SM
-    CS[Collision Sensor<br/>Trigger] --> SM
-    SM --> OP[Observation<br/>Processor]
-    OP --> OV[Observation Vector<br/>44 values]
-```
+The sensor system provides the drone with environmental perception through ray, thermal, vision, and collision sensors. Sensor data is fused into an observation vector for the AI system. Sensors are not yet implemented (pending v0.4.0).
 
-## 13.2 Ray Sensors
-
-**Purpose:** Detect nearby obstacles and map the immediate environment.
-
-| Property | Value |
-|:---------|:------|
-| Number of Rays | 13 |
-| Max Distance | 10m |
-| Spread Angle | 180° (forward hemisphere) |
-| Layer Mask | Obstacles only |
-
-**Ray Layout:**
-
-```
-          Ray 0 (90° Left)
-           ╲
-            ╲
-             ╲
-  Ray 3 ── Ray 6 ── Ray 9
-  (45° L)  (Center)  (45° R)
-             ╱
-            ╱
-           ╱
-          Ray 12 (90° Right)
-```
-
-## 13.3 Thermal Sensor
-
-**Purpose:** Detect body heat from victims.
-
-| Property | Value |
-|:---------|:------|
-| Range | 15m |
-| Field of View | 120° |
-| Sensitivity | 0.7 |
-| Update Frequency | 10 Hz |
-
-**Output:** Float [0.0, 1.0] indicating thermal signature strength.
-
-## 13.4 Vision Sensor
-
-**Purpose:** Confirm victim presence within field of view.
-
-| Property | Value |
-|:---------|:------|
-| Range | 20m |
-| Field of View | 90° |
-| Update Frequency | 10 Hz |
-
-**Output:** Binary [0.0, 1.0] — victim is either in view or not.
-
-## 13.5 Collision Detection
-
-**Purpose:** Detect impacts with obstacles for negative reward signals.
-
-| Property | Value |
-|:---------|:------|
-| Detection Radius | 0.5m |
-| Trigger Mode | Yes |
-| Layer Mask | Obstacles |
-
-## 13.6 Sensor Fusion
-
-All sensor data is combined into a single 44-element observation vector:
-
-| Index Range | Count | Source | Description |
-|:------------|:------|:-------|:------------|
-| 0–2 | 3 | Position | World position (x, y, z) |
-| 3–5 | 3 | Velocity | Current velocity (x, y, z) |
-| 6–8 | 3 | Transform | Forward direction vector |
-| 9–11 | 3 | Transform | Up direction vector |
-| 12–24 | 13 | Ray Sensors | Distance to obstacles |
-| 25–37 | 13 | Ray Sensors | Hit type encoding |
-| 38 | 1 | Thermal | Heat signature strength |
-| 39 | 1 | Vision | Victim in view |
-| 40 | 1 | Physics | Current speed |
-| 41–43 | 3 | Memory | Direction to nearest victim |
-
-## 13.7 Future: Camera Vision
-
-> ⚠️ **Not in scope for v1.0.** Future versions may integrate YOLO-based computer vision for visual victim detection and damage assessment.
+For the complete sensor specifications, observation vector layout, and implementation details, see [09_SENSOR_SYSTEM.md](09_SENSOR_SYSTEM.md).
 
 ---
 
 # 14. AI Architecture
 
-## 14.1 Observation Space
+The AI system uses PPO (Proximal Policy Optimization) for training. The agent receives observations from the sensor system and outputs continuous movement actions. Reward signals guide the agent toward victim discovery and rescue.
 
-The neural network receives a 44-element float vector representing the drone's perception of the world.
-
-**Normalization:**
-
-| Observation | Raw Range | Normalized Range | Method |
-|:------------|:----------|:-----------------|:-------|
-| Position | [-50, 50] | [-1, 1] | Linear |
-| Velocity | [-10, 10] | [-1, 1] | Linear |
-| Ray Distance | [0, 10] | [0, 1] | Linear |
-| Thermal | [0, 1] | [0, 1] | As-is |
-| Vision | [0, 1] | [0, 1] | As-is |
-| Speed | [0, 10] | [0, 1] | Linear |
-
-## 14.2 Action Space
-
-The agent outputs 4 continuous actions:
-
-| Action | Range | Description |
-|:-------|:------|:------------|
-| MoveX | [-1, 1] | Left/Right strafe |
-| MoveY | [-1, 1] | Ascend/Descend |
-| MoveZ | [-1, 1] | Forward/Back |
-| RotateY | [-1, 1] | Yaw rotation |
-
-## 14.3 Reward System
-
-### Positive Rewards
-
-| Event | Reward | Purpose |
-|:------|:-------|:--------|
-| Victim found | +10.0 | Primary objective |
-| Victim rescued | +25.0 | Mission completion |
-| New area explored | +0.5 | Exploration incentive |
-| Forward progress | +0.1 | Efficient movement |
-| Sensor detection | +1.0 | Multi-sensor agreement |
-
-### Negative Rewards
-
-| Event | Reward | Purpose |
-|:------|:-------|:--------|
-| Collision | -5.0 | Safety |
-| Out of bounds | -10.0 | Boundary respect |
-| Time penalty | -0.01/step | Efficiency |
-| Stuck penalty | -2.0 | Prevent stagnation |
-| Repeated path | -0.5 | Efficient exploration |
-| Falling | -3.0 | Altitude maintenance |
-
-## 14.4 PPO Configuration
-
-```yaml
-trainer_type: ppo
-hyperparameters:
-  batch_size: 1024
-  buffer_size: 10240
-  learning_rate: 0.0003
-  beta: 0.005
-  epsilon: 0.2
-  lambd: 0.95
-  num_epoch: 3
-  learning_rate_schedule: linear
-
-network_settings:
-  normalize: true
-  hidden_units: 256
-  num_layers: 2
-
-reward_signals:
-  extrinsic:
-    gamma: 0.99
-    strength: 1.0
-
-max_steps: 5000000
-time_horizon: 64
-summary_freq: 10000
-```
-
-## 14.5 Training vs. Inference
-
-| Mode | Input | Output | Purpose |
-|:-----|:------|:-------|:--------|
-| Training | Observations | Actions + Rewards | Learn policy |
-| Inference | Observations | Actions only | Deploy model |
-
-## 14.6 ONNX Export
-
-After training completes, the model is exported as an `.onnx` file for inference in Unity without Python.
-
-## 14.7 Generalization
-
-The AI must generalize across:
-- Different disaster types
-- Randomly generated layouts
-- Varying victim positions
-- Different obstacle configurations
-
-**The AI must NOT memorize specific maps.** Every episode must present a unique challenge.
+For the complete AI architecture, observation/action spaces, reward system, and PPO configuration, see [06_AI_SYSTEM.md](06_AI_SYSTEM.md) and [10_REWARD_SYSTEM.md](10_REWARD_SYSTEM.md).
 
 ---
 
 # 15. Training Pipeline
 
-## 15.1 End-to-End Pipeline
+The training pipeline connects the Unity environment through ML-Agents to a Python training script running PPO. Trained models are exported to ONNX for inference.
 
-```mermaid
-graph TD
-    A[1. Unity Environment] --> B[2. ML-Agents Plugin]
-    B --> C[3. Python Training Script]
-    C --> D[4. PPO Algorithm]
-    D --> E[5. Neural Network Update]
-    E --> F{6. Training Complete?}
-    F -->|No| A
-    F -->|Yes| G[7. Save Model]
-    G --> H[8. Export ONNX]
-    H --> I[9. Inference Mode]
-```
-
-## 15.2 Pipeline Stages
-
-| Stage | Component | Description |
-|:------|:----------|:------------|
-| 1 | Unity Environment | Simulation runs, generates experience |
-| 2 | ML-Agents Plugin | Bridges Unity and Python |
-| 3 | Python Script | Orchestrates training loop |
-| 4 | PPO Algorithm | Computes policy updates |
-| 5 | Network Update | Adjusts neural network weights |
-| 6 | Completion Check | Evaluates if training goals met |
-| 7 | Model Save | Checkpoints trained model |
-| 8 | ONNX Export | Converts to deployment format |
-| 9 | Inference Mode | Uses trained model without Python |
-
-## 15.3 Training Commands
-
-```bash
-# Start training
-mlagents-learn config/drone_training.yaml --run-id=drone_v1
-
-# With Unity environment
-mlagents-learn config.yaml --run-id=drone_v1 --env=./build/ADRL-Rescue
-
-# Headless mode
-mlagents-learn config.yaml --run-id=drone_v1 --no-graphics
-
-# Monitor with TensorBoard
-tensorboard --logdir=results
-```
+For the complete training pipeline, configuration, commands, and evaluation procedures, see [11_TRAINING_PIPELINE.md](11_TRAINING_PIPELINE.md).
 
 ---
 
 # 16. Folder Structure
 
-## 16.1 Complete Repository Structure
-
-```
-ADRL-Rescue/
-│
-├── 📂 UnityProject/          # Unity game project
-│   ├── 📂 Assets/
-│   │   ├── 📂 Scripts/       # C# source code
-│   │   │   ├── 📂 Core/      # Game manager, utilities
-│   │   │   ├── 📂 AI/        # ML-Agents, decision making
-│   │   │   ├── 📂 Drone/     # Drone behavior, flight
-│   │   │   ├── 📂 Environment/ # Procedural generation
-│   │   │   ├── 📂 Sensors/   # Sensor implementations
-│   │   │   ├── 📂 Training/  # Reward system
-│   │   │   ├── 📂 Utilities/ # Helper functions
-│   │   │   └── 📂 UI/        # User interface
-│   │   ├── 📂 Prefabs/       # Reusable GameObjects
-│   │   ├── 📂 Materials/     # Physics materials
-│   │   ├── 📂 Textures/      # Texture assets
-│   │   ├── 📂 Models/        # 3D models
-│   │   ├── 📂 Animations/    # Animation controllers
-│   │   ├── 📂 Scenes/        # Unity scenes
-│   │   ├── 📂 Settings/      # Quality settings
-│   │   └── 📂 Plugins/       # Third-party plugins
-│   ├── 📂 ProjectSettings/   # Unity project config
-│   └── 📂 Packages/          # Package manifest
-│
-├── 📂 Python/                # Training scripts
-│   ├── 📂 configs/           # YAML configurations
-│   ├── 📂 scripts/           # Python scripts
-│   ├── 📂 results/           # Training results
-│   ├── 📂 logs/              # TensorBoard logs
-│   └── 📂 models/            # Exported ONNX models
-│
-├── 📂 Documentation/         # Project documentation
-│   ├── 00_PROJECT_CHARTER.md # This file
-│   ├── 01_PROJECT_VISION.md
-│   ├── 02_PROJECT_ARCHITECTURE.md
-│   ├── 03_SYSTEM_DESIGN.md
-│   └── ... (17 documentation files)
-│
-├── 📂 Assets/                # Static assets (icons, banners)
-├── 📂 Media/                 # Screenshots, videos, GIFs
-├── 📂 Research/              # Papers, notes, references
-│
-├── 📄 README.md              # Project landing page
-├── 📄 CHANGELOG.md           # Version history
-├── 📄 CONTRIBUTING.md        # Contribution guidelines
-├── 📄 CODE_OF_CONDUCT.md     # Community standards
-├── 📄 SECURITY.md            # Security policy
-├── 📄 LICENSE                # MIT License
-├── 📄 CITATION.cff           # Citation metadata
-└── 📄 .gitignore             # Git ignore rules
-```
-
-## 16.2 Folder Purpose Table
-
-| Folder | Purpose | Why It Exists |
-|:-------|:--------|:--------------|
-| `UnityProject/` | Main Unity project | Contains all game logic and assets |
-| `Python/` | Training infrastructure | ML-Agents training runs here |
-| `Documentation/` | All documentation | Single source of truth for project knowledge |
-| `Assets/` | Static assets | Icons, banners for README |
-| `Media/` | Visual media | Screenshots and videos for documentation |
-| `Research/` | Research materials | Academic papers and notes |
+The repository structure is defined in [05_FOLDER_STRUCTURE.md](05_FOLDER_STRUCTURE.md).
 
 ---
 
@@ -1029,73 +474,9 @@ Documentation evolves with the project:
 
 # 18. Coding Standards
 
-## 18.1 Core Principles
+All contributors must follow the project coding standards. Standards are mandatory and cover SOLID principles, naming conventions, commenting rules, and code formatting.
 
-### SOLID Principles
-
-| Principle | Description | Example |
-|:----------|:------------|:--------|
-| **S**ingle Responsibility | One class, one job | `RaySensor.cs` only handles ray casting |
-| **O**pen/Closed | Open for extension, closed for modification | Use interfaces for sensor types |
-| **L**iskov Substitution | Subtypes must be substitutable | Any sensor implements `ISensor` |
-| **I**nterface Segregation | Many specific interfaces | Separate `IDetectable` and `ICollidable` |
-| **D**ependency Inversion | Depend on abstractions | Drone depends on `ISensor`, not `RaySensor` |
-
-### DRY (Don't Repeat Yourself)
-
-Every piece of knowledge should have a single, authoritative representation.
-
-### KISS (Keep It Simple, Stupid)
-
-Simple solutions are preferred over complex ones. If it's hard to explain, it's too complex.
-
-### YAGNI (You Aren't Gonna Need It)
-
-Don't build functionality until it's actually needed.
-
-## 18.2 Naming Conventions
-
-### C# Conventions
-
-| Element | Convention | Example |
-|:--------|:-----------|:--------|
-| Classes | PascalCase | `DroneAgent` |
-| Interfaces | I + PascalCase | `ISensor` |
-| Public methods | PascalCase | `CollectObservations()` |
-| Private methods | PascalCase | `ApplyStabilization()` |
-| Public fields | PascalCase | `float Speed` |
-| Private fields | _camelCase | `float _speed` |
-| Local variables | camelCase | `float currentSpeed` |
-| Parameters | camelCase | `float targetSpeed` |
-| Constants | UPPER_SNAKE | `MAX_SPEED` |
-| Enums | PascalCase | `DisasterType` |
-
-### Python Conventions
-
-| Element | Convention | Example |
-|:--------|:-----------|:--------|
-| Functions | snake_case | `calculate_reward()` |
-| Variables | snake_case | `current_step` |
-| Classes | PascalCase | `DroneTrainer` |
-| Constants | UPPER_SNAKE | `MAX_EPISODES` |
-
-## 18.3 Commenting Rules
-
-| Situation | Action |
-|:----------|:-------|
-| Complex algorithm | Add explanation |
-| Non-obvious logic | Add clarification |
-| Public API | Add XML documentation |
-| Magic numbers | Replace with named constants |
-| Obvious code | Don't comment |
-
-## 18.4 Code Formatting
-
-- Use 4 spaces for C# indentation
-- Use 4 spaces for Python indentation
-- Maximum line length: 120 characters
-- Use blank lines between methods
-- Use regions for logical grouping in C#
+For the complete coding standards, see [13_CODING_STANDARDS.md](13_CODING_STANDARDS.md).
 
 ---
 
@@ -1174,63 +555,9 @@ The primary goal is generalization. A model that performs well on one specific m
 
 # 21. Git Standards
 
-## 21.1 Semantic Versioning
+All contributors must follow the project Git workflow. Pull requests are required for all changes. `main` branch is protected — only stable releases. All development happens on `develop` or feature branches and requires review before merging.
 
-```
-MAJOR.MINOR.PATCH
-
-MAJOR: Breaking changes
-MINOR: New features (backward compatible)
-PATCH: Bug fixes
-```
-
-## 21.2 Branch Strategy
-
-```mermaid
-gitgraph
-    commit id: "init"
-    branch develop
-    checkout develop
-    commit id: "drone-physics"
-    branch feature/ray-sensor
-    checkout feature/ray-sensor
-    commit id: "ray-sensor"
-    checkout develop
-    merge feature/ray-sensor
-    checkout main
-    merge develop tag: "v0.2.0"
-```
-
-| Branch | Purpose |
-|:-------|:--------|
-| `main` | Stable releases only |
-| `develop` | Integration branch |
-| `feature/*` | New features |
-| `fix/*` | Bug fixes |
-| `docs/*` | Documentation |
-
-## 21.3 Commit Message Convention
-
-```
-<type>(<scope>): <subject>
-
-Examples:
-feat(drone): add flight controller
-fix(sensors): correct thermal range
-docs: update README
-refactor(ai): extract observation logic
-```
-
-## 21.4 Release Tags
-
-All releases are tagged with semantic versions:
-```
-v0.1.0  →  Foundation
-v0.2.0  →  Core Systems
-v0.3.0  →  Environment
-v0.4.0  →  Training
-v1.0.0  →  Full Release
-```
+For the complete Git workflow, branching strategy, and commit conventions, see [14_GITHUB_WORKFLOW.md](14_GITHUB_WORKFLOW.md).
 
 ---
 
@@ -1399,61 +726,9 @@ A feature is considered **done** when:
 
 # 26. Versioning Strategy
 
-## 26.1 Version Roadmap
+**Current Version:** v0.2.0 (Unity Foundation)
 
-```mermaid
-gantt
-    title Version Roadmap
-    dateFormat YYYY-MM-DD
-    
-    section Foundation
-    v0.1.0 Project Setup     :done, 2026-07-01, 30d
-    
-    section Core Systems
-    v0.2.0 Sensors + ML-Agents :active, 2026-08-01, 30d
-    
-    section Environment
-    v0.3.0 Procedural Gen     :2026-09-01, 30d
-    
-    section Training
-    v0.4.0 AI Training        :2026-10-01, 30d
-    
-    section Release
-    v1.0.0 Full Release       :2026-11-01, 30d
-```
-
-## 26.2 Version Details
-
-| Version | Phase | Key Features |
-|:--------|:------|:-------------|
-| `v0.1.0` | Foundation | Project structure, documentation, basic setup |
-| `v0.2.0` | Core Systems | Sensors, ML-Agents integration, flight control |
-| `v0.3.0` | Environment | Procedural generation, disaster types, victims |
-| `v0.4.0` | Training | Reward system, PPO training, ONNX export |
-| `v1.0.0` | Release | Full feature set, polished documentation |
-
----
-
-# 27. Future Roadmap
-
-## 27.1 Post v1.0 Features
-
-| Version | Feature | Description |
-|:--------|:--------|:------------|
-| v1.1 | Battery System | Simulate realistic battery constraints |
-| v1.2 | Weather Effects | Rain, fog, wind simulation |
-| v2.0 | Swarm Intelligence | Multiple drones collaborating |
-| v2.1 | Computer Vision | YOLO-based victim detection |
-| v3.0 | ROS Integration | Robot Operating System compatibility |
-| v3.1 | Google Maps Terrain | Real-world terrain import |
-| v4.0 | Real Drone | Sim-to-real transfer deployment |
-
-## 27.2 Research Directions
-
-- Advanced RL algorithms (SAC, TD3, HER)
-- Transfer learning between disaster types
-- Curriculum learning optimization
-- Meta-learning for rapid adaptation
+For the full version history, completed releases, and planned milestones, see [CHANGELOG.md](../CHANGELOG.md). CHANGELOG is the single source of truth for all releases.
 
 ---
 
@@ -1562,6 +837,34 @@ These principles guide every architectural and implementation decision in the pr
 | Last Modified | 2026-07-20 |
 | Next Review | v1.0.0 Release |
 | Status | ✅ ACTIVE |
+
+---
+
+## 29. Documentation Freeze Policy
+
+### Documentation Freeze
+
+| Field | Value |
+|:------|:-------|
+| **Version** | v0.2.0 |
+| **Status** | Frozen |
+| **Effective Date** | 2026-07-23 |
+
+The ADRL-Rescue documentation suite has been fully synchronized and is considered internally consistent.
+
+From this version onward:
+
+- Repository-wide documentation synchronization is complete.
+- Structural documentation refactoring is no longer permitted as part of normal development.
+- Each document is the sole authority for its assigned topic.
+- Future documentation updates must accompany implementation work and be limited to the authoritative document for the affected topic.
+- Cross-document consistency must be preserved through references rather than duplicated content.
+- Repository-wide synchronization should only be performed after a significant architectural migration or governance revision.
+- CHANGELOG.md remains the authoritative source for release history.
+- 00_PROJECT_CHARTER.md remains the authoritative governance document.
+- All future documentation changes must comply with Constitution v4.1.
+
+*This policy establishes the documentation baseline for all development beginning with v0.2.0.*
 
 ---
 

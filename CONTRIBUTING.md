@@ -53,7 +53,7 @@ This project adheres to our [Code of Conduct](CODE_OF_CONDUCT.md). By participat
 ### Unity Setup
 
 1. Open Unity Hub
-2. Click "Open" → Navigate to `UnityProject/`
+2. Click "Open" → Navigate to repository root (`ADRL-Rescue/`)
 3. Select Unity 2022.3 LTS
 4. Wait for project to import
 

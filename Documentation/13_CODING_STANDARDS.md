@@ -155,7 +155,7 @@ public float[] CollectObservations()
 ### Script Structure
 
 ```
-UnityProject/Assets/Scripts/
+Assets/ADRL/Scripts/
 ├── Core/           # Game manager, utilities
 ├── AI/             # ML-Agents, decision making
 ├── Drone/          # Drone behavior, flight

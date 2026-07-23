@@ -13,7 +13,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability within ADRL-Rescue, please send an email to [INSERT EMAIL]. All security vulnerabilities will be promptly addressed.
+If you discover a security vulnerability within ADRL-Rescue, please send an email to gharatnihaal@gmail.com. All security vulnerabilities will be promptly addressed.
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
@@ -61,7 +61,7 @@ We regularly update dependencies to address known vulnerabilities:
 ## Contact
 
 For security concerns, please contact:
-- Email: [INSERT EMAIL]
+- Email: gharatnihaal@gmail.com
 - GitHub: [NihaalGharat](https://github.com/NihaalGharat)
 
 ---

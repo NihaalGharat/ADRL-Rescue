@@ -201,7 +201,7 @@ cd ADRL-Rescue
 
 1. Open **Unity Hub**
 2. Click **Open** → **Add project from disk**
-3. Navigate to `ADRL-Rescue/UnityProject/`
+3. Navigate to the repository root (`ADRL-Rescue/`)
 4. Select the folder and click **Open**
 5. Wait for Unity to import all assets (may take several minutes on first open)
 
@@ -227,7 +227,7 @@ After opening the project for the first time, verify:
 | Python not in PATH | `python` command not found | Reinstall Python with "Add to PATH" |
 | Virtual env not activated | `mlagents-learn` not found | Activate virtual environment |
 | Git not configured | Commit author issues | Run `git config` commands |
-| Project opened from wrong folder | Missing assets | Open `UnityProject/` folder |
+| Project opened from wrong folder | Missing assets | Open repository root folder |
 
 ---
 
@@ -238,62 +238,39 @@ After opening the project for the first time, verify:
 ```
 ADRL-Rescue/
 │
-├── 📂 UnityProject/          # Unity game project
-├── 📂 Python/                # Training scripts and configs
-├── 📂 Documentation/         # Project documentation
-├── 📂 Assets/                # Static assets (icons, banners)
-├── 📂 Media/                 # Screenshots, videos, GIFs
-├── 📂 Research/              # Papers, notes, references
+├── 📂 Assets/                 # Unity project assets
+│   └── 📂 ADRL/               # ADRL game content (see 05_FOLDER_STRUCTURE.md)
+├── 📂 Documentation/          # Project documentation
+├── 📂 Media/                  # Screenshots, videos, GIFs
+├── 📂 Python/                 # Training scripts and configs
+├── 📂 Research/               # Papers, notes, references
+├── 📂 Packages/               # Unity package manifest
+├── 📂 ProjectSettings/        # Unity project settings
 │
-├── 📄 README.md              # Project landing page
-├── 📄 CHANGELOG.md           # Version history
-├── 📄 CONTRIBUTING.md        # Contribution guidelines
-├── 📄 CODE_OF_CONDUCT.md     # Community standards
-├── 📄 SECURITY.md            # Security policy
-├── 📄 LICENSE                # MIT License
-├── 📄 CITATION.cff           # Citation metadata
-└── 📄 .gitignore             # Git ignore rules
+├── 📄 README.md               # Project landing page
+├── 📄 CHANGELOG.md            # Version history
+├── 📄 CONTRIBUTING.md         # Contribution guidelines
+├── 📄 CODE_OF_CONDUCT.md      # Community standards
+├── 📄 SECURITY.md             # Security policy
+├── 📄 LICENSE                 # MIT License
+├── 📄 CITATION.cff            # Citation metadata
+├── 📄 .gitignore              # Git ignore rules
+└── 📄 ADRL-Rescue.sln         # Visual Studio solution
 ```
 
 ## 3.2 Folder Purposes
 
 | Folder | Purpose | Where to Place Files |
 |:-------|:--------|:---------------------|
-| `UnityProject/` | Main Unity project with all game logic | Unity scripts, scenes, prefabs, materials |
+| `Assets/ADRL/` | ADRL game content | Unity scripts, scenes, prefabs, materials |
 | `Python/` | Training scripts and configurations | Python scripts, YAML configs, ONNX models |
 | `Documentation/` | All project documentation | Numbered guides, glossary, handbooks |
 | `Assets/` | Static assets for README and docs | Icons, banners, logos |
 | `Media/` | Screenshots, videos, GIFs | Demo videos, training graphs |
 | `Research/` | Academic papers and references | Research papers, notes |
+## 3.3 ADRL Content Structure
 
-## 3.3 UnityProject Structure
-
-```
-UnityProject/
-│
-├── 📂 Assets/
-│   ├── 📂 Scripts/
-│   │   ├── 📂 Core/              # Game manager, utilities
-│   │   ├── 📂 AI/                # ML-Agents, decision making
-│   │   ├── 📂 Drone/             # Drone behavior, flight control
-│   │   ├── 📂 Environment/       # Procedural generation
-│   │   ├── 📂 Sensors/           # Ray, thermal, vision sensors
-│   │   ├── 📂 Training/          # Reward system, training config
-│   │   ├── 📂 Utilities/         # Helper functions, extensions
-│   │   └── 📂 UI/                # HUD, debug overlay
-│   │
-│   ├── 📂 Prefabs/               # Reusable GameObjects
-│   ├── 📂 Materials/             # Physics materials, shaders
-│   ├── 📂 Textures/              # Texture assets
-│   ├── 📂 Models/                # 3D models
-│   ├── 📂 Animations/            # Animation controllers
-│   ├── 📂 Scenes/                # Unity scenes
-│   ├── 📂 Settings/              # Quality, input settings
-│   └── 📂 Plugins/               # Third-party plugins
-│
-├── 📂 ProjectSettings/           # Unity project settings
-└── 📂 Packages/                  # Package manifest
-```
+The Unity game content lives under `Assets/ADRL/`. For the full folder tree, see [05_FOLDER_STRUCTURE.md](05_FOLDER_STRUCTURE.md).
 
 ## 3.4 Python Structure
 
@@ -340,10 +317,10 @@ Documentation/
 
 | File Type | Location | Naming Convention |
 |:----------|:---------|:------------------|
-| C# Scripts | `UnityProject/Assets/Scripts/[Category]/` | `PascalCase.cs` |
-| Prefabs | `UnityProject/Assets/Prefabs/` | `PascalCase.prefab` |
-| Materials | `UnityProject/Assets/Materials/` | `PascalCase.mat` |
-| Scenes | `UnityProject/Assets/Scenes/` | `PascalCase.unity` |
+| C# Scripts | `Assets/ADRL/Scripts/[Category]/` | `PascalCase.cs` |
+| Prefabs | `Assets/ADRL/Prefabs/` | `PascalCase.prefab` |
+| Materials | `Assets/ADRL/Materials/` | `PascalCase.mat` |
+| Scenes | `Assets/ADRL/Scenes/` | `PascalCase.unity` |
 | Python Scripts | `Python/scripts/` | `snake_case.py` |
 | Configs | `Python/configs/` | `snake_case.yaml` |
 | Documentation | `Documentation/` | `##_TOPIC.md` |
@@ -569,7 +546,7 @@ public class DroneAgent : Agent
 ## 5.3 Namespace Conventions
 
 ```csharp
-namespace ADRLRescue.Core
+namespace ADRL.Core
 {
     public class GameManager : MonoBehaviour
     {
@@ -580,13 +557,13 @@ namespace ADRLRescue.Core
 
 | Namespace | Purpose |
 |:----------|:--------|
-| `ADRLRescue.Core` | Core managers and utilities |
-| `ADRLRescue.Drone` | Drone-related scripts |
-| `ADRLRescue.AI` | AI and ML-Agents scripts |
-| `ADRLRescue.Environment` | Environment generation |
-| `ADRLRescue.Sensors` | Sensor implementations |
-| `ADRLRescue.Training` | Training and rewards |
-| `ADRLRescue.UI` | User interface |
+| `ADRL.Core` | Core managers and utilities |
+| `ADRL.Drone` | Drone-related scripts |
+| `ADRL.AI` | AI and ML-Agents scripts |
+| `ADRL.Environment` | Environment generation |
+| `ADRL.Sensors` | Sensor implementations |
+| `ADRL.Training` | Training and rewards |
+| `ADRL.UI` | User interface |
 
 ## 5.4 SOLID Principles
 
@@ -1127,13 +1104,13 @@ public class DomainRandomizer : MonoBehaviour
 ### Step-by-Step Guide
 
 1. **Create sensor script**
-   ```
-   UnityProject/Assets/Scripts/Sensors/NewSensor.cs
-   ```
+    ```
+    Assets/ADRL/Scripts/Sensors/NewSensor.cs
+    ```
 
 2. **Implement ISensor interface**
    ```csharp
-   namespace ADRLRescue.Sensors
+   namespace ADRL.Sensors
    {
        public class NewSensor : MonoBehaviour, ISensor
        {
@@ -1189,12 +1166,12 @@ public class DomainRandomizer : MonoBehaviour
 
 2. **Create disaster script**
    ```
-   UnityProject/Assets/Scripts/Environment/Disasters/NewDisaster.cs
-   ```
+    Assets/ADRL/Scripts/Environment/Disasters/NewDisaster.cs
+    ```
 
 3. **Implement disaster behavior**
    ```csharp
-   namespace ADRLRescue.Environment.Disasters
+   namespace ADRL.Environment.Disasters
    {
        public class NewDisaster : MonoBehaviour
        {
@@ -1244,12 +1221,12 @@ public class DomainRandomizer : MonoBehaviour
 
 1. **Create environment script**
    ```
-   UnityProject/Assets/Scripts/Environment/Environments/NewEnvironment.cs
-   ```
+    Assets/ADRL/Scripts/Environment/Environments/NewEnvironment.cs
+    ```
 
 2. **Implement environment generation**
    ```csharp
-   namespace ADRLRescue.Environment.Environments
+   namespace ADRL.Environment.Environments
    {
        public class NewEnvironment : MonoBehaviour
        {
@@ -1359,12 +1336,12 @@ public class DomainRandomizer : MonoBehaviour
 
 1. **Create manager script**
    ```
-   UnityProject/Assets/Scripts/Core/NewManager.cs
-   ```
+    Assets/ADRL/Scripts/Core/NewManager.cs
+    ```
 
 2. **Implement singleton pattern**
    ```csharp
-   namespace ADRLRescue.Core
+   namespace ADRL.Core
    {
        public class NewManager : MonoBehaviour
        {
@@ -1415,7 +1392,7 @@ public class DomainRandomizer : MonoBehaviour
    ```csharp
    using UnityEngine;
    
-   namespace ADRLRescue.Data
+   namespace ExampleNamespace.Data
    {
        [CreateAssetMenu(fileName = "NewData", menuName = "ADRL-Rescue/New Data")]
        public class NewData : ScriptableObject
@@ -1452,17 +1429,17 @@ public class DomainRandomizer : MonoBehaviour
 
 1. **Create UI prefab**
    ```
-   UnityProject/Assets/Prefabs/UI/NewScreen.prefab
-   ```
+    Assets/ADRL/Prefabs/UI/NewScreen.prefab
+    ```
 
-2. **Create UI script**
-   ```
-   UnityProject/Assets/Scripts/UI/NewScreen.cs
+2. **Create the UI script**
+    ```
+    Assets/ADRL/Scripts/UI/NewScreen.cs
    ```
 
 3. **Implement UI logic**
    ```csharp
-   namespace ADRLRescue.UI
+   namespace ADRL.UI
    {
        public class NewScreen : MonoBehaviour
        {
@@ -1504,12 +1481,12 @@ public class DomainRandomizer : MonoBehaviour
 
 1. **Create capability script**
    ```
-   UnityProject/Assets/Scripts/Drone/Capabilities/NewCapability.cs
+    Assets/ADRL/Scripts/Drone/Capabilities/NewCapability.cs
    ```
 
 2. **Implement capability**
    ```csharp
-   namespace ADRLRescue.Drone.Capabilities
+   namespace ADRL.Drone.Capabilities
    {
        public class NewCapability : MonoBehaviour
        {
@@ -1650,7 +1627,7 @@ mlagents-learn config/training_config.yaml --run-id=experiment_01 --env=UnityEnv
 1. **Copy ONNX file**
    ```
    results/experiment_01/DroneAgent.onnx
-   → UnityProject/Assets/Models/DroneAgent.onnx
+    → Assets/ADRL/Models/DroneAgent.onnx
    ```
 
 2. **Update BehaviorParameters**
@@ -2390,11 +2367,13 @@ What actually happened?
 
 | Milestone | Target Date | Focus |
 |:----------|:------------|:------|
-| `v0.1.0` | Month 1 | Core architecture |
-| `v0.2.0` | Month 2 | Drone system |
-| `v0.3.0` | Month 3 | Environment system |
-| `v0.4.0` | Month 4 | Training pipeline |
-| `v1.0.0` | Month 6 | Stable release |
+| `v0.1.0` | Month 1 | Foundation |
+| `v0.2.0` | Month 2 | Unity Foundation |
+| `v0.3.0` | Month 3 | Environment |
+| `v0.4.0` | Month 4 | Sensors & AI |
+| `v0.5.0` | Month 5 | Training |
+| `v0.6.0` | Month 6 | Polish |
+| `v1.0.0` | Month 7 | Release |
 
 ---
 

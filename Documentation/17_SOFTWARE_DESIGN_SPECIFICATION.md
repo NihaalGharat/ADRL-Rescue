@@ -69,14 +69,7 @@ graph TD
 
 ## 1.3 Design Principles
 
-| Principle | Application |
-|:----------|:------------|
-| **SOLID** | Every class follows all five principles |
-| **Clean Architecture** | Dependencies point inward toward core logic |
-| **Composition** | Prefer composition over inheritance |
-| **Loose Coupling** | Systems communicate through interfaces and events |
-| **High Cohesion** | Related functionality stays together |
-| **Single Responsibility** | Each class does exactly one thing |
+Design principles are defined in [00_PROJECT_CHARTER.md](00_PROJECT_CHARTER.md) and are followed throughout this specification.
 
 ---
 
@@ -125,50 +118,15 @@ graph TD
 
 ## 2.3 Drone System Diagram
 
-```mermaid
-graph TD
-    subgraph "Drone Agent"
-        SM[SensorManager] --> OP[ObservationProcessor]
-        OP --> MEM[DroneMemory]
-        MEM --> NN[PPO Neural Network]
-        NN --> FC[FlightController]
-        FC --> RB[Rigidbody]
-        RS[RaySensor] --> SM
-        TS[ThermalSensor] --> SM
-        VS[VisionSensor] --> SM
-        CS[CollisionSensor] --> SM
-    end
-```
+See [07_DRONE_SYSTEM.md](07_DRONE_SYSTEM.md) for the drone system architecture.
 
 ## 2.4 Environment System Diagram
 
-```mermaid
-graph TD
-    EM[EnvironmentManager] --> TG[TerrainGenerator]
-    EM --> DG[DisasterGenerator]
-    EM --> OG[ObstacleGenerator]
-    EM --> VG[VictimGenerator]
-    EM --> SG[SpawnGenerator]
-    TG --> Terrain
-    DG --> Disasters
-    OG --> Obstacles
-    VG --> Victims
-    SG --> SpawnPoint
-```
+See [08_ENVIRONMENT_SYSTEM.md](08_ENVIRONMENT_SYSTEM.md) for the environment system architecture.
 
 ## 2.5 Training Pipeline Diagram
 
-```mermaid
-graph LR
-    A[Unity Environment] --> B[ML-Agents Plugin]
-    B --> C[Python Trainer]
-    C --> D[PPO Algorithm]
-    D --> E[Neural Network]
-    E --> F{Converged?}
-    F -->|No| A
-    F -->|Yes| G[ONNX Export]
-    G --> H[Inference Mode]
-```
+See [11_TRAINING_PIPELINE.md](11_TRAINING_PIPELINE.md) for the training pipeline architecture.
 
 ## 2.6 Data Flow Diagram
 
@@ -210,91 +168,9 @@ graph TD
 
 # 3. Folder Structure
 
-## 3.1 Script Organization
+The project folder hierarchy is defined in [05_FOLDER_STRUCTURE.md](05_FOLDER_STRUCTURE.md).
 
-```
-Assets/
-├── Scripts/
-│   ├── Core/                    # Central game logic
-│   │   ├── GameManager.cs
-│   │   ├── EpisodeManager.cs
-│   │   ├── ConfigurationManager.cs
-│   │   └── SaveSystem.cs
-│   │
-│   ├── AI/                      # Machine learning components
-│   │   ├── DroneAgent.cs
-│   │   ├── ObservationProcessor.cs
-│   │   ├── RewardSystem.cs
-│   │   ├── TrainingManager.cs
-│   │   └── Memory/
-│   │       └── DroneMemory.cs
-│   │
-│   ├── Drone/                   # Drone behavior and physics
-│   │   ├── FlightController.cs
-│   │   ├── DroneManager.cs
-│   │   └── DroneStabilizer.cs
-│   │
-│   ├── Environment/             # World generation
-│   │   ├── EnvironmentManager.cs
-│   │   ├── TerrainGenerator.cs
-│   │   ├── DisasterGenerator.cs
-│   │   ├── ObstacleGenerator.cs
-│   │   ├── VictimGenerator.cs
-│   │   └── SpawnGenerator.cs
-│   │
-│   ├── Sensors/                 # Sensor implementations
-│   │   ├── SensorManager.cs
-│   │   ├── RaySensor.cs
-│   │   ├── ThermalSensor.cs
-│   │   ├── VisionSensor.cs
-│   │   └── CollisionSensor.cs
-│   │
-│   ├── Managers/                # Additional managers
-│   │   └── PerformanceMonitor.cs
-│   │
-│   ├── UI/                      # User interface
-│   │   ├── UIManager.cs
-│   │   ├── HUDController.cs
-│   │   └── DebugOverlay.cs
-│   │
-│   ├── Interfaces/              # Interface contracts
-│   │   ├── ISensor.cs
-│   │   ├── IManager.cs
-│   │   ├── IResettable.cs
-│   │   ├── IDetectable.cs
-│   │   └── IConfigurable.cs
-│   │
-│   ├── Events/                  # Event definitions
-│   │   └── GameEvents.cs
-│   │
-│   ├── Data/                    # ScriptableObjects
-│   │   ├── RewardConfig.cs
-│   │   ├── TrainingConfig.cs
-│   │   ├── EnvironmentConfig.cs
-│   │   ├── DroneConfig.cs
-│   │   └── SensorConfig.cs
-│   │
-│   └── Utilities/               # Helper classes
-│       ├── MathHelper.cs
-│       ├── DebugHelper.cs
-│       └── ObjectPool.cs
-```
-
-## 3.2 Folder Responsibilities
-
-| Folder | Responsibility | Key Classes |
-|:-------|:---------------|:------------|
-| `Core/` | Central game orchestration | GameManager, EpisodeManager |
-| `AI/` | ML integration and learning | DroneAgent, RewardSystem |
-| `Drone/` | Physical drone behavior | FlightController, DroneManager |
-| `Environment/` | World generation | TerrainGenerator, DisasterGenerator |
-| `Sensors/` | Perception systems | SensorManager, RaySensor |
-| `Managers/` | Cross-cutting concerns | PerformanceMonitor |
-| `UI/` | User interface | UIManager, HUDController |
-| `Interfaces/` | Contracts | ISensor, IManager |
-| `Events/` | Event definitions | GameEvents |
-| `Data/` | Configuration data | RewardConfig, DroneConfig |
-| `Utilities/` | Helper functions | MathHelper, ObjectPool |
+The script specifications in Section 5 follow that structure.
 
 ---
 
@@ -1801,311 +1677,80 @@ graph TD
 
 ## 9.2 Manager Responsibilities
 
-### GameManager
+Manager roles and lifecycle are defined in [02_PROJECT_ARCHITECTURE.md](02_PROJECT_ARCHITECTURE.md).
 
-**Role:** Root orchestrator. Owns the application lifecycle.
-
-**Responsibilities:**
-- Initialize all managers in correct order
-- Coordinate system shutdown
-- Handle application quit
-- Maintain global state
-
-### EpisodeManager
-
-**Role:** Controls episode lifecycle.
-
-**Responsibilities:**
-- Start/stop episodes
-- Track episode count
-- Enforce max steps
-- Record episode statistics
-- Trigger environment reset
-
-### EnvironmentManager
-
-**Role:** Generates and manages disaster environments.
-
-**Responsibilities:**
-- Coordinate terrain generation
-- Trigger disaster effects
-- Place obstacles and victims
-- Provide spawn positions
-- Clear environment between episodes
-
-### DroneManager
-
-**Role:** Manages the drone agent.
-
-**Responsibilities:**
-- Initialize drone systems
-- Coordinate sensor collection
-- Apply AI decisions
-- Handle drone respawn
-- Track drone state
-
-### TrainingManager
-
-**Role:** Manages ML-Agents training pipeline.
-
-**Responsibilities:**
-- Configure ML-Agents
-- Start/stop training
-- Monitor progress
-- Export models
-- Log to TensorBoard
-
-### UIManager
-
-**Role:** Manages user interface.
-
-**Responsibilities:**
-- Update HUD
-- Handle input
-- Toggle debug overlay
-- Display training progress
-- Show notifications
-
-### ConfigurationManager
-
-**Role:** Centralized configuration access.
-
-**Responsibilities:**
-- Load ScriptableObjects
-- Provide typed access
-- Validate configurations
-- Handle config changes
-
-### PerformanceMonitor
-
-**Role:** Tracks performance metrics.
-
-**Responsibilities:**
-- Measure frame rate
-- Track memory usage
-- Monitor CPU usage
-- Alert on issues
-- Generate reports
+Implementation contracts for each manager are specified in Section 5 (Script Specifications).
 
 ---
 
 # 10. AI System Design
 
-## 10.1 Observation Flow
+## 10.1 Overview
 
-```mermaid
-graph TD
-    SENSORS[All Sensors] -->|Raw Data| SM[SensorManager]
-    SM -->|Aggregated| OP[ObservationProcessor]
-    OP -->|Normalize| OP
-    OP -->|Combine| OP
-    OP -->|Vector [44]| DA[DroneAgent]
-    DA -->|To ML-Agents| NN[Neural Network]
-```
+The AI system architecture is defined in [06_AI_SYSTEM.md](06_AI_SYSTEM.md). Reward system design is in [10_REWARD_SYSTEM.md](10_REWARD_SYSTEM.md). Training pipeline is in [11_TRAINING_PIPELINE.md](11_TRAINING_PIPELINE.md). Sensor system design is in [09_SENSOR_SYSTEM.md](09_SENSOR_SYSTEM.md).
 
-## 10.2 Action Flow
+## 10.2 Implementation Dimensions
 
-```mermaid
-graph TD
-    NN[Neural Network] -->|Actions [4]| DA[DroneAgent]
-    DA -->|Unpack| DA
-    DA -->|MoveX, MoveY, MoveZ| FC[FlightController]
-    DA -->|RotateY| FC
-    FC -->|Forces| RB[Rigidbody]
-    RB -->|Physics| UNITY[Unity Physics]
-```
+- **Observation vector:** 44 values (Ray sensor: 13, Thermal: 1, Vision: 1, Position/Velocity: 6, plus collision and exploration state)
+- **Action vector:** 4 values (MoveX, MoveY, MoveZ, RotateY)
+- **Memory:** DroneMemory stores visited positions, obstacle locations, and victim detections
 
-## 10.3 Reward Flow
+## 10.3 Script Relationships
 
-```mermaid
-graph TD
-    DA[DroneAgent] -->|State| RS[RewardSystem]
-    RS -->|Calculate| RS
-    RS -->|Reward| DA
-    DA -->|Assign| NN[ML-Agents]
-    RS -->|Log| TB[TensorBoard]
-```
+The AI system involves the following scripts (see Section 5 for full specifications):
 
-## 10.4 Training Flow
-
-```mermaid
-graph TD
-    A[Unity Environment] -->|Step| B[ML-Agents]
-    B -->|Collect| C[Python Trainer]
-    C -->|Update| D[PPO Algorithm]
-    D -->|New Weights| B
-    B -->|Apply| A
-    A -->|Log| E[TensorBoard]
-```
-
-## 10.5 Inference Flow
-
-```merrmaid
-graph TD
-    A[Unity Environment] -->|Observations| B[ONNX Model]
-    B -->|Actions| A
-    A -->|No Training| B
-```
-
-## 10.6 Memory System
-
-```mermaid
-graph TD
-    POS[Current Position] --> MEM[DroneMemory]
-    SENSORS[Sensor Data] --> MEM
-    MEM --> EXPLORED[Explored Areas Map]
-    MEM --> OBSTACLES[Obstacle Map]
-    MEM --> VICTIMS[Victim Locations]
-    EXPLORED --> QUERY[Query Nearest Unexplored]
-    OBSTACLES --> QUERY
-    VICTIMS --> QUERY
-    QUERY --> DIRECTION[Navigation Direction]
-```
-
-## 10.7 Sensor Fusion
-
-```mermaid
-graph TD
-    RS[Ray Sensor<br/>13 values] --> FUSE[Sensor Fusion]
-    TS[Thermal Sensor<br/>1 value] --> FUSE
-    VS[Vision Sensor<br/>1 value] --> FUSE
-    CS[Collision Sensor<br/>events] --> FUSE
-    POS[Position/Velocity<br/>6 values] --> FUSE
-    FUSE --> OBS[Observation Vector<br/>44 values]
-```
+- **DroneAgent** — ML-Agents bridge, collects observations, receives actions, assigns rewards
+- **ObservationProcessor** — Normalizes sensor data into observation vector
+- **DroneMemory** — Stores exploration history for navigation guidance
+- **RewardSystem** — Calculates per-step reward signals from drone state
 
 ---
 
 # 11. Environment System
 
-## 11.1 Terrain Generation
+## 11.1 Overview
 
-```mermaid
-graph TD
-    SEED[Random Seed] --> PERLIN[Perlin Noise]
-    PERLIN --> HEIGHTMAP[Heightmap]
-    HEIGHTMAP --> TERRAIN[Unity Terrain]
-    TERRAIN --> TEXTURES[Terrain Textures]
-    TERRAIN --> COLLIDERS[Terrain Colliders]
-```
+Environment generation is defined in [08_ENVIRONMENT_SYSTEM.md](08_ENVIRONMENT_SYSTEM.md).
 
-## 11.2 Disaster Generation
+## 11.2 Script Relationships
 
-```mermaid
-graph TD
-    TYPE[Disaster Type] --> DISPATCH{Type?}
-    DISPATCH -->|Earthquake| EQ[Cracked Terrain + Rubble + Fire]
-    DISPATCH -->|Flood| FL[Water Body + Floating Debris]
-    DISPATCH -->|Landslide| LS[Steep Slopes + Rockfall]
-    DISPATCH -->|Collapse| BC[Urban Rubble + Structural Damage]
-```
+The environment system involves the following scripts (see Section 5 for full specifications):
 
-## 11.3 Obstacle Placement Algorithm
+- **EnvironmentManager** — Coordinates terrain generation, disaster effects, obstacle and victim placement
+- **TerrainGenerator** — Procedural terrain via Perlin noise heightmaps
+- **DisasterGenerator** — Disaster-specific environment features and atmospheric effects
+- **ObstacleGenerator** — Obstacle placement with overlap checking and navigation path preservation
+- **VictimGenerator** — Victim spawning at valid positions with randomized properties
+- **SpawnGenerator** — Drone spawn point selection with clearance validation
 
-```
-1. Define no-fly zones (spawn point, boundaries)
-2. For each obstacle to place:
-   a. Generate random position within bounds
-   b. Check against no-fly zones
-   c. Check for overlaps with existing obstacles
-   d. Ensure navigation path exists
-   e. If valid: place obstacle with random rotation
-   f. If invalid: retry (max 10 attempts)
-```
+## 11.3 Runtime Behaviour
 
-## 11.4 Victim Placement Algorithm
-
-```
-1. For each victim to place:
-   a. Generate random position
-   b. Check not inside obstacles
-   c. Check not too close to spawn
-   d. Check minimum distance from other victims
-   e. Assign random properties (health, thermal signature)
-   f. If valid: place victim
-   g. If invalid: retry (max 10 attempts)
-```
-
-## 11.5 Spawn Logic
-
-```
-1. Generate candidate position
-2. Check height above terrain
-3. Check clearance from obstacles
-4. Check within environment bounds
-5. Validate with Physics.CheckSphere
-6. Return position if valid, else retry
-```
-
-## 11.6 Domain Randomization
-
-| Parameter | Range | Purpose |
-|:----------|:------|:--------|
-| Terrain seed | 0–999999 | Different terrain layouts |
-| Obstacle count | 30–70 | Varying density |
-| Victim count | 3–8 | Different challenge levels |
-| Building density | 0.2–0.5 | Urban vs rural |
-| Debris density | 0.1–0.3 | Different clutter levels |
+- All environment generation occurs once per episode, triggered by EpisodeManager
+- Obstacles and victims use ObjectPool for efficient instantiation and cleanup
+- Environment is fully cleared and regenerated on each episode start
 
 ---
 
 # 12. Drone System
 
-## 12.1 Flight Controller Design
+## 12.1 Overview
 
-```mermaid
-graph TD
-    AI[AI Actions] --> FC[FlightController]
-    FC --> FORCE[Apply Force]
-    FC --> ROTATION[Apply Rotation]
-    FORCE --> RB[Rigidbody]
-    ROTATION --> RB
-    RB --> STABILIZER[DroneStabilizer]
-    STABILIZER --> RB
-```
+The drone system architecture and physics model are defined in [07_DRONE_SYSTEM.md](07_DRONE_SYSTEM.md).
 
-## 12.2 Physics Model
+## 12.2 Script Relationships
 
-| Component | Formula | Description |
-|:----------|:--------|:------------|
-| Movement | `F = mass × acceleration` | Newton's second law |
-| Drag | `Fd = drag × v²` | Air resistance |
-| Stabilization | `τ = k × (target - current)` | Proportional control |
-| Speed limit | `v = clamp(v, 0, maxSpeed)` | Velocity capping |
+The drone system involves the following scripts (see Section 5 for full specifications):
 
-## 12.3 Navigation Strategy
+- **FlightController** — Applies movement forces and rotation from AI actions
+- **DroneStabilizer** — Maintains upright orientation via corrective torque
+- **DroneManager** — Coordinates drone lifecycle, sensor collection, and AI action application
 
-The drone uses a simple but effective exploration strategy:
+## 12.3 Runtime Behaviour
 
-1. **Explore unexplored areas** — Move toward nearest unvisited position
-2. **Follow sensor readings** — Avoid detected obstacles
-3. **Respond to thermal signals** — Move toward heat sources
-4. **Maintain altitude** — Stay above minimum height
-
-## 12.4 Sensor Integration
-
-All sensors feed into SensorManager, which aggregates data for the ObservationProcessor.
-
-```mermaid
-graph LR
-    RS[Ray Sensor] --> SM[Sensor Manager]
-    TS[Thermal] --> SM
-    VS[Vision] --> SM
-    CS[Collision] --> SM
-    SM --> OP[Observation Processor]
-```
-
-## 12.5 Memory Integration
-
-DroneMemory stores exploration data that influences navigation decisions.
-
-```mermaid
-graph LR
-    POS[Position] --> MEM[Memory]
-    SENSORS[Sensor Data] --> MEM
-    MEM --> NAV[Navigation Direction]
-    NAV --> FC[Flight Controller]
-```
+- FlightController operates in FixedUpdate for physics consistency
+- DroneStabilizer applies proportional control torque each physics step
+- DroneManager wires together DroneAgent, FlightController, and SensorManager
+- Drone inputs are driven entirely by the ML-Agents action vector during training
 
 ---
 
@@ -2500,65 +2145,38 @@ private void CleanupSystems() { }
 
 # 18. Testing Strategy
 
-## 18.1 Test Types
+## 18.1 Overview
 
-| Type | Scope | Tool | Frequency |
-|:-----|:------|:-----|:----------|
-| Unit | Individual classes | NUnit | Every commit |
-| Integration | System interactions | NUnit | Every feature |
-| Manual | User experience | Unity Play Mode | Before commits |
-| Performance | Speed and memory | Unity Profiler | Before releases |
+The project testing strategy, methodology, and procedures are defined in [15_TESTING_GUIDE.md](15_TESTING_GUIDE.md).
 
-## 18.2 Test Categories
+## 18.2 Implementation Test Checklist
+
+The following test categories map to scripts specified in Section 5:
 
 ### Core System Tests
-
-| Test | Validates |
-|:-----|:----------|
-| GameManager initializes | All managers start correctly |
-| EpisodeManager cycles | Episodes start and end |
-| ConfigurationManager loads | Configs load without error |
+- GameManager initializes — validates all managers start correctly
+- EpisodeManager cycles — validates episodes start, end, and reset
+- ConfigurationManager loads — validates configs load without error
 
 ### Drone System Tests
-
-| Test | Validates |
-|:-----|:----------|
-| FlightController applies force | Drone moves correctly |
-| DroneStabilizer corrects tilt | Drone stays level |
-| DroneMemory records positions | Memory works |
+- FlightController applies force — validates drone moves correctly
+- DroneStabilizer corrects tilt — validates drone stays level
+- DroneMemory records positions — validates memory operations
 
 ### Sensor Tests
-
-| Test | Validates |
-|:-----|:----------|
-| RaySensor detects obstacles | Rays hit objects |
-| ThermalSensor detects heat | Victims detected |
-| CollisionSensor triggers | Collisions recorded |
+- RaySensor detects obstacles — validates ray hits
+- ThermalSensor detects heat — validates victim detection
+- CollisionSensor triggers — validates collision recording
 
 ### AI System Tests
-
-| Test | Validates |
-|:-----|:----------|
-| ObservationProcessor normalizes | Values in range |
-| RewardSystem calculates correctly | Rewards match expectations |
-| DroneAgent collects observations | Correct vector size |
+- ObservationProcessor normalizes — validates values in expected range
+- RewardSystem calculates correctly — validates reward expectations
+- DroneAgent collects observations — validates correct vector size
 
 ### Environment Tests
-
-| Test | Validates |
-|:-----|:----------|
-| TerrainGenerator creates terrain | Terrain exists |
-| ObstacleGenerator places obstacles | No overlaps |
-| VictimGenerator spawns victims | Valid positions |
-
-## 18.3 Test-Driven Development
-
-```
-1. Write failing test
-2. Write minimal code to pass
-3. Refactor while keeping tests green
-4. Repeat
-```
+- TerrainGenerator creates terrain — validates terrain exists
+- ObstacleGenerator places obstacles — validates no overlaps
+- VictimGenerator spawns victims — validates valid positions
 
 ---
 
