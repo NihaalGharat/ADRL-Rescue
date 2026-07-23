@@ -2,11 +2,19 @@ namespace ADRL.Environment.Events
 {
     using ADRL.Core.Events;
 
+    public readonly struct EnvironmentInitializingEvent : IEvent
+    {
+    }
+
     public readonly struct EnvironmentInitializedEvent : IEvent
     {
     }
 
     public readonly struct EnvironmentResetEvent : IEvent
+    {
+    }
+
+    public readonly struct EnvironmentShutdownEvent : IEvent
     {
     }
 

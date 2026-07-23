@@ -7,6 +7,7 @@ namespace ADRL.Environment.Core
     using ADRL.Environment.Events;
     using ADRL.Environment.Hazards;
     using ADRL.Environment.Spawning;
+    using ADRL.Environment.Terrain;
     using ADRL.Environment.Victims;
     using ADRL.Environment.Obstacles;
     using ADRL.Environment.Procedural;
@@ -22,6 +23,7 @@ namespace ADRL.Environment.Core
         private HazardManager _hazardManager;
         private WorldObjectRegistry _worldObjectRegistry;
         private ObstacleManager _obstacleManager;
+        private TerrainGenerator _terrainGenerator;
         private ProceduralGenerator _proceduralGenerator;
         private EventBus _eventBus;
         private EnvironmentConfig _config;
@@ -43,6 +45,8 @@ namespace ADRL.Environment.Core
 
         public ProceduralGenerator ProceduralGenerator => _proceduralGenerator;
 
+        public TerrainGenerator TerrainGenerator => _terrainGenerator;
+
         public void Initialize(EventBus eventBus)
         {
             _eventBus = eventBus;
@@ -58,6 +62,8 @@ namespace ADRL.Environment.Core
             InitializeWorldObjectRegistry();
             InitializeObstacleManager();
             RegisterExistingObjects();
+
+            InitializeTerrainGenerator();
 
             if (_config.EnableProceduralGeneration)
                 InitializeProceduralGenerator();
@@ -155,6 +161,27 @@ namespace ADRL.Environment.Core
             _obstacleManager = null;
         }
 
+        private void InitializeTerrainGenerator()
+        {
+            var settings = ResourceLocator.Configs.Get<TerrainSettings>();
+
+            if (settings == null)
+                return;
+
+            _terrainGenerator = new TerrainGenerator();
+            _terrainGenerator.Initialize(settings);
+            _terrainGenerator.Generate(SeedManager.CurrentSeed, _eventBus);
+
+            if (_terrainGenerator.IsGenerated && _terrainGenerator.Terrain != null)
+                _terrainGenerator.Terrain.transform.parent = transform;
+        }
+
+        private void CleanupTerrainGenerator()
+        {
+            _terrainGenerator?.Reset();
+            _terrainGenerator = null;
+        }
+
         private void CleanupProceduralGenerator()
         {
             _proceduralGenerator?.Clear();
@@ -180,6 +207,7 @@ namespace ADRL.Environment.Core
 
         private void OnDestroy()
         {
+            CleanupTerrainGenerator();
             CleanupProceduralGenerator();
             CleanupObstacleManager();
             CleanupWorldObjectRegistry();

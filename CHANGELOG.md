@@ -138,6 +138,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated NAMESPACE_GUIDE.md with new `ADRL.Core.Resources` namespace entry
 - No existing public APIs broken — fully backward compatible
 
+### Phase 3.1 — Environment Foundation (2026-07-23)
+
+- **EnvironmentBootstrap** — Static bootstrap class with `Boot(WorldSettings, EventBus)` and `Shutdown(EventBus)`; creates persistent `[EnvironmentSystem]` GameObject; publishes Initializing/Initialized lifecycle events; integrates with existing EnvironmentManager
+- **EnvironmentContext** — Plain C# class holding shared runtime state: WorldSettings reference, ActiveSeed, RuntimeState, EpisodeElapsedTime, CurrentEpisode; `Reset()` method for episode transitions
+- **WorldSettings** — `[CreateAssetMenu]` ScriptableObject for world-level configuration: WorldSize, PlayArea, SeedMode (Fixed/Random/TimeBased), FixedSeed, GravityOverride, DebugFlags (EnableDebugLogs, ShowGizmos, SkipEnvironmentValidation); zero terrain parameters (deferred to later phases)
+- **SeedManager** — Static class with deterministic seed generation; three modes: Fixed (user-provided seed), Random (Environment.TickCount), TimeBased (UTC Unix seconds); exposes `GenerateSeed()`, `GenerateSeed(int)`, `GenerateSeed(WorldSettings)`, `SetSeed(int)`, `Reset()`
+- **2 new events** in `ADRL.Environment.Events`: `EnvironmentInitializingEvent`, `EnvironmentShutdownEvent`
+- All code in ADRL.Environment assembly (`ADRL.Environment.Core` namespace)
+- Zero changes to existing Environment systems, ADRL.Core asmdef, or any other assembly
+- Zero AI, zero physics, zero ML-Agent — fully decoupled foundation scaffolding
+
+### Phase 3.1.1 — Foundation Hardening (2026-07-23)
+
+- **Boot idempotency** — Verified existing `_initialized` guard prevents duplicate `[EnvironmentSystem]` GameObjects and double initialization; no changes required
+- **Shutdown completeness** — Added `SeedManager.Reset()` to clear stale `_currentSeed` after `Shutdown()`; `EnvironmentContext.Reset()` now also clears `WorldSettings` reference for full runtime state cleanup
+- **Debug seed logging** — Added conditional `Debug.Log` in `Boot()` (guarded by `WorldSettings.EnableDebugLogs`) showing episode, seed, and seed mode; zero logging in production
+- Zero out-of-scope modifications — no terrain, AI, drone, sensor, training, or reward systems touched
+
+### Phase 3.2 — Terrain Generation Framework (2026-07-23)
+
+- **TerrainSettings** — `[CreateAssetMenu]` ScriptableObject in `ADRL.Environment.Terrain` namespace; terrain-level configuration: TerrainWidth, TerrainLength, HeightmapResolution, HeightScale, NoiseScale, SeedOffset, AutoGenerate; zero generation logic (pure configuration)
+- **TerrainGenerator** — Concrete class in `ADRL.Environment.Terrain` namespace; `Initialize(TerrainSettings)`, `Generate(int seed, EventBus)` creates Unity Terrain with Perlin noise heightmap; fully deterministic via SeedManager; publishes terrain lifecycle events; `Reset()` destroys generated terrain
+- **TerrainEvents** — 3 new `IEvent` structs in `ADRL.Environment.Events`: `TerrainGenerationStartedEvent`, `TerrainGeneratedEvent`, `TerrainGenerationFailedEvent`
+- **EnvironmentContext** — Extended with `GeneratedTerrain` (TerrainData) and `TerrainSize` (Vector2) for runtime terrain reference
+- **EnvironmentManager** — Integrated `InitializeTerrainGenerator()` step before procedural generation; terrain GameObject parented to `[EnvironmentSystem]` for lifecycle management; cleanup in `OnDestroy()`
+- **EnvironmentBootstrap** — Populates `EnvironmentContext.GeneratedTerrain` and `.TerrainSize` after `EnvironmentManager.Initialize()` returns
+- All code in ADRL.Environment assembly (`ADRL.Environment.Terrain`, `ADRL.Environment.Events` namespaces)
+- Zero changes to ADRL.Core, ADRL.Drone, ADRL.AI, or any other assembly
+- Zero disasters, victims, hazards, obstacles, AI, navigation, or RL rewards
+- Removed `.gitkeep` from `Terrain/` directory
+
+### Phase 3.2.1 — Terrain Framework Hardening (2026-07-23)
+
+- **Lifecycle guards** — `Initialize()` is idempotent via `_isInitialized` flag; `Generate()` rejects duplicate calls with explicit `TerrainGenerationFailedEvent`; `Reset()` fully resets generator state including `_isInitialized`
+- **Settings validation** — `ValidateSettings()` checks TerrainWidth, TerrainLength, HeightmapResolution, HeightScale, NoiseScale before generation
+- **Exception safety** — `Generate()` wrapped in `try-catch`; any exception publishes `TerrainGenerationFailedEvent` and cleans up partial TerrainData
+- **Memory cleanup** — `CleanupTerrainData()` destroys TerrainData asset in `Reset()` (prevents orphaned asset leak); TerrainData destroyed via `Object.Destroy` with `Application.isPlaying` check
+- **Magic numbers** — Extracted `SeedOffsetMultiplier`, `SeedOffsetSeparator`, `TerrainCenterFactor` to named constants
+- **Method decomposition** — Extracted `CreateTerrainData()`, `CreateTerrainGameObject()`, `ValidateSettings()`, `CleanupTerrainData()` from `Generate()` for readability and testability
+- No API breaking changes, no new assemblies, no new namespaces, no new dependencies
+
 ### Phase 4.0 — Modular Drone Framework (2026-07-23)
 
 - **DroneController** — MonoBehaviour orchestrator composing IMotor, DroneHealth, DroneEnergy, DroneStateMachine via method injection

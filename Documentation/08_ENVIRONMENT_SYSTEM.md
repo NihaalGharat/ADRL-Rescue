@@ -8,18 +8,145 @@ The Environment System generates and manages procedurally created disaster envir
 
 ---
 
+## Foundation Layer
+
+The Environment Foundation provides core infrastructure required by all environment systems.
+
+### EnvironmentBootstrap
+
+Static entry point (`ADRL.Environment.Core`) called during initialization:
+
+```
+Boot(WorldSettings, EventBus)  →  Creates [EnvironmentSystem] GameObject
+                                   Adds EnvironmentManager component
+                                   Publishes EnvironmentInitializingEvent
+                                   Creates EnvironmentContext with seed + config
+                                   Calls EnvironmentManager.Initialize()
+                                   Shutdown(EventBus)  →  Destroys manager, resets context
+                                                         Publishes EnvironmentShutdownEvent
+```
+
+### EnvironmentContext
+
+Plain C# class holding shared runtime state for the current session:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| WorldSettings | WorldSettings | Active world configuration |
+| ActiveSeed | int | Current deterministic seed |
+| RuntimeState | EnvironmentState | Current lifecycle state |
+| EpisodeElapsedTime | float | Time elapsed in current episode |
+| CurrentEpisode | int | Episode counter |
+| GeneratedTerrain | TerrainData | Generated terrain data reference |
+| TerrainSize | Vector2 | Terrain dimensions (width, length) |
+
+### WorldSettings
+
+ScriptableObject (`[CreateAssetMenu]`) for world-level configuration:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| WorldSize | float | 200 | Total world dimension |
+| PlayArea | float | 180 | Usable play area |
+| SeedMode | SeedMode | Random | Fixed, Random, or TimeBased |
+| FixedSeed | int | 0 | Seed when mode is Fixed |
+| OverrideGravity | bool | false | Enable gravity override |
+| GravityOverride | Vector3 | (0, -9.81, 0) | Custom gravity vector |
+| EnableDebugLogs | bool | false | Toggle debug logging |
+| ShowGizmos | bool | true | Toggle editor gizmos |
+| SkipEnvironmentValidation | bool | false | Bypass validation |
+
+### SeedManager
+
+Static class for deterministic seed generation:
+
+| Method | Description |
+|--------|-------------|
+| GenerateSeed() | Random seed via Environment.TickCount |
+| GenerateSeed(int) | Fixed user-provided seed |
+| GenerateSeed(WorldSettings) | Mode-based: Fixed → FixedSeed, TimeBased → UTC seconds, Random → TickCount |
+| SetSeed(int) | Manual seed override |
+| Reset() | Clear to zero |
+
+Seed modes:
+- **Fixed** — Deterministic reproduction with known seed
+- **Random** — Unpredictable per-run seeds
+- **TimeBased** — Reproducible for runs within same second
+
+---
+
+## Terrain Generation
+
+The Terrain Generation Framework creates the physical ground surface for each environment. It runs before all other generation systems (obstacles, victims, hazards) so they have a surface to place objects on.
+
+### TerrainSettings
+
+ScriptableObject (`[CreateAssetMenu]`) for terrain-level configuration:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| TerrainWidth | float | 200 | World-space width |
+| TerrainLength | float | 200 | World-space length |
+| HeightmapResolution | int | 513 | Heightmap resolution (power of 2 + 1) |
+| HeightScale | float | 50 | Maximum terrain height |
+| NoiseScale | float | 0.02 | Perlin noise frequency |
+| SeedOffset | int | 0 | Additional seed displacement |
+| AutoGenerate | bool | true | Generate terrain during initialization |
+
+### TerrainGenerator
+
+Concrete generator class (`ADRL.Environment.Terrain`) with deterministic heightmap generation:
+
+| Method | Description |
+|--------|-------------|
+| Initialize(TerrainSettings) | Configure generator with settings |
+| Generate(int seed, EventBus) | Create Unity Terrain with Perlin noise heightmap; publishes terrain events |
+| Reset() | Destroy and release generated terrain |
+
+**Generation pipeline:**
+
+```
+EnvironmentBootstrap.Boot()
+    ↓
+EnvironmentManager.Initialize()
+    ↓
+InitializeTerrainGenerator()     ← NEW: terrain generated before objects
+    ↓
+TerrainGenerator.Initialize()
+    ↓
+Generate Heightmap (Perlin noise, seed from SeedManager)
+    ↓
+Create Terrain GameObject (centered at origin)
+    ↓
+Publish TerrainGeneratedEvent
+    ↓
+InitializeProceduralGenerator()  ← existing: objects placed on terrain
+```
+
+- Fully deterministic: identical seed + identical settings → identical terrain
+- Terrain parented to `[EnvironmentSystem]` GameObject for lifecycle cleanup
+- Procedural generation runs after terrain so objects have a surface
+
+### Terrain Events
+
+| Event | Description |
+|-------|-------------|
+| TerrainGenerationStartedEvent | Fired before heightmap generation begins |
+| TerrainGeneratedEvent | Fired after terrain is fully built |
+| TerrainGenerationFailedEvent | Fired if generation fails (carries a Reason string) |
+
+---
+
 ## System Architecture
 
 ```mermaid
 graph TD
-    PGM[Procedural Generation Manager] --> T[Terrain Generator]
-    PGM --> B[Building Generator]
-    PGM --> O[Obstacle Generator]
+    TG[Terrain Generator] -->|Heightmap| Terrain
+    
+    PGM[Procedural Generation Manager] --> O[Obstacle Generator]
     PGM --> V[Victim Spawner]
     PGM --> H[Hazard System]
     
-    T -->|Heightmap| Terrain
-    B -->|Prefabs| Buildings
     O -->|Prefabs| Rocks, Trees, Debris
     V -->|Positions| Victims
     H -->|Effects| Fire, Water
@@ -42,14 +169,14 @@ graph TD
 
 ```mermaid
 sequenceDiagram
+    participant TG as Terrain Generator
     participant P as Procedural Manager
-    participant T as Terrain
-    participant B as Buildings
     participant O as Obstacles
     participant V as Victims
     
-    P->>T: Generate heightmap
-    P->>B: Place structures
+    TG->>TG: Generate heightmap
+    Note over TG: Deterministic via SeedManager
+    
     P->>O: Spawn obstacles
     P->>V: Position victims
     Note over P: Validate layout
