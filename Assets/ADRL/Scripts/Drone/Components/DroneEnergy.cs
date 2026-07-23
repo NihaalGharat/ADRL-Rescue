@@ -6,6 +6,9 @@ namespace ADRL.Drone.Components
 
     public class DroneEnergy
     {
+        private const float LowThreshold = 0.25f;
+        private const float CriticalThreshold = 0.10f;
+
         private readonly EventBus _eventBus;
         private float _currentEnergy;
         private float _maxEnergy;
@@ -16,8 +19,8 @@ namespace ADRL.Drone.Components
         public float CurrentEnergy => _currentEnergy;
         public float MaxEnergy => _maxEnergy;
         public bool IsDepleted => _currentEnergy <= 0f;
-        public bool IsLow => !IsDepleted && _currentEnergy / _maxEnergy <= 0.25f;
-        public bool IsCritical => !IsDepleted && _currentEnergy / _maxEnergy <= 0.10f;
+        public bool IsLow => !IsDepleted && _currentEnergy / _maxEnergy <= LowThreshold;
+        public bool IsCritical => !IsDepleted && _currentEnergy / _maxEnergy <= CriticalThreshold;
         public float EnergyPercentage => _maxEnergy > 0f ? _currentEnergy / _maxEnergy : 0f;
 
         public DroneEnergy(EventBus eventBus)
@@ -50,20 +53,13 @@ namespace ADRL.Drone.Components
 
         public void Recharge(float amount)
         {
-            if (IsDepleted)
-                return;
-
             _currentEnergy = UnityEngine.Mathf.Min(_maxEnergy, _currentEnergy + amount);
 
-            if (_currentEnergy > _maxEnergy * 0.25f)
-            {
+            if (_currentEnergy > _maxEnergy * LowThreshold)
                 _lowBatteryTriggered = false;
-            }
 
-            if (_currentEnergy > _maxEnergy * 0.10f)
-            {
+            if (_currentEnergy > _maxEnergy * CriticalThreshold)
                 _criticalBatteryTriggered = false;
-            }
         }
 
         public void Reset()

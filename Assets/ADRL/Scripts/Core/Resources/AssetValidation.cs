@@ -28,13 +28,13 @@ namespace ADRL.Core.Resources
 
             if (registry == null)
             {
-                errors.Add("ConfigRegistry is null.");
+                errors.Add("ConfigRegistry is null. Bootstrap did not initialize resource management.");
                 return new ValidationResult(errors, warnings);
             }
 
             if (registry.Count == 0)
             {
-                warnings.Add("ConfigRegistry is empty. No configurations registered.");
+                errors.Add("ConfigRegistry is empty. No configurations were registered during bootstrap. Verify Bootstrapper has all configs assigned.");
             }
 
             return new ValidationResult(errors, warnings);
@@ -47,13 +47,13 @@ namespace ADRL.Core.Resources
 
             if (registry == null)
             {
-                errors.Add("PrefabRegistry is null.");
+                errors.Add("PrefabRegistry is null. Bootstrap did not initialize resource management.");
                 return new ValidationResult(errors, warnings);
             }
 
             if (registry.Count == 0)
             {
-                warnings.Add("PrefabRegistry is empty. No prefabs registered.");
+                warnings.Add("PrefabRegistry is empty (expected before Phase 6). Register prefabs after Phase 5 completes.");
             }
 
             return new ValidationResult(errors, warnings);
@@ -87,7 +87,15 @@ namespace ADRL.Core.Resources
                 Debug.LogWarning($"[AssetValidation] {warning}");
             }
 
-            if (!result.HasErrors && !result.HasWarnings)
+            if (result.HasErrors)
+            {
+                Debug.LogError($"[AssetValidation] Validation FAILED. {result.Errors.Count} error(s), {result.Warnings.Count} warning(s).");
+            }
+            else if (result.HasWarnings)
+            {
+                Debug.LogWarning($"[AssetValidation] Validation passed with {result.Warnings.Count} warning(s).");
+            }
+            else
             {
                 Debug.Log("[AssetValidation] All validations passed.");
             }

@@ -10,6 +10,8 @@ namespace ADRL.Environment.Procedural
         private System.Random _random;
         private int _initialSeed;
         private readonly List<GenerationRule> _rules;
+        private readonly List<GenerationRule> _sortedRules;
+        private bool _rulesDirty = true;
 
         public IReadOnlyList<GenerationRule> Rules => _rules;
 
@@ -20,6 +22,7 @@ namespace ADRL.Environment.Procedural
         public ProceduralGenerator()
         {
             _rules = new List<GenerationRule>();
+            _sortedRules = new List<GenerationRule>();
         }
 
         public void Initialize(GenerationSettings settings)
@@ -28,17 +31,27 @@ namespace ADRL.Environment.Procedural
             _initialSeed = settings.GetEffectiveSeed();
             _random = new System.Random(_initialSeed);
             TotalGenerated = 0;
+            _rulesDirty = true;
         }
 
         public void AddRule(GenerationRule rule)
         {
             if (rule != null && !_rules.Contains(rule))
+            {
                 _rules.Add(rule);
+                _rulesDirty = true;
+            }
         }
 
         public bool RemoveRule(GenerationRule rule)
         {
-            return _rules.Remove(rule);
+            if (_rules.Remove(rule))
+            {
+                _rulesDirty = true;
+                return true;
+            }
+
+            return false;
         }
 
         public int Generate(WorldObjectRegistry registry)
@@ -59,15 +72,22 @@ namespace ADRL.Environment.Procedural
                 MinSpacing = _settings.MinSpacing
             };
 
-            _rules.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-
-            for (var i = 0; i < _rules.Count; i++)
+            if (_rulesDirty)
             {
-                var rule = _rules[i];
+                _sortedRules.Clear();
+                _sortedRules.AddRange(_rules);
+                _sortedRules.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+                _rulesDirty = false;
+            }
+
+            for (var i = 0; i < _sortedRules.Count; i++)
+            {
+                var rule = _sortedRules[i];
 
                 if (!rule.Enabled)
                     continue;
 
+                context.PlacedPositions.Clear();
                 context.TotalGenerated = 0;
                 var count = rule.Generate(context);
                 TotalGenerated += count;
@@ -88,9 +108,11 @@ namespace ADRL.Environment.Procedural
         public void Clear()
         {
             _rules.Clear();
+            _sortedRules.Clear();
             _settings = null;
             _random = null;
             TotalGenerated = 0;
+            _rulesDirty = true;
         }
 
         private class GenerationContextImpl : IGenerationContext

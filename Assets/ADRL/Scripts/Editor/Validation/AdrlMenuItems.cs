@@ -28,24 +28,36 @@ namespace ADRL.Editor.Validation
         [MenuItem(RootMenu + "Documentation/Namespace Guide", priority = 100)]
         private static void OpenNamespaceGuide()
         {
-            var guid = AssetDatabase.FindAssets("NAMESPACE_GUIDE")[0];
-            var path = AssetDatabase.GUIDToAssetPath(guid);
-            UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
-            Selection.activeObject = obj;
-            EditorGUIUtility.PingObject(obj);
+            PingDocumentation("NAMESPACE_GUIDE");
         }
 
         [MenuItem(RootMenu + "Documentation/Developer Handbook", priority = 101)]
         private static void OpenDeveloperHandbook()
         {
-            var guids = AssetDatabase.FindAssets("18_DEVELOPER_HANDBOOK");
-            if (guids.Length > 0)
+            PingDocumentation("18_DEVELOPER_HANDBOOK");
+        }
+
+        private static void PingDocumentation(string searchFilter)
+        {
+            var guids = AssetDatabase.FindAssets(searchFilter);
+
+            if (guids.Length == 0)
             {
-                var path = AssetDatabase.GUIDToAssetPath(guids[0]);
-                UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
-                Selection.activeObject = obj;
-                EditorGUIUtility.PingObject(obj);
+                Debug.LogWarning($"[AdrlMenuItems] Documentation file \"{searchFilter}\" not found in project.");
+                return;
             }
+
+            var path = AssetDatabase.GUIDToAssetPath(guids[0]);
+            var obj = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+
+            if (obj == null)
+            {
+                Debug.LogWarning($"[AdrlMenuItems] Could not load documentation asset at: {path}");
+                return;
+            }
+
+            Selection.activeObject = obj;
+            EditorGUIUtility.PingObject(obj);
         }
     }
 }

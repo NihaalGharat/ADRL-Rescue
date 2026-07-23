@@ -14,6 +14,12 @@ namespace ADRL.Environment.Scenarios
         private string _scenarioName = "New Scenario";
 
         [SerializeField]
+        private ScenarioType _scenarioType = ScenarioType.Custom;
+
+        [SerializeField]
+        private ScenarioDifficulty _difficulty = ScenarioDifficulty.Medium;
+
+        [SerializeField]
         [TextArea(3, 10)]
         private string _description;
 
@@ -85,6 +91,10 @@ namespace ADRL.Environment.Scenarios
 
         public string ScenarioName => _scenarioName;
 
+        public ScenarioType ScenarioType => _scenarioType;
+
+        public ScenarioDifficulty Difficulty => _difficulty;
+
         public string Description => _description;
 
         public string Author => _author;
@@ -112,6 +122,16 @@ namespace ADRL.Environment.Scenarios
         public float SuccessThreshold => _successThreshold;
 
         public float FailureThreshold => _failureThreshold;
+
+        public string Weather => _weather;
+
+        public string Lighting => _lighting;
+
+        public float TimeOfDay => _timeOfDay;
+
+        public string Wind => _wind;
+
+        public bool DifficultyScaling => _difficultyScaling;
 
         public bool HasVictimOverride => _victimCount > 0;
 

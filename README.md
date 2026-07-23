@@ -6,7 +6,7 @@
 [![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-blue.svg)](https://unity.com/)
 [![ML-Agents](https://img.shields.io/badge/ML--Agents-1.0-green.svg)](https://github.com/Unity-Technologies/ml-agents)
 [![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/Version-v0.1.0-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
+[![Version](https://img.shields.io/badge/Version-v0.2.0-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
 
 ---
 
@@ -22,22 +22,26 @@ The drone learns its behavior entirely through **Reinforcement Learning (PPO)** 
 
 ## Project Status
 
-🚧 **Version v0.1.0 — Repository Foundation**
+🚧 **Version v0.2.0 — Unity Foundation**
 
 ADRL-Rescue is currently in active development.
 
-Version v0.1.0 establishes the complete software architecture, technical documentation, repository standards, and development workflow.
+Version v0.2.0 implements the core framework, resource management, drone framework, environment framework, procedural generation, and scenario systems.
 
-**Implementation begins in Version v0.2.0.**
+**Sensors, AI, ML-Agents, and training begin in Phase 7.**
 
 | Milestone | Status |
 |:----------|:-------|
 | Repository Foundation | ✅ Complete |
-| Software Architecture | ✅ Complete |
-| Technical Documentation | ✅ Complete |
-| Development Workflow | ✅ Complete |
-| Unity Implementation | 🔲 Pending (v0.2.0) |
-| AI Training | 🔲 Pending (v0.5.0) |
+| Core Framework | ✅ Complete (Bootstrap, Config, Events, Services) |
+| Resource Management | ✅ Complete (Registries, Validation, AssetProvider) |
+| Drone Framework | ✅ Complete (Controller, Motor, Health, Energy) |
+| Environment Framework | ✅ Complete (Hazards, Obstacles, Victims, Scenarios) |
+| Procedural Generation | ✅ Complete (3 rule types, placement utility) |
+| Sensor Implementation | 🔲 Pending (Phase 7) |
+| ML-Agents / AI | 🔲 Pending (Phase 7) |
+| Training Pipeline | 🔲 Pending (Phase 7) |
+| UI / Polish | 🔲 Pending (Phase 7) |
 | Stable Release | 🔲 Pending (v1.0.0) |
 
 ---
@@ -98,20 +102,21 @@ graph TD
 ```
 ADRL-Rescue/
 │
-├── 📂 UnityProject/          # Unity game project
-│   ├── Assets/
+├── 📂 Assets/
+│   ├── ADRL/
 │   │   ├── Scripts/          # C# source code
-│   │   │   ├── Core/         # Game manager, utilities
-│   │   │   ├── AI/           # ML-Agents, decision making
-│   │   │   ├── Drone/        # Drone behavior, flight
-│   │   │   ├── Environment/  # Procedural generation
-│   │   │   ├── Sensors/      # Sensor implementations
-│   │   │   ├── Training/     # Reward system
-│   │   │   ├── Utilities/    # Helper functions
-│   │   │   └── UI/           # User interface
-│   │   ├── Prefabs/          # Reusable GameObjects
-│   │   ├── Materials/        # Physics materials
-│   │   ├── Scenes/           # Unity scenes
+│   │   │   ├── Core/         # Bootstrap, config, events, services, resources
+│   │   │   ├── AI/           # Empty (Phase 7)
+│   │   │   ├── Drone/        # Drone controller, motor, health, energy
+│   │   │   ├── Environment/  # Hazards, obstacles, victims, procedural, scenarios
+│   │   │   ├── Sensors/      # Empty (Phase 7)
+│   │   │   ├── Training/     # Empty (Phase 7)
+│   │   │   ├── Editor/       # Editor validators, menu items
+│   │   │   └── UI/           # Empty (Phase 7)
+│   │   ├── Prefabs/          # Empty (Phase 6+)
+│   │   ├── Materials/        # Empty (Phase 6+)
+│   │   ├── Scenes/           # Main.unity (starter)
+│   │   ├── ScriptableObjects/# Config assets (Phase 6+)
 │   │   └── Settings/         # Project settings
 │   └── ProjectSettings/
 │
@@ -202,10 +207,11 @@ ADRL-Rescue/
 
 2. **Open Unity Project**
    - Open Unity Hub
-   - Click "Open" → Navigate to `UnityProject/`
+   - Click "Open" → Navigate to the repository root (contains `Assets/`)
    - Select Unity 2022.3 LTS
 
-3. **Install ML-Agents**
+3. **Install ML-Agents (Phase 7)**
+   - ML-Agents is not yet installed. When Phase 7 begins:
    - Open Window → Package Manager
    - Click "+" → "Add package from git URL"
    - Enter: `com.unity.ml-agents`

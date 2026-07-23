@@ -4,13 +4,22 @@ namespace ADRL.Environment.Scenarios
 
     public static class ScenarioValidator
     {
-        public static bool ValidateProfile(ScenarioProfile profile, out string message)
+        private static bool IsValid(ScenarioProfile profile, out string message)
         {
             if (profile == null)
             {
                 message = "ScenarioProfile is null.";
                 return false;
             }
+
+            message = string.Empty;
+            return true;
+        }
+
+        public static bool ValidateProfile(ScenarioProfile profile, out string message)
+        {
+            if (!IsValid(profile, out message))
+                return false;
 
             if (string.IsNullOrWhiteSpace(profile.ScenarioName))
             {
@@ -24,7 +33,6 @@ namespace ADRL.Environment.Scenarios
                 return false;
             }
 
-            message = string.Empty;
             return true;
         }
 
@@ -42,15 +50,11 @@ namespace ADRL.Environment.Scenarios
 
         public static bool ValidateGenerationSettings(ScenarioProfile profile, out string message)
         {
-            if (profile == null)
-            {
-                message = "ScenarioProfile is null.";
+            if (!IsValid(profile, out message))
                 return false;
-            }
 
             if (!profile.EnableProceduralGeneration)
             {
-                message = string.Empty;
                 return true;
             }
 
@@ -88,11 +92,8 @@ namespace ADRL.Environment.Scenarios
 
         public static bool ValidateEnvironmentConfig(ScenarioProfile profile, out string message)
         {
-            if (profile == null)
-            {
-                message = "ScenarioProfile is null.";
+            if (!IsValid(profile, out message))
                 return false;
-            }
 
             if (profile.EnvironmentConfig == null)
             {
@@ -120,17 +121,13 @@ namespace ADRL.Environment.Scenarios
                 return false;
             }
 
-            message = string.Empty;
             return true;
         }
 
         public static bool ValidateMissionSettings(ScenarioProfile profile, out string message)
         {
-            if (profile == null)
-            {
-                message = "ScenarioProfile is null.";
+            if (!IsValid(profile, out message))
                 return false;
-            }
 
             if (profile.MissionDuration <= 0f)
             {
@@ -150,7 +147,6 @@ namespace ADRL.Environment.Scenarios
                 return false;
             }
 
-            message = string.Empty;
             return true;
         }
 
@@ -171,7 +167,6 @@ namespace ADRL.Environment.Scenarios
             if (!ValidateMissionSettings(profile, out message))
                 return false;
 
-            message = string.Empty;
             return true;
         }
     }

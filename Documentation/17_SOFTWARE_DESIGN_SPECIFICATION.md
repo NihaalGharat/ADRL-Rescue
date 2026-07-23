@@ -2393,16 +2393,38 @@ graph TD
 ## 17.2 Namespaces
 
 ```csharp
-namespace ADRL Rescue.Core { }
-namespace ADRLRescue.AI { }
-namespace ADRLRescue.Drone { }
-namespace ADRLRescue.Environment { }
-namespace ADRLRescue.Sensors { }
-namespace ADRLRescue.UI { }
-namespace ADRLRescue.Data { }
-namespace ADRLRescue.Events { }
-namespace ADRLRescue.Utilities { }
-namespace ADRLRescue.Interfaces { }
+namespace ADRL.Core { }
+namespace ADRL.Core.Bootstrap { }
+namespace ADRL.Core.Configuration { }
+namespace ADRL.Core.Events { }
+namespace ADRL.Core.Resources { }
+namespace ADRL.Core.Services { }
+namespace ADRL.Core.Simulation { }
+namespace ADRL.Core.Utilities { }
+namespace ADRL.Drone { }
+namespace ADRL.Drone.Interfaces { }
+namespace ADRL.Drone.Components { }
+namespace ADRL.Drone.Controllers { }
+namespace ADRL.Drone.Events { }
+namespace ADRL.AI { }
+namespace ADRL.Sensors { }
+namespace ADRL.Environment { }
+namespace ADRL.Environment.Core { }
+namespace ADRL.Environment.Events { }
+namespace ADRL.Environment.Hazards { }
+namespace ADRL.Environment.Interfaces { }
+namespace ADRL.Environment.Obstacles { }
+namespace ADRL.Environment.Procedural { }
+namespace ADRL.Environment.Procedural.Rules { }
+namespace ADRL.Environment.Scenarios { }
+namespace ADRL.Environment.Spawning { }
+namespace ADRL.Environment.Validation { }
+namespace ADRL.Environment.Victims { }
+namespace ADRL.Environment.WorldObjects { }
+namespace ADRL.Training { }
+namespace ADRL.UI { }
+namespace ADRL.Editor { }
+namespace ADRL.Editor.Validation { }
 ```
 
 ## 17.3 File Organization
@@ -2410,10 +2432,10 @@ namespace ADRLRescue.Interfaces { }
 ```csharp
 // 1. Using statements
 using UnityEngine;
-using ADRLRescue.Interfaces;
+using ADRL.Core.Events;
 
 // 2. Namespace
-namespace ADRLRescue.Core
+namespace ADRL.Core.Bootstrap
 {
     // 3. Class declaration
     public class GameManager : MonoBehaviour

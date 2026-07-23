@@ -7,24 +7,25 @@ namespace ADRL.Editor.Validation
 
     public static class ConfigurationValidator
     {
-        private static readonly Dictionary<string, Type> ExpectedConfigs = new Dictionary<string, Type>
+        private static readonly string[] ExpectedConfigNames = new[]
         {
-            { "ProjectConfig", null },
-            { "RuntimeConfig", null },
-            { "SimulationConfig", null },
-            { "DroneConfig", null },
-            { "EnvironmentConfig", null },
-            { "SensorConfig", null },
-            { "RewardConfig", null },
-            { "TrainingConfig", null }
+            "ProjectConfig",
+            "RuntimeConfig",
+            "SimulationConfig",
+            "DroneConfig",
+            "EnvironmentConfig",
+            "SensorConfig",
+            "RewardConfig",
+            "TrainingConfig"
         };
 
-        [MenuItem("Tools/ADRL/Validate Configurations", priority = 2)]
         public static void Validate()
         {
             var errors = new List<string>();
-            var warnings = new List<string>();
-            var found = 0;
+            var expectedTypes = new Dictionary<string, bool>();
+
+            foreach (var name in ExpectedConfigNames)
+                expectedTypes[name] = false;
 
             var guids = AssetDatabase.FindAssets("t:ScriptableObject", new[] { "Assets/ADRL/ScriptableObjects" });
 
@@ -38,36 +39,32 @@ namespace ADRL.Editor.Validation
 
                 var name = asset.GetType().Name;
 
-                if (ExpectedConfigs.ContainsKey(name))
-                {
-                    found++;
-                    ExpectedConfigs[name] = asset.GetType();
-                }
+                if (expectedTypes.ContainsKey(name))
+                    expectedTypes[name] = true;
             }
 
-            foreach (var kvp in ExpectedConfigs)
+            var found = 0;
+
+            foreach (var kvp in expectedTypes)
             {
-                if (kvp.Value == null)
+                if (kvp.Value)
+                {
+                    found++;
+                }
+                else
                 {
                     errors.Add($"Missing configuration: {kvp.Key}. Create it in Assets/ADRL/ScriptableObjects/Configurations/");
                 }
             }
 
-            Debug.Log($"[ConfigurationValidator] Found {found}/{ExpectedConfigs.Count} configuration types.");
+            Debug.Log($"[ConfigurationValidator] Found {found}/{ExpectedConfigNames.Length} configuration types.");
 
             foreach (var error in errors)
-            {
                 Debug.LogError($"[ConfigurationValidator] {error}");
-            }
-
-            foreach (var warning in warnings)
-            {
-                Debug.LogWarning($"[ConfigurationValidator] {warning}");
-            }
 
             var message = errors.Count > 0
                 ? $"Validation complete.\nErrors: {errors.Count}\n\nSee Console for details."
-                : $"Validation complete.\nAll {ExpectedConfigs.Count} configurations found.";
+                : $"Validation complete.\nAll {ExpectedConfigNames.Length} configurations found.";
 
             EditorUtility.DisplayDialog("ADRL Configuration Validation", message, "OK");
         }

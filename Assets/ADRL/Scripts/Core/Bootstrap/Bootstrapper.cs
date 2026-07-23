@@ -46,6 +46,24 @@ namespace ADRL.Core.Bootstrap
 
         public void Bootstrap()
         {
+            if (_projectConfig == null)
+            {
+                Debug.LogError("[Bootstrapper] ProjectConfig is not assigned. Bootstrap aborted.");
+                return;
+            }
+
+            if (_runtimeConfig == null)
+            {
+                Debug.LogError("[Bootstrapper] RuntimeConfig is not assigned. Bootstrap aborted.");
+                return;
+            }
+
+            if (_simulationConfig == null)
+            {
+                Debug.LogError("[Bootstrapper] SimulationConfig is not assigned. Bootstrap aborted.");
+                return;
+            }
+
             GameBootstrap.Initialize(
                 _projectConfig,
                 _runtimeConfig,

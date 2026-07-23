@@ -26,8 +26,16 @@ namespace ADRL.Drone.Components
                 return;
 
             var clampedSpeed = Mathf.Min(speed, _config.MaxSpeed);
-            _currentVelocity = direction.normalized * clampedSpeed;
-            _targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+
+            if (direction.sqrMagnitude < Mathf.Epsilon)
+            {
+                _currentVelocity = Vector3.zero;
+                return;
+            }
+
+            var normalized = direction.normalized;
+            _currentVelocity = normalized * clampedSpeed;
+            _targetRotation = Quaternion.LookRotation(normalized, Vector3.up);
         }
 
         public void Rotate(Quaternion targetRotation, float rotationSpeed)

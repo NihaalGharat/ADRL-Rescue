@@ -5,10 +5,8 @@ namespace ADRL.Editor.Validation
 
     public static class ReferenceValidator
     {
-        [MenuItem("Tools/ADRL/Validate References", priority = 3)]
         public static void Validate()
         {
-            var errors = 0;
             var warnings = 0;
             var checkedObjects = 0;
 
@@ -18,6 +16,10 @@ namespace ADRL.Editor.Validation
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+                if (prefab == null)
+                    continue;
+
                 var components = prefab.GetComponentsInChildren<MonoBehaviour>(true);
 
                 foreach (var component in components)
@@ -46,9 +48,9 @@ namespace ADRL.Editor.Validation
 
             Debug.Log($"[ReferenceValidator] Scanned {guids.Length} prefabs. Checked {checkedObjects} serialized references.");
 
-            var message = errors > 0
-                ? $"Validation complete.\nErrors: {errors}\nWarnings: {warnings}\n\nSee Console for details."
-                : $"Validation complete.\nPrefabs scanned: {guids.Length}\nReferences checked: {checkedObjects}\nIssues found: {warnings}";
+            var message = warnings > 0
+                ? $"Validation complete.\nWarnings: {warnings}\n\nSee Console for details."
+                : $"Validation complete.\nPrefabs scanned: {guids.Length}\nReferences checked: {checkedObjects}\nAll references valid.";
 
             EditorUtility.DisplayDialog("ADRL Reference Validation", message, "OK");
         }

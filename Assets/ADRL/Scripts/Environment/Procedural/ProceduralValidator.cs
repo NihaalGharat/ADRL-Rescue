@@ -4,13 +4,22 @@ namespace ADRL.Environment.Procedural
 
     public static class ProceduralValidator
     {
-        public static bool ValidateMinSpacing(GenerationSettings settings, out string message)
+        private static bool IsValid(GenerationSettings settings, out string message)
         {
             if (settings == null)
             {
                 message = "GenerationSettings is null.";
                 return false;
             }
+
+            message = string.Empty;
+            return true;
+        }
+
+        public static bool ValidateMinSpacing(GenerationSettings settings, out string message)
+        {
+            if (!IsValid(settings, out message))
+                return false;
 
             if (settings.MinSpacing <= 0f)
             {
@@ -18,17 +27,13 @@ namespace ADRL.Environment.Procedural
                 return false;
             }
 
-            message = string.Empty;
             return true;
         }
 
         public static bool ValidateMaxAttempts(GenerationSettings settings, out string message)
         {
-            if (settings == null)
-            {
-                message = "GenerationSettings is null.";
+            if (!IsValid(settings, out message))
                 return false;
-            }
 
             if (settings.MaxPlacementAttempts <= 0)
             {
@@ -36,17 +41,13 @@ namespace ADRL.Environment.Procedural
                 return false;
             }
 
-            message = string.Empty;
             return true;
         }
 
         public static bool ValidateBounds(GenerationSettings settings, out string message)
         {
-            if (settings == null)
-            {
-                message = "GenerationSettings is null.";
+            if (!IsValid(settings, out message))
                 return false;
-            }
 
             var bounds = settings.GetGenerationBounds();
 
@@ -56,17 +57,13 @@ namespace ADRL.Environment.Procedural
                 return false;
             }
 
-            message = string.Empty;
             return true;
         }
 
         public static bool ValidateEnvironmentConfig(GenerationSettings settings, out string message)
         {
-            if (settings == null)
-            {
-                message = "GenerationSettings is null.";
+            if (!IsValid(settings, out message))
                 return false;
-            }
 
             if (settings.UseEnvironmentConfigBounds && settings.EnvironmentConfig == null)
             {
@@ -74,7 +71,6 @@ namespace ADRL.Environment.Procedural
                 return false;
             }
 
-            message = string.Empty;
             return true;
         }
 
@@ -92,7 +88,6 @@ namespace ADRL.Environment.Procedural
             if (!ValidateEnvironmentConfig(settings, out message))
                 return false;
 
-            message = string.Empty;
             return true;
         }
     }

@@ -5,7 +5,6 @@ namespace ADRL.Editor.Validation
 
     public static class ProjectValidator
     {
-        [MenuItem("Tools/ADRL/Validate Project", priority = 1)]
         public static void Validate()
         {
             var errors = 0;

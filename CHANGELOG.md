@@ -249,9 +249,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 8 new files across 2 new directories (`Scenarios/`, `Events/`)
 - 0 existing files modified
 
----
+### Phase 5.5.1 — Project Stabilization & Warning Resolution (2026-07-23)
 
-## Version Roadmap
+- **Duplicate MenuItem fix** — Removed `[MenuItem]` attributes from `ProjectValidator.cs`, `ConfigurationValidator.cs`, and `ReferenceValidator.cs` that duplicated the centralized registrations in `AdrlMenuItems.cs`; consolidated to single entry points: `Tools/ADRL/Validate Project`, `Tools/ADRL/Validate Configurations`, `Tools/ADRL/Validate References`
+- **PrefabRegistry diagnostic improvement** — Changed warning from "PrefabRegistry is empty. No prefabs registered." to "PrefabRegistry is empty (expected before Phase 6). Register prefabs after Phase 5 completes." — downgrades developer confusion while preserving validation
+- **ScenarioProfile compilation fix** — Added missing `ScenarioType` and `ScenarioDifficulty` serialized fields with public accessors, plus public accessors for reserved future fields; these were required by `ScenarioManager.LoadScenario` (publishes `ScenarioLoadedEvent` with `ScenarioType`) and the `IScenario` interface contract, making the committed Phase 5.5 code properly compilable
+- 4 existing files modified (3 editor validators, 1 core validator)
+- 1 pre-existing file patched (ScenarioProfile.cs)
+- Zero new files, zero namespace/assembly changes
+
+### Phase 5.6 — Project Stabilization & ML Readiness (2026-07-23)
+
+#### Editor Validation
+- **ConfigurationValidator bug fix** — Replaced mutable static dictionary with local state per validation call; eliminated stale-state bug where re-validation reported incorrect results
+- **ConfigurationValidator dead code removal** — Removed unused `warnings` list that was never populated
+- **ReferenceValidator dead code removal** — Removed unused `errors` variable; added null-guard for `LoadAssetAtPath` return value
+- **ReferenceValidator dialog fix** — Corrected dialog message that always displayed "Errors: 0" regardless of actual issues
+- **AdrlMenuItems crash fix** — Added null/empty guards to `FindAssets` and `LoadAssetAtPath` in documentation opener methods; extracted shared `PingDocumentation` helper
+
+#### Runtime Diagnostics
+- **Bootstrapper null guards** — Added early-exit validation for required configs (ProjectConfig, RuntimeConfig, SimulationConfig) with clear error messages
+- **AssetValidation messages improved** — ConfigRegistry empty upgraded from warning to error (blocks runtime); added summary log line with pass/fail counts
+
+#### Drone Stability
+- **DroneMotor zero-vector guard** — Added `sqrMagnitude < Epsilon` check before `Quaternion.LookRotation` to prevent runtime crash on zero-direction input
+- **DroneEnergy recharge deadlock fix** — Removed early-return from `Recharge()` that prevented depleted batteries from being recharged, making depleted drones unrecoverable
+- **DroneEnergy magic numbers** — Extracted `LowThreshold` (0.25f) and `CriticalThreshold` (0.10f) to named constants
+
+#### Procedural Stability
+- **ProceduralGenerator sort caching** — Rules are now sorted once and cached; `_rulesDirty` flag triggers re-sort only after AddRule/RemoveRule
+- **PlacedPositions clearing** — `context.PlacedPositions` is now cleared between rule executions to prevent cross-rule position contamination
+
+#### Validator Cleanup
+- **ProceduralValidator DRY** — Extracted private `IsValid(GenerationSettings, out string)` helper eliminating 4 repeated null-check blocks
+- **ScenarioValidator DRY** — Extracted private `IsValid(ScenarioProfile, out string)` helper eliminating 4 repeated null-check blocks
+
+#### Documentation Alignment
+- **SDS namespace fix** — Updated `ADRLRescue.Core` and `ADRL Rescue.Core` references to `ADRL.Core` to match actual implementation
+- **README project status** — Updated version badge and milestone table to reflect current implementation progress
+- **README folder structure** — Fixed `UnityProject/` reference to actual `Assets/ADRL/` structure
+- README ML-Agents badge noted as documentation drift (package not yet installed)
+
+- 14 existing files modified across Core, Drone, Environment, Editor assemblies
+- Zero new files, zero new asmdefs, zero namespace changes, zero public API changes
+- Zero behavioral changes to any runtime system
+
+---
 
 | Version | Phase | Description |
 |---------|-------|-------------|
