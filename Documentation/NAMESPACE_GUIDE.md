@@ -1,7 +1,7 @@
 # ADRL-Rescue Namespace Guide
 
-**Version:** 1.3  
-**Phase:** 5.2 — Obstacle & Environmental Object Framework  
+**Version:** 1.4  
+**Phase:** 5.3 — Procedural Environment Foundation  
 **Date:** 23/07/2026
 
 ---
@@ -322,6 +322,14 @@ namespace ADRL.Environment.Obstacles
     public class ObstacleManager { }
     public enum ObstacleType { }
     public enum ObstacleState { }
+}
+
+namespace ADRL.Environment.Procedural
+{
+    public class ProceduralGenerator { }
+    public class GenerationSettings { }
+    public abstract class GenerationRule { }
+    public interface IGenerationContext { }
 }
 ```
 

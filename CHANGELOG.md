@@ -200,6 +200,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zero AI, zero physics, zero ML-Agent, zero procedural generation
 - 5 new files across existing directories (`Obstacles/`, `Events/`)
 
+### Phase 5.3 — Procedural Environment Foundation (2026-07-23)
+
+- **IGenerationContext** — Interface providing GenerationRule with RNG, bounds, registry, spacing, and max placement attempts
+- **GenerationSettings** — ScriptableObject for procedural generation configuration; uses EnvironmentConfig for shared settings (terrain size); adds fixed/runtime seed, bounds override, min spacing, and max placement attempts
+- **GenerationRule** — Abstract base class for reusable generation instructions; configurable name, enabled, weight, priority, max count; single abstract `Generate(IGenerationContext)` method
+- **ProceduralGenerator** — Plain C# class managing generation lifecycle; System.Random with seed management (fixed seed support); priority-sorted rule execution; Initialize/Generate/Reset/Clear lifecycle matching existing manager patterns; no singleton
+- **EnvironmentManager integration** — ProceduralGenerator owned by EnvironmentManager; initialized after RegisterExistingObjects() when EnvironmentConfig.EnableProceduralGeneration is true; generator state reset during ResetEnvironment(); cleaned up during OnDestroy()
+- **Seed management** — Fixed seed via GenerationSettings._useFixedSeed; runtime seed via Environment.TickCount; deterministic reproduction via System.Random with explicit seed; Reset() restores initial seed; no global Random state pollution
+- Zero changes to existing Environment systems (Victim, Hazard, Obstacle, Spawnpoint, WorldObject)
+- **ProceduralValidator** — Static utility for GenerationSettings validation: ValidateMinSpacing, ValidateMaxAttempts, ValidateBounds, ValidateEnvironmentConfig, ValidateAll; follows WorldObjectValidator pattern (bool + out string message)
+- Zero changes to ADRL.Core, ADRL.Drone, ADRL.AI, ADRL.Sensors, ADRL.Training
+- Zero AI, zero physics, zero ML-Agent — fully decoupled foundation
+- 5 new files across existing directory (`Procedural/`)
+- Removed `.gitkeep` from Procedural directory
+
 ---
 
 ## Version Roadmap

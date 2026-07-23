@@ -9,6 +9,7 @@ namespace ADRL.Environment.Core
     using ADRL.Environment.Spawning;
     using ADRL.Environment.Victims;
     using ADRL.Environment.Obstacles;
+    using ADRL.Environment.Procedural;
     using ADRL.Environment.WorldObjects;
     using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace ADRL.Environment.Core
         private HazardManager _hazardManager;
         private WorldObjectRegistry _worldObjectRegistry;
         private ObstacleManager _obstacleManager;
+        private ProceduralGenerator _proceduralGenerator;
         private EventBus _eventBus;
         private EnvironmentConfig _config;
         private EnvironmentState _state = EnvironmentState.Uninitialized;
@@ -38,6 +40,8 @@ namespace ADRL.Environment.Core
 
         public ObstacleManager ObstacleManager => _obstacleManager;
 
+        public ProceduralGenerator ProceduralGenerator => _proceduralGenerator;
+
         public void Initialize(EventBus eventBus)
         {
             _eventBus = eventBus;
@@ -53,6 +57,10 @@ namespace ADRL.Environment.Core
             InitializeWorldObjectRegistry();
             InitializeObstacleManager();
             RegisterExistingObjects();
+
+            if (_config.EnableProceduralGeneration)
+                InitializeProceduralGenerator();
+
             _state = EnvironmentState.Ready;
             _eventBus.Publish(new EnvironmentInitializedEvent());
         }
@@ -98,6 +106,7 @@ namespace ADRL.Environment.Core
                 _victims[i].Reset();
 
             _hazardManager.ResetAll();
+            _proceduralGenerator?.Reset();
             _obstacleManager?.ResetAll();
             _worldObjectRegistry?.ResetAll();
 
@@ -145,8 +154,27 @@ namespace ADRL.Environment.Core
             _obstacleManager = null;
         }
 
+        private void CleanupProceduralGenerator()
+        {
+            _proceduralGenerator?.Clear();
+            _proceduralGenerator = null;
+        }
+
+        private void InitializeProceduralGenerator()
+        {
+            var settings = ResourceLocator.Configs.Get<GenerationSettings>();
+
+            if (settings == null)
+                return;
+
+            _proceduralGenerator = new ProceduralGenerator();
+            _proceduralGenerator.Initialize(settings);
+            _proceduralGenerator.Generate(_worldObjectRegistry);
+        }
+
         private void OnDestroy()
         {
+            CleanupProceduralGenerator();
             CleanupObstacleManager();
             CleanupWorldObjectRegistry();
         }
