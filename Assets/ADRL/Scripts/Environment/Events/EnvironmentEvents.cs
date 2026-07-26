@@ -37,4 +37,22 @@ namespace ADRL.Environment.Events
             HazardId = hazardId;
         }
     }
+
+    public readonly struct WorldBuildingStartedEvent : IEvent
+    {
+    }
+
+    public readonly struct WorldBuiltEvent : IEvent
+    {
+    }
+
+    public readonly struct WorldBuildingFailedEvent : IEvent
+    {
+        public string Reason { get; }
+
+        public WorldBuildingFailedEvent(string reason)
+        {
+            Reason = reason;
+        }
+    }
 }

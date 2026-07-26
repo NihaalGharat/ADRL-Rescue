@@ -154,7 +154,7 @@ namespace ADRL.Environment.Terrain
         private void GenerateHeightmap()
         {
             var resolution = _terrainData.heightmapResolution;
-            var generator = HeightmapGenerator ?? new HeightmapGenerator();
+            var generator = HeightmapGenerator ?? HeightmapGeneratorFactory.Create(_settings.TerrainAlgorithm);
             var heights = generator.Generate(_settings, _activeSeed, resolution);
             _terrainData.SetHeights(0, 0, heights);
         }

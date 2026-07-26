@@ -48,7 +48,35 @@ namespace ADRL.Environment.Terrain
         private float _heightMultiplier = 1f;
 
         [SerializeField]
-        private bool _useFractalNoise = true;
+        [Min(0f)]
+        private float _warpStrength = 4f;
+
+        [SerializeField]
+        [Min(0.001f)]
+        private float _warpScale = 0.02f;
+
+        [SerializeField]
+        [Min(0.1f)]
+        private float _voronoiCellSize = 8f;
+
+        [SerializeField]
+        [Min(0f)]
+        private float _fbmWeight = 0.40f;
+
+        [SerializeField]
+        [Min(0f)]
+        private float _ridgedWeight = 0.25f;
+
+        [SerializeField]
+        [Min(0f)]
+        private float _domainWarpWeight = 0.20f;
+
+        [SerializeField]
+        [Min(0f)]
+        private float _voronoiWeight = 0.15f;
+
+        [SerializeField]
+        private TerrainAlgorithm _terrainAlgorithm = TerrainAlgorithm.FBM;
 
         [SerializeField]
         private bool _autoGenerate = true;
@@ -63,7 +91,15 @@ namespace ADRL.Environment.Terrain
         public float Persistence => _persistence;
         public float Lacunarity => _lacunarity;
         public float HeightMultiplier => _heightMultiplier;
-        public bool UseFractalNoise => _useFractalNoise;
+        public float WarpStrength => _warpStrength;
+        public float WarpScale => _warpScale;
+        public float VoronoiCellSize => _voronoiCellSize;
+        public float FbmWeight => _fbmWeight;
+        public float RidgedWeight => _ridgedWeight;
+        public float DomainWarpWeight => _domainWarpWeight;
+        public float VoronoiWeight => _voronoiWeight;
+        public TerrainAlgorithm TerrainAlgorithm => _terrainAlgorithm;
+        public bool UseFractalNoise => _terrainAlgorithm == TerrainAlgorithm.FBM;
         public bool AutoGenerate => _autoGenerate;
     }
 }

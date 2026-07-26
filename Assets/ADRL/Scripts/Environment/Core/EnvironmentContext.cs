@@ -18,6 +18,16 @@ namespace ADRL.Environment.Core
 
         public Vector2 TerrainSize { get; set; }
 
+        public Transform RootTransform { get; set; }
+
+        public Transform RuntimeRoot { get; set; }
+
+        public Transform SystemsRoot { get; set; }
+
+        public Transform SpawnRoot { get; set; }
+
+        public Transform DebugRoot { get; set; }
+
         public void Reset()
         {
             WorldSettings = null;
@@ -27,6 +37,11 @@ namespace ADRL.Environment.Core
             RuntimeState = EnvironmentState.Uninitialized;
             EpisodeElapsedTime = 0f;
             CurrentEpisode = 0;
+            RootTransform = null;
+            RuntimeRoot = null;
+            SystemsRoot = null;
+            SpawnRoot = null;
+            DebugRoot = null;
         }
     }
 }

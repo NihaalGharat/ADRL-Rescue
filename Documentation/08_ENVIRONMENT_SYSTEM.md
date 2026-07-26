@@ -39,6 +39,11 @@ Plain C# class holding shared runtime state for the current session:
 | CurrentEpisode | int | Episode counter |
 | GeneratedTerrain | TerrainData | Generated terrain data reference |
 | TerrainSize | Vector2 | Terrain dimensions (width, length) |
+| RootTransform | Transform | `[EnvironmentSystem]` root transform |
+| RuntimeRoot | Transform | Runtime world container |
+| SystemsRoot | Transform | Systems container |
+| SpawnRoot | Transform | Spawn point container |
+| DebugRoot | Transform | Debug container |
 
 ### WorldSettings
 
@@ -73,6 +78,60 @@ Seed modes:
 - **Random** — Unpredictable per-run seeds
 - **TimeBased** — Reproducible for runs within same second
 
+### EnvironmentWorldBuilder
+
+Plain C# class (`ADRL.Environment.Core`) responsible for constructing the runtime world hierarchy:
+
+```
+Build(Transform rootTransform)
+    Creates child containers: Runtime, Systems, SpawnPoints, Debug
+    Registered in EnvironmentContext after successful build
+    Exception-safe: partial hierarchy destroyed on failure
+```
+
+| Member | Description |
+|--------|-------------|
+| Build(Transform) | Create 4 named child containers under root; throws on null root or duplicate build |
+| Destroy() | Destroy all child containers, clear state |
+| RuntimeRoot | Transform for runtime world objects |
+| SystemsRoot | Transform for environment systems |
+| SpawnRoot | Transform for spawn points |
+| DebugRoot | Transform for debug objects |
+
+- Hierarchy names centralized as `public const string` on EnvironmentWorldBuilder
+- All containers created with `worldPositionStays: false` (clean local transforms)
+- Editor-safe: `Application.isPlaying` guards `Destroy` vs `DestroyImmediate`
+- Zero gameplay logic — pure structural hierarchy
+
+**Integrated flow:**
+
+```
+EnvironmentManager.Initialize()
+    ↓
+InitializeTerrainGenerator()
+    ↓
+BuildWorld()                   ← creates Runtime, Systems, SpawnPoints, Debug containers
+    ↓
+InitializeProceduralGenerator()
+    ↓
+Publish EnvironmentInitializedEvent
+```
+
+**Exception safety:**
+
+If `BuildWorld()` throws:
+1. WorldBuilder.Destroy() tears down partially created hierarchy
+2. WorldBuildingFailedEvent is published with the exception message
+3. Pipeline continues (terrain and procedural generation unaffected)
+
+**Events:**
+
+| Event | Description |
+|-------|-------------|
+| WorldBuildingStartedEvent | Fired before hierarchy construction begins |
+| WorldBuiltEvent | Fired after hierarchy is fully constructed |
+| WorldBuildingFailedEvent | Fired if construction fails (carries a Reason string) |
+
 ---
 
 ## Terrain Generation
@@ -95,8 +154,28 @@ ScriptableObject (`[CreateAssetMenu]`) for terrain-level configuration:
 | Persistence | float | 0.5 | Amplitude multiplier per octave |
 | Lacunarity | float | 2 | Frequency multiplier per octave |
 | HeightMultiplier | float | 1 | Post-generation height scaling factor |
-| UseFractalNoise | bool | true | Enable multi-octave fBM (false = single octave) |
+| WarpStrength | float | 4 | Domain warp distortion magnitude (unused by FBM/Ridged) |
+| WarpScale | float | 0.02 | Domain warp noise field frequency (unused by FBM/Ridged) |
+| VoronoiCellSize | float | 8 | Voronoi cell size: larger = fewer cells (unused by FBM/Ridged/DomainWarp) |
+| FbmWeight | float | 0.40 | Hybrid blend weight for FBM (unused by non-Hybrid algorithms) |
+| RidgedWeight | float | 0.25 | Hybrid blend weight for Ridged (unused by non-Hybrid algorithms) |
+| DomainWarpWeight | float | 0.20 | Hybrid blend weight for DomainWarp (unused by non-Hybrid algorithms) |
+| VoronoiWeight | float | 0.15 | Hybrid blend weight for Voronoi (unused by non-Hybrid algorithms) |
+| TerrainAlgorithm | TerrainAlgorithm | FBM | Algorithm selector (FBM, Ridged, DomainWarp, Voronoi, Hybrid) |
+| UseFractalNoise | bool | true | Computed: true when TerrainAlgorithm is FBM (backward compatibility) |
 | AutoGenerate | bool | true | Generate terrain during initialization |
+
+### TerrainAlgorithm
+
+Enum (`ADRL.Environment.Terrain`) for selecting the heightmap generation algorithm:
+
+| Value | Implemented | Description |
+|-------|-------------|-------------|
+| FBM | ✅ | Fractal Brownian Motion via multi-octave Perlin noise |
+| Ridged | ✅ | Ridged multi-fractal noise: centered Perlin + ridge transform + sharpened peaks |
+| DomainWarp | ✅ | Domain warped noise: Perlin warp field distorts fBM sampling coordinates |
+| Voronoi | ✅ | Voronoi (Worley) noise: cellular terrain via seed-hashed feature points |
+| Hybrid | ✅ | Composes all 4 algorithms via weighted blend (FBM + Ridged + DomainWarp + Voronoi) |
 
 ### IHeightmapGenerator
 
@@ -108,9 +187,21 @@ Interface (`ADRL.Environment.Terrain`) for heightmap generation algorithms:
 
 Pure height computation: no Unity Terrain objects, no GameObjects, no events, no lifecycle.
 
-### HeightmapGenerator
+### HeightmapGeneratorFactory
 
-Default implementation of IHeightmapGenerator using **fractal Brownian motion (fBM)** via multi-octave Perlin noise:
+Static factory (`ADRL.Environment.Terrain`) resolving algorithm to implementation:
+
+| Method | Description |
+|--------|-------------|
+| Create(TerrainAlgorithm) | Returns IHeightmapGenerator for the given algorithm; throws NotSupportedException for unimplemented algorithms |
+
+- Pure factory: no reflection, no singleton, no service locator, no Resources.Load
+- Implements: FBM → FBMHeightmapGenerator, Ridged → RidgedHeightmapGenerator, DomainWarp → DomainWarpHeightmapGenerator, Voronoi → VoronoiHeightmapGenerator, Hybrid → HybridHeightmapGenerator
+- All 5 TerrainAlgorithm values are now implemented — zero NotSupportedException cases remain
+
+### FBMHeightmapGenerator
+
+Implementation of IHeightmapGenerator using **fractal Brownian motion (fBM)** via multi-octave Perlin noise:
 
 ```
 for each octave:
@@ -121,8 +212,111 @@ for each octave:
 
 - Output clamped to [0, 1], then multiplied by HeightMultiplier
 - Fully deterministic: identical settings + seed → identical heightmap
-- Falls back to single-octave Perlin noise when UseFractalNoise = false
 - Stateless: no references, no cleanup required
+
+### RidgedHeightmapGenerator
+
+Implementation of IHeightmapGenerator using **ridged multi-fractal noise**:
+
+```
+for each octave:
+    signal = PerlinNoise(nx, nz)          // [0, 1]
+    signal = (signal - 0.5) * 2           // center around zero [-1, 1]
+    signal = 1 - |signal|                 // ridge transform — peaks at noise = 0.5
+    signal = signal²                      // sharpen peaks
+    noiseValue += signal * amplitude
+    frequency *= lacunarity
+    amplitude *= persistence
+```
+
+- Output clamped to [0, 1], then multiplied by HeightMultiplier
+- Fully deterministic: identical settings + seed → identical heightmap
+- Stateless: no references, no cleanup required
+- Same fBM frequency/amplitude octave progression as FBMHeightmapGenerator
+
+### DomainWarpHeightmapGenerator
+
+Implementation of IHeightmapGenerator using **domain warped noise**:
+
+```
+// Warp field (sampled at WarpScale)
+warpX = (PerlinNoise(warpNX, warpNZ) - 0.5) * 2        // [-1, 1]
+warpZ = (PerlinNoise(warpNX + 500, warpNZ + 500) - 0.5) * 2  // [-1, 1]
+
+// Warp base coordinates
+sampleX = x * NoiseScale + warpX * WarpStrength
+sampleZ = z * NoiseScale + warpZ * WarpStrength
+
+// FBM at warped coordinates (same progression as FBMHeightmapGenerator)
+for each octave:
+    noiseValue += amplitude * PerlinNoise(sampleX * freq, sampleZ * freq)
+    frequency *= lacunarity
+    amplitude *= persistence
+```
+
+- Output clamped to [0, 1], then multiplied by HeightMultiplier
+- Fully deterministic: identical settings + seed → identical heightmap
+- Stateless: no references, no cleanup required
+- Warp offsets use independent Perlin samples (seed-separated from fBM octave samples)
+- WarpStrength = 0 produces standard fBM (degenerate case, valid)
+
+### VoronoiHeightmapGenerator
+
+Implementation of IHeightmapGenerator using **Voronoi (Worley) cellular noise**:
+
+```
+// For each sample (x, z):
+cellX = floor(x / CellSize)
+cellZ = floor(z / CellSize)
+
+for each neighbor cell (nx, nz) in 3×3 neighborhood:
+    // Feature point within cell (nx, nz), deterministic via cell-coordinate hash
+    fx = nx + Hash(nx, nz, seed)
+    fz = nz + Hash(nx, nz, seed + 1000)
+
+    dx = (x / CellSize) - fx   // cell-relative distance
+    dz = (z / CellSize) - fz
+    dist = sqrt(dx² + dz²)
+    track minimum distance
+
+normalized = clamp(minDist / sqrt(2), 0, 1)
+height = clamp((1 - normalized) * HeightMultiplier, 0, 1)
+```
+
+- Feature points at cell-internal random positions (valleys); cell edges form ridges
+- Output clamped to [0, 1], then multiplied by HeightMultiplier
+- Fully deterministic: identical settings + seed → identical heightmap
+- Stateless: no references, no cleanup required
+- Hash function: integer-only (no Perlin noise, no Unity Random, no System.Random)
+- CellSize = 0.1 produces very dense cells; CellSize = 64 produces ~8 cells across heightmap
+
+### HybridHeightmapGenerator
+
+Implementation of IHeightmapGenerator using **composition** of all 4 existing algorithms:
+
+```
+// Generate each heightmap independently (delegates to existing generators)
+hFBM     = FBMHeightmapGenerator.Generate(settings, seed, resolution)
+hRidged  = RidgedHeightmapGenerator.Generate(settings, seed, resolution)
+hWarp    = DomainWarpHeightmapGenerator.Generate(settings, seed, resolution)
+hVoronoi = VoronoiHeightmapGenerator.Generate(settings, seed, resolution)
+
+// Normalize weights (user does NOT need to sum to 1)
+totalWeight = FbmWeight + RidgedWeight + DomainWarpWeight + VoronoiWeight
+
+// Per-pixel blend
+for each pixel:
+    blended = (hFBM * FbmWeight + hRidged * RidgedWeight + hWarp * DomainWarpWeight + hVoronoi * VoronoiWeight) / totalWeight
+    height = clamp(blended, 0, 1)
+```
+
+- Default weights: 40% FBM, 25% Ridged, 20% DomainWarp, 15% Voronoi
+- Weight validation rejects negative values and zero total weight at runtime
+- All 4 sub-generators are `static readonly` (instantiated once, stateless)
+- Fully deterministic: all sub-generators are deterministic
+- Each sub-generator receives identical settings, seed, and resolution
+- Setting any weight to 0 removes that algorithm from the blend
+- Open/Closed Principle validated: adding Hybrid required zero changes to any existing generator or pipeline code
 
 ### TerrainGenerator
 
@@ -133,7 +327,7 @@ Concrete generator class (`ADRL.Environment.Terrain`) with deterministic heightm
 | Initialize(TerrainSettings) | Configure generator with settings |
 | Generate(int seed, EventBus) | Create Unity Terrain with heightmap; publishes terrain events |
 | Reset() | Destroy and release generated terrain |
-| HeightmapGenerator (property) | IHeightmapGenerator instance; defaults to HeightmapGenerator if not set |
+| HeightmapGenerator (property) | IHeightmapGenerator instance; defaults to factory-resolved generator via TerrainSettings.TerrainAlgorithm |
 
 **Generation pipeline:**
 
@@ -146,13 +340,19 @@ InitializeTerrainGenerator()     ← terrain generated before objects
     ↓
 TerrainGenerator.Initialize()
     ↓
-HeightmapGenerator.Generate()    ← fBM Perlin heightmap (IHeightmapGenerator)
+TerrainSettings.TerrainAlgorithm
+    ↓
+HeightmapGeneratorFactory.Create()
+    ↓
+    Algorithm-specific Generate()     ← heightmap via IHeightmapGenerator (FBM / Ridged / DomainWarp / Voronoi / Hybrid)
     ↓
 TerrainData.SetHeights()
     ↓
 Create Terrain GameObject (centered at origin)
     ↓
 Publish TerrainGeneratedEvent
+    ↓
+BuildWorld()                     ← create Runtime, Systems, SpawnPoints, Debug containers
     ↓
 InitializeProceduralGenerator()  ← objects placed on terrain
 ```
@@ -175,7 +375,17 @@ InitializeProceduralGenerator()  ← objects placed on terrain
 
 ```mermaid
 graph TD
-    TG[Terrain Generator] -->|Heightmap| Terrain
+    TG[TerrainGenerator] --> F[HeightmapGeneratorFactory]
+    F --> FBM[FBMHeightmapGenerator]
+    F --> R[ RidgedHeightmapGenerator]
+    F --> DW[DomainWarpHeightmapGenerator]
+    F --> V[VoronoiHeightmapGenerator]
+    F --> H[HybridHeightmapGenerator]
+    FBM -->|Heightmap| Terrain
+    R -->|Heightmap| Terrain
+    DW -->|Heightmap| Terrain
+    V -->|Heightmap| Terrain
+    H -->|Heightmap| Terrain
     
     PGM[Procedural Generation Manager] --> O[Obstacle Generator]
     PGM --> V[Victim Spawner]
@@ -403,4 +613,4 @@ stateDiagram-v2
 
 ---
 
-*Last updated: July 2026 — Phase 3.3 (Procedural Heightmap Generation)*
+*Last updated: July 2026 — Phase 4.0 (Environment Runtime World Builder)*

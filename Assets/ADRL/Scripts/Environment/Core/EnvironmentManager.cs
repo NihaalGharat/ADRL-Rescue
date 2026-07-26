@@ -25,6 +25,7 @@ namespace ADRL.Environment.Core
         private ObstacleManager _obstacleManager;
         private TerrainGenerator _terrainGenerator;
         private ProceduralGenerator _proceduralGenerator;
+        private EnvironmentWorldBuilder _worldBuilder;
         private EventBus _eventBus;
         private EnvironmentConfig _config;
         private EnvironmentState _state = EnvironmentState.Uninitialized;
@@ -47,6 +48,8 @@ namespace ADRL.Environment.Core
 
         public TerrainGenerator TerrainGenerator => _terrainGenerator;
 
+        public EnvironmentWorldBuilder WorldBuilder => _worldBuilder;
+
         public void Initialize(EventBus eventBus)
         {
             _eventBus = eventBus;
@@ -64,6 +67,7 @@ namespace ADRL.Environment.Core
             RegisterExistingObjects();
 
             InitializeTerrainGenerator();
+            BuildWorld();
 
             if (_config.EnableProceduralGeneration)
                 InitializeProceduralGenerator();
@@ -168,15 +172,35 @@ namespace ADRL.Environment.Core
             if (settings == null)
                 return;
 
-            _terrainGenerator = new TerrainGenerator
-            {
-                HeightmapGenerator = new HeightmapGenerator()
-            };
+            _terrainGenerator = new TerrainGenerator();
             _terrainGenerator.Initialize(settings);
             _terrainGenerator.Generate(SeedManager.CurrentSeed, _eventBus);
 
             if (_terrainGenerator.IsGenerated && _terrainGenerator.Terrain != null)
                 _terrainGenerator.Terrain.transform.parent = transform;
+        }
+
+        private void BuildWorld()
+        {
+            _worldBuilder = new EnvironmentWorldBuilder();
+            _eventBus.Publish(new WorldBuildingStartedEvent());
+
+            try
+            {
+                _worldBuilder.Build(transform);
+                _eventBus.Publish(new WorldBuiltEvent());
+            }
+            catch (System.Exception ex)
+            {
+                CleanupWorldBuilder();
+                _eventBus.Publish(new WorldBuildingFailedEvent($"World building failed: {ex.Message}"));
+            }
+        }
+
+        private void CleanupWorldBuilder()
+        {
+            _worldBuilder?.Destroy();
+            _worldBuilder = null;
         }
 
         private void CleanupTerrainGenerator()
@@ -214,6 +238,7 @@ namespace ADRL.Environment.Core
             CleanupProceduralGenerator();
             CleanupObstacleManager();
             CleanupWorldObjectRegistry();
+            CleanupWorldBuilder();
         }
 
         private void RegisterExistingObjects()

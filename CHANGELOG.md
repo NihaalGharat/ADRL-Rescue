@@ -197,6 +197,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Settings validation** — Extended `TerrainGenerator.ValidateSettings()` with runtime checks for Octaves (< 1), Persistence (<= 0), Lacunarity (< 1), HeightMultiplier (<= 0)
 - No API breaking changes, no new assemblies, no namespace changes, no event changes
 
+### Phase 3.4 — Extensible Heightmap Framework (2026-07-23)
+
+- **TerrainAlgorithm enum** — New enum in `ADRL.Environment.Terrain`: FBM, Ridged, DomainWarp, Voronoi, Hybrid (only FBM implemented; others reserved for future algorithms)
+- **FBMHeightmapGenerator** — Renamed from `HeightmapGenerator`; produces identical fBM output; removed single-octave Perlin fallback (now handled by algorithm selection at config level); fully backward compatible for all default configs
+- **HeightmapGeneratorFactory** — Static factory `Create(TerrainAlgorithm)` returning `IHeightmapGenerator`; returns `FBMHeightmapGenerator` for FBM; throws `NotSupportedException` for unimplemented algorithms; no reflection, no singleton, no service locator
+- **TerrainSettings** — Replaced `_useFractalNoise` (bool) with `_terrainAlgorithm` (TerrainAlgorithm enum, default FBM); `UseFractalNoise` preserved as computed property (`true` for FBM) for backward compatibility
+- **TerrainGenerator** — Default fallback changed from `new HeightmapGenerator()` to `HeightmapGeneratorFactory.Create(_settings.TerrainAlgorithm)`; injection property preserved for custom generator scenarios
+- **EnvironmentManager** — Removed `HeightmapGenerator = new HeightmapGenerator()` assignment; factory now resolves algorithm from settings
+- Zero new assemblies, zero namespace changes, zero event changes, zero public API breaks
+- Zero terrain textures, materials, biomes, vegetation, water, erosion, disasters, victims, obstacles, navigation, ML-Agent, drone, or sensor changes
+
+### Phase 3.5 — Ridged Multi-Fractal Heightmap Algorithm (2026-07-23)
+
+- **RidgedHeightmapGenerator** — Second IHeightmapGenerator implementation using ridged multi-fractal noise: center Perlin noise around zero, apply `1 - abs` ridge transform, square for sharp peaks, accumulate across octaves with standard fBM frequency/amplitude progression
+- **Factory activation** — HeightmapGeneratorFactory.Create(TerrainAlgorithm.Ridged) now returns RidgedHeightmapGenerator instead of throwing NotSupportedException
+- **Zero new settings** — Reuses existing Octaves, Persistence, Lacunarity, NoiseScale, HeightMultiplier, SeedOffset from TerrainSettings
+- **Deterministic** — No random, no Time, no Unity Random, no allocations inside inner loops; identical seed → identical heightmap
+- **Strategy architecture validated** — Adding a new algorithm required only 1 new file + 1 factory line change. Zero changes to IHeightmapGenerator, TerrainGenerator, TerrainSettings, EnvironmentManager, or asmdef
+- Zero terrain textures, materials, biomes, vegetation, water, erosion, disasters, victims, obstacles, navigation, ML-Agent, drone, or sensor changes
+
+### Phase 3.6 — Domain Warp Terrain Generator (2026-07-23)
+
+- **DomainWarpHeightmapGenerator** — Third IHeightmapGenerator implementation: samples Perlin noise at WarpScale to compute distortion offsets, applies offsets scaled by WarpStrength to base noise coordinates, then runs standard fBM at warped coordinates
+- **Factory activation** — HeightmapGeneratorFactory.Create(TerrainAlgorithm.DomainWarp) now returns DomainWarpHeightmapGenerator instead of throwing NotSupportedException
+- **New settings** — Added `WarpStrength` (float, default 4) and `WarpScale` (float, default 0.02) to TerrainSettings; both required for domain warp control; no existing settings could substitute
+- **Deterministic** — No random, no Time, no Unity Random, no allocations inside inner loops; identical seed → identical heightmap
+- **Strategy architecture validated again** — Adding a third algorithm required only 1 new file, 1 factory line, and 2 settings fields. Zero changes to IHeightmapGenerator, TerrainGenerator, EnvironmentManager, or asmdef
+- Zero terrain textures, materials, biomes, vegetation, water, erosion, disasters, victims, obstacles, navigation, ML-Agent, drone, or sensor changes
+
+### Phase 3.7 — Voronoi Terrain Generator (2026-07-27)
+
+- **VoronoiHeightmapGenerator** — Fourth IHeightmapGenerator implementation: deterministic Voronoi (Worley) noise using per-cell seed-hashed feature points, 3×3 neighborhood search, Euclidean distance normalized by sqrt(2), height inverted so valleys form at feature points for cellular/cracked-earth terrain
+- **Factory activation** — HeightmapGeneratorFactory.Create(TerrainAlgorithm.Voronoi) now returns VoronoiHeightmapGenerator instead of throwing NotSupportedException
+- **New setting** — Added `VoronoiCellSize` (float, `[Min(0.1f)]`, default 8) to TerrainSettings; required because Voronoi needs a cell grid scale that cannot be represented by any existing Perlin/fBM setting
+- **Deterministic** — Feature points derived from seed-hashed integer cell coordinates (no Unity Random, no System.Random, no Time, no Perlin noise); identical seed → identical heightmap
+- **No allocations inside loops** — All hash and distance computations use local variables only
+- **Strategy architecture validated again** — Adding a fourth algorithm required only 1 new file, 1 factory line, and 1 settings field. Zero changes to IHeightmapGenerator, TerrainGenerator, EnvironmentManager, or asmdef
+- Zero terrain textures, materials, biomes, vegetation, water, erosion, disasters, victims, obstacles, navigation, ML-Agent, drone, or sensor changes
+
+### Phase 3.8 — Hybrid Terrain Generator (2026-07-27)
+
+- **HybridHeightmapGenerator** — Fifth and final IHeightmapGenerator implementation; pure **composition** of existing generators (FBM + Ridged + DomainWarp + Voronoi) via internal `static readonly` instances; no new procedural algorithm
+- **Blending strategy** — Each generator produces its full heightmap independently; per-pixel blend: `(fbm×wF + ridged×wR + warp×wW + voronoi×wV) / totalWeight`; weights normalized automatically (no user requirement to sum to 1)
+- **Factory activation** — HeightmapGeneratorFactory.Create(TerrainAlgorithm.Hybrid) now returns HybridHeightmapGenerator instead of throwing NotSupportedException
+- **New settings** — Added `FbmWeight` (0.40), `RidgedWeight` (0.25), `DomainWarpWeight` (0.20), `VoronoiWeight` (0.15) to TerrainSettings; all `[Min(0f)]`; runtime validation rejects negative weights and zero total
+- **Open/Closed Principle validated conclusively** — All 5 algorithms added without modifying IHeightmapGenerator, TerrainGenerator, EnvironmentManager, or any assembly definition. Each new algorithm: 1 file + 1 factory line + optional settings fields
+- **Zero "not yet implemented" exceptions remain** — The factory handles all 5 TerrainAlgorithm values with concrete implementations
+- Zero terrain textures, materials, biomes, vegetation, water, erosion, disasters, victims, obstacles, navigation, ML-Agent, drone, or sensor changes
+
+### Phase 4.0 — Environment Runtime World Builder (2026-07-27)
+
+- **EnvironmentWorldBuilder** — Plain C# class in `ADRL.Environment.Core` responsible for constructing the runtime world hierarchy; creates 4 named child containers (`Runtime`, `Systems`, `SpawnPoints`, `Debug`) under the `[EnvironmentSystem]` root; hierarchy names centralized as `public const string` constants
+- **Exception-safe construction** — `Build(Transform rootTransform)` uses try-catch; any failure triggers `Destroy()` to tear down partially created hierarchy and re-throws; EnvironmentManager wraps the call with event publication
+- **Deterministic hierarchy** — Guaranteed same structure every build; all containers created via `new GameObject(name)` + `SetParent(rootTransform, worldPositionStays: false)` for clean local-space transforms
+- **Editor-safe cleanup** — `Destroy()` and internal `DestroyChild()` use `Application.isPlaying` guard to select `Object.Destroy` vs `Object.DestroyImmediate`
+- **EnvironmentContext extended** — 5 new Transform references: `RootTransform`, `RuntimeRoot`, `SystemsRoot`, `SpawnRoot`, `DebugRoot`; all cleared in `Reset()`
+- **3 new events** — `WorldBuildingStartedEvent`, `WorldBuiltEvent`, `WorldBuildingFailedEvent(string Reason)` follow existing `TerrainEvents` pattern (Started/Generated/Failed)
+- **Pipeline integration** — `EnvironmentManager.Initialize()` now calls `BuildWorld()` after `InitializeTerrainGenerator()` and before `InitializeProceduralGenerator()`; `EnvironmentBootstrap.Boot()` populates context hierarchy references after `EnvironmentManager.Initialize()` returns
+- **Lifecycle cleanup** — `EnvironmentManager.OnDestroy()` calls `CleanupWorldBuilder()` which invokes `WorldBuilder.Destroy()` and nulls the reference
+- **Zero out-of-scope** — No victims, obstacles, hazards, navigation, AI, ML-Agents, drone spawning, sensors, biomes, vegetation, texturing, disasters, gameplay, or physics systems touched
+- **Zero asmdef changes** — All code in existing `ADRL.Environment.asmdef`; reuses existing `ADRL.Environment.Core` namespace
+- **Zero existing file API breaks** — All additions are backward compatible (new fields, new events, new method calls inserted into existing pipeline)
+
 ### Phase 4.0 — Modular Drone Framework (2026-07-23)
 
 - **DroneController** — MonoBehaviour orchestrator composing IMotor, DroneHealth, DroneEnergy, DroneStateMachine via method injection

@@ -48,6 +48,15 @@ namespace ADRL.Environment.Core
                     _environmentManager.TerrainGenerator.Settings.TerrainLength);
             }
 
+            if (_environmentManager.WorldBuilder != null && _environmentManager.WorldBuilder.WorldBuilt)
+            {
+                _context.RootTransform = _environmentManager.transform;
+                _context.RuntimeRoot = _environmentManager.WorldBuilder.RuntimeRoot;
+                _context.SystemsRoot = _environmentManager.WorldBuilder.SystemsRoot;
+                _context.SpawnRoot = _environmentManager.WorldBuilder.SpawnRoot;
+                _context.DebugRoot = _environmentManager.WorldBuilder.DebugRoot;
+            }
+
             _context.RuntimeState = EnvironmentState.Ready;
 
             _initialized = true;
