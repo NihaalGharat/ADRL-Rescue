@@ -3,6 +3,7 @@ namespace ADRL.Drone.Controllers
     using ADRL.Core.Configuration;
     using ADRL.Core.Events;
     using ADRL.Drone.Components;
+    using ADRL.Drone.Core;
     using ADRL.Drone.Events;
     using ADRL.Drone.Interfaces;
     using UnityEngine;
@@ -16,8 +17,7 @@ namespace ADRL.Drone.Controllers
         private DroneHealth _health;
         private DroneEnergy _energy;
         private DroneStateMachine _stateMachine;
-
-        private static int _nextId;
+        private DroneManager _droneManager;
 
         public int DroneId => _droneId;
         public DroneState CurrentState => _stateMachine.CurrentState;
@@ -26,12 +26,15 @@ namespace ADRL.Drone.Controllers
         public IMotor Motor => _motor;
         public DroneStateMachine StateMachine => _stateMachine;
 
-        public void Initialize(EventBus eventBus, DroneConfig config, IMotor motor)
+        public void Initialize(EventBus eventBus, DroneConfig config, IMotor motor, DroneManager droneManager)
         {
-            _droneId = InterlockedIncrement(ref _nextId);
             _eventBus = eventBus;
             _config = config;
             _motor = motor;
+            _droneManager = droneManager;
+
+            _droneId = _droneManager.RegisterDrone(this);
+
             _health = new DroneHealth(eventBus);
             _energy = new DroneEnergy(eventBus);
             _stateMachine = new DroneStateMachine(eventBus, _droneId);
@@ -45,7 +48,10 @@ namespace ADRL.Drone.Controllers
             _stateMachine.Initialize(DroneState.Uninitialized);
 
             _stateMachine.TryTransitionTo(DroneState.Initializing);
+            _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Initializing);
+
             _stateMachine.TryTransitionTo(DroneState.Idle);
+            _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Idle);
 
             _eventBus?.Publish(new DroneSpawnedEvent(_droneId));
         }
@@ -54,6 +60,7 @@ namespace ADRL.Drone.Controllers
         {
             if (_stateMachine.TryTransitionTo(DroneState.Active))
             {
+                _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Active);
                 _eventBus?.Publish(new DroneActivatedEvent(_droneId));
             }
         }
@@ -61,17 +68,26 @@ namespace ADRL.Drone.Controllers
         public void Deactivate()
         {
             _motor.Stop();
-            _stateMachine.TryTransitionTo(DroneState.Idle);
+            if (_stateMachine.TryTransitionTo(DroneState.Idle))
+            {
+                _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Idle);
+            }
         }
 
         public void Pause()
         {
-            _stateMachine.TryTransitionTo(DroneState.Paused);
+            if (_stateMachine.TryTransitionTo(DroneState.Paused))
+            {
+                _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Paused);
+            }
         }
 
         public void Resume()
         {
-            _stateMachine.TryTransitionTo(DroneState.Active);
+            if (_stateMachine.TryTransitionTo(DroneState.Active))
+            {
+                _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Active);
+            }
         }
 
         public void EmergencyStop()
@@ -86,7 +102,10 @@ namespace ADRL.Drone.Controllers
         public void DestroyDrone()
         {
             _motor.EmergencyStop();
-            _stateMachine.TryTransitionTo(DroneState.Destroyed);
+            if (_stateMachine.TryTransitionTo(DroneState.Destroyed))
+            {
+                _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Destroyed);
+            }
         }
 
         public void Disable()
@@ -106,11 +125,6 @@ namespace ADRL.Drone.Controllers
             {
                 EmergencyStop();
             }
-        }
-
-        private static int InterlockedIncrement(ref int location)
-        {
-            return System.Threading.Interlocked.Increment(ref location);
         }
     }
 }

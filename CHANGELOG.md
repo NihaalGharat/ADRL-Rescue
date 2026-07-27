@@ -103,6 +103,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 5.4 — Runtime Lifecycle & Fleet State Management (2026-07-27)
+
+- **DroneRuntimeState** — New enum (`ADRL.Drone.Core`): `Uninitialized, Registered, Initializing, Idle, Active, Paused, Returning, Shutdown, Destroyed`; completely separate from `DroneState` (controller behaviour); no cross-references
+- **DroneRuntimeInfo** — New class (`ADRL.Drone.Core`): per-drone immutable metadata store (`DroneId`, `RuntimeState`, `RegistrationTime`, `ActivationCount`, `EpisodeNumber`, `LastTransitionTime`, `RuntimeFlags`, `ControllerReference`); owned by `DroneManager._runtimeInfos` dictionary; no behaviour logic
+- **DroneFleetStatistics** — New `readonly struct` (`ADRL.Drone.Core`): fleet-level computed metrics (`Registered`, `Active`, `Idle`, `Paused`, `Returning`, `Destroyed`, `Initializing`, `TotalRegistered`); computed on-the-fly by `DroneManager.GetFleetStatistics()`; immutable
+- **DroneStateTransitionValidator** — New static class (`ADRL.Drone.Core`): validates runtime state transitions (`IsValid()` / `Validate()`); allowed forward lifecycle path (`Registered→Initializing→Idle→Active↔Paused→Returning→Shutdown→Destroyed`) plus emergency destroy from any operational state; rejects all other transitions with `InvalidOperationException`
+- **DroneRuntimeEvents** — New event structs (`ADRL.Drone.Events`): `DroneRuntimeStateChangingEvent`, `DroneRuntimeStateChangedEvent`, `FleetStateChangedEvent`, `FleetResettingEvent`, `FleetResetCompletedEvent`; all `readonly struct` implementing `IEvent`; completely separate from `DroneEvents.cs` and `DroneSystemEvents.cs`
+- **DroneFleetValidator** — New static class (`ADRL.Drone.Utilities`): validates duplicate IDs, registry consistency, invalid runtime states, context consistency, negative counters, statistics consistency, snapshot consistency; returns `FleetValidationResult`; no scene validation
+- **DroneManager extended** — `TransitionRuntimeState(int, DroneRuntimeState)` validates via `DroneStateTransitionValidator`, updates runtime info, syncs context counters, publishes runtime events; `GetRuntimeInfo(int)` returns per-drone metadata; `GetFleetStatistics()` computes from runtime store; `ValidateFleet()` delegates to `DroneFleetValidator`; `ResetFleet()` now publishes `FleetResettingEvent` + `FleetStateChangedEvent` + `FleetResetCompletedEvent`; `Initialize()` publishes `FleetStateChangedEvent`; `Shutdown()` clears `_runtimeInfos`
+- **DroneContext counters synced** — `ActiveDroneCount`, `InactiveCount`, `DestroyedCount` now maintained automatically by `UpdateStateCounter()` during runtime transitions; `RegisterDrone()` no longer increments `ActiveDroneCount` directly (delegated to lifecycle); `UnregisterDrone()` decrements the correct counter based on current runtime state
+- **FleetSnapshot extended** — Now includes `IdleCount`, `PausedCount`, `ReturningCount`, `InitializingCount`, `ShutdownCount` — full runtime lifecycle breakdown
+- 6 new files, zero asmdef changes, zero namespace changes, zero dependency graph changes
+- Zero spawning, prefabs, GameObjects, Resources.Load, Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, FindObjectOfType, GameObject.Find, singletons, static mutable state
+
+### Phase 5.6 — Drone Infrastructure Layer & Subsystem Foundation (2026-07-27)
+
+- **IDroneSubsystem** — New interface (`ADRL.Drone.Interfaces`): high-level subsystem operations (`Health`, `Boot`, `Shutdown`, `Reset`, `Validate`, `GetDiagnostics`); future systems depend on this interface, never on `DroneManager` directly
+- **DroneSubsystem** — New class (`ADRL.Drone.Core`): public subsystem façade implementing `IDroneSubsystem`; wraps `DroneBootstrap` for Boot/Shutdown lifecycle; owns `DroneServiceProvider`, health state, and validation; `Boot(EventBus)` delegates to `DroneBootstrap`, creates service provider, initializes diagnostics and validator; `Shutdown()` delegates cleanly; `Validate()` runs startup validation; `GetDiagnostics()` returns immutable state snapshot; `Services` property exposes full `DroneServiceProvider`; no runtime logic — orchestration only
+- **DroneServiceProvider** — New class (`ADRL.Drone.Core`): centralized service access exposing `DroneManager`, `DroneRegistry`, `DroneContext`, `DroneConfiguration`, `DroneDiagnostics`, `DroneStartupValidator`; owned by `DroneSubsystem`; no singleton, no static state
+- **DroneSubsystemHealth** — New enum (`ADRL.Drone.Core`): `Healthy`, `Initializing`, `Degraded`, `Faulted`, `Shutdown` — subsystem health lifecycle
+- **DroneDiagnostics** — New immutable class (`ADRL.Drone.Core`): `Health`, `CurrentRuntimeState`, `RegisteredDroneCount`, `DroneFleetStatistics`, `CurrentEpisode`, `InitializationDuration`, `SubsystemUptime`, `LastValidationTime`; implements `IDroneDiagnostics`; no Unity objects
+- **DroneStartupValidator** — New class (`ADRL.Drone.Core`): validates `DroneManager`, `DroneContext`, `DroneRegistry`, `DroneConfiguration`, `DroneSubsystemHealth`, and dependencies; implements `IDroneValidator`; returns `DroneSubsystemValidationReport`; separate from runtime `DroneFleetValidator`
+- **DroneSubsystemValidationReport** — New `readonly struct` (`ADRL.Drone.Core`): `Passed`, `Warnings`, `Errors`, `ExecutionTimeMs`, `ValidatedComponents` — full validation report, not a simple boolean
+- **DroneLifecyclePolicy** — New static class (`ADRL.Drone.Core`): centralized lifecycle rules for `DroneSystemState` transitions (`IsAllowed`, `Validate`, `CanBoot`, `CanInitialize`, `CanRun`, `CanReset`, `CanShutdown`); 14 allowed transitions; replaces hardcoded lifecycle decisions
+- **Service interfaces** — 4 new lightweight interfaces (`ADRL.Drone.Interfaces`): `IDroneRegistry`, `IDroneContext`, `IDroneDiagnostics`, `IDroneValidator`; existing implementations unchanged (DroneRegistry, DroneContext kept as-is); future systems depend on interfaces for decoupling
+- **Architecture frozen** — `IDroneSubsystem` is the single public entry point for the drone subsystem; `DroneManager` is no longer a direct dependency target; all future phases build on this infrastructure without redesign
+- 12 new files, 0 modified files, 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
+- Zero spawning, prefabs, GameObjects (new), Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, singletons, static mutable state, assembly changes
+
+### Phase 5.7 — Runtime Integration & System Wiring (2026-07-27)
+
+- **Complete subsystem wiring** — `DroneSubsystem` now stores `_eventBus` reference; wires `DroneSubsystem` → `DroneServiceProvider` → `DroneManager` → `Context` → `Registry` → `Validators` → `Diagnostics` through method injection; no hidden initialization
+- **Startup pipeline** — Deterministic boot sequence: health guard → `SubsystemStartingEvent` → `DroneBootstrap.Boot()` (try/catch) → acquire Manager/Context/Registry/Configuration → create Diagnostics/Validator/ServiceProvider → `DroneStartupValidator.Validate()` (post-boot) → `SubsystemFaultedEvent` + cleanup on failure → health = Healthy → `SubsystemReadyEvent`; failure at any stage stops cleanly
+- **Shutdown pipeline** — Deterministic teardown: idempotent guard → `GetDiagnostics()` (capture) → `Validate()` (capture) → `SubsystemShutdownEvent` → `DroneBootstrap.Shutdown(eventBus)` → null all refs → health = Shutdown; idempotent via Shutdown guard
+- **Full validation integration** — `Validate()` now combines: dependency validation (6 components), health/lifecycle validation, `DroneStartupValidator` (Manager/Context/Registry/Config/Health), `DroneFleetValidator` (runtime store/registry consistency/counters/snapshot) — all in one unified `DroneSubsystemValidationReport`; publishes `SubsystemValidatedEvent`
+- **Full diagnostics integration** — `GetDiagnostics()` now aggregates: `SubsystemHealth`, `CurrentRuntimeState`, `SystemState` (DroneSystemState lifecycle), `IsServiceProviderReady` (service status), `LastValidationPassed` (validation state), `RegisteredDroneCount`, `FleetStatistics`, `CurrentEpisode`, `InitializationDuration`, `SubsystemUptime`, `LastValidationTime`
+- **Health monitoring** — Health auto-updates: `Shutdown` → `Initializing` (boot begins) → `Healthy` (boot succeeds); `Faulted` on exception or validation failure; `Shutdown` on teardown; publishes `SubsystemFaultedEvent` with reason on fault
+- **Lifecycle enforcement in DroneManager** — `Initialize()` now transitions `Uninitialized` → `Initializing` → `Ready` (both validated through `DroneLifecyclePolicy`); `Shutdown()` validates current → `Uninitialized`; `ResetFleet()` uses `CanReset()` guard + validates both `Resetting` → `Ready` transitions; original `FleetStateChangedEvent` updated from `Uninitialized→Ready` to `Initializing→Ready`
+- **Dependency validation** — `ValidateDependencies()` checks all 6 runtime dependencies: `DroneManager`, `DroneContext`, `DroneRegistry`, `DroneConfiguration`, `DroneServiceProvider`, `EventBus`; null detection returned as validation errors
+- **5 new infrastructure events** — `SubsystemStartingEvent` (before boot), `SubsystemReadyEvent` (after boot succeeds), `SubsystemValidatedEvent(bool Passed)` (after validation), `SubsystemFaultedEvent(string Reason)` (on fault), `SubsystemShutdownEvent` (before teardown); all in `ADRL.Drone.Events`; no spawning, scene, or AI events
+- **DroneDiagnostics extended** — 3 new properties: `SystemState` (DroneSystemState), `IsServiceProviderReady` (bool), `LastValidationPassed` (bool); added to both `DroneDiagnostics` class and `IDroneDiagnostics` interface; constructor updated; all call sites updated
+- **Runtime consistency** — `Validate()` verifies no duplicate services (single instances), no null references (6-component check), no invalid health states (Faulted/Shutdown detection), fleet counters (via `DroneFleetValidator`), diagnostics consistency, validation state consistency
+- 5 files modified (`DroneSubsystem.cs` rewritten, `DroneManager.cs` lifecycle enforcement, `DroneSystemEvents.cs` +5 events, `IDroneDiagnostics.cs` +3 properties, `DroneDiagnostics.cs` +3 properties), 0 new files, 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
+- Zero spawning, prefabs, GameObjects, Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, FindObjectOfType, GameObject.Find, singletons, static mutable state, assembly changes
+
+### Phase 5.8 — Runtime Persistence & Recovery (2026-07-27)
+
+- **DroneRuntimeSnapshot** — New immutable readonly struct (`ADRL.Drone.Core`): complete fleet runtime snapshot containing `SnapshotVersion` (versioned for forward compat), `Timestamp`, `EpisodeNumber`, `FleetRuntimeState`, `RegisteredDroneCount`, `TotalRegistered`, `NextAvailableId`, `Entries` (IReadOnlyList of drone entries), `FleetStatistics`; pure data only — no Unity objects, no GameObjects, no MonoBehaviours, no serialization dependencies
+- **DroneSnapshotEntry** — New immutable readonly struct (`ADRL.Drone.Core`): per-drone entry containing `DroneId`, `RuntimeState`, `ActivationCount`, `RegistrationTime`, `LastTransitionTime`, `RuntimeFlags`; no `DroneController` reference — pure runtime data only
+- **DronePersistenceManager** — New pure C# class (`ADRL.Drone.Core`): owns snapshot history (`List<DroneRuntimeSnapshot>`, max 100 checkpoints); `CaptureSnapshot(DroneManager)` creates + stores snapshot; `RestoreSnapshot(DroneRuntimeSnapshot, DroneManager)` delegates to manager; `ClearSnapshots()` clears history; `TryGetLatestSnapshot(out DroneRuntimeSnapshot)` retrieves most recent; `GetSnapshotHistory()` returns read-only list; no file IO, no serialization, in-memory only
+- **DroneRecoveryPolicy** — New static class (`ADRL.Drone.Core`): `ValidateSnapshot(DroneRuntimeSnapshot)` validates version compatibility, entry integrity (no Uninitialized states, no duplicate IDs, no negative counts), counter consistency (RegisteredDroneCount matches entries, TotalRegistered >= Registered, NextAvailableId > 0 and >= Registered); `CanRecover(DroneRuntimeSnapshot)` shorthand; returns `RecoveryValidationResult` (IsRecoverable, Errors, Warnings)
+- **DroneRecoveryValidator** — New class (`ADRL.Drone.Core`): validates restored runtime; integrates `DroneFleetValidator` (fleet consistency, counter matching, state alignment) with registry-consistency-warning suppression (expected after restore — no controllers exist until Phase 6.0+); integrates `DroneStartupValidator` (Manager/Context/Registry/Config structure); returns `RecoveryValidationResult`
+- **DronePersistenceEvents** — New event structs (`ADRL.Drone.Events`): `RuntimeSnapshotCreatedEvent(int SnapshotIndex, int EntryCount)`, `RuntimeRestoreStartedEvent`, `RuntimeRestoreCompletedEvent(bool RolledBack)`, `RuntimeRestoreFailedEvent(string Reason)`, `RuntimeSnapshotClearedEvent`; all readonly struct implementing IEvent; use existing EventBus
+- **DroneManager 4 new methods** — `CreateSnapshot()` reads `_runtimeInfos`, creates `DroneSnapshotEntry` per drone, returns full `DroneRuntimeSnapshot` with version + timestamp + fleet statistics; `RestoreSnapshot(DroneRuntimeSnapshot)` validates state (Ready/Running), clears runtime infos + registry, restores entries as `DroneRuntimeInfo` objects (no controller — null `DroneController` reference), restores counters and statistics, recalculates state counters, returns success; `ResetRuntime()` clears runtime infos and context counters (keeps system Ready); `ClearRuntime()` extends ResetRuntime with ID + EpisodeNumber reset
+- **DroneSubsystem 6 new methods** — `CreateSnapshot()` guards health (Healthy/Degraded), delegates to `PersistenceManager.CaptureSnapshot`, publishes `RuntimeSnapshotCreatedEvent`; `RestoreSnapshot(DroneRuntimeSnapshot)` implements full recovery pipeline: snapshot validation (DroneRecoveryPolicy) → pre-snapshot capture (rollback target) → `RuntimeRestoreStartedEvent` → `ResetRuntime` → restore via persistence manager → `DroneRecoveryValidator.Validate()` → success capture + `RuntimeRestoreCompletedEvent(false)` or rollback to pre-snapshot + `RuntimeRestoreFailedEvent` + `RuntimeRestoreCompletedEvent(true)`; `ResetRuntime()` delegates to manager `ResetRuntime()` with health guard; `TryGetLatestSnapshot()` delegates to persistence manager (null-safe); `ClearSnapshots()` clears history + `RuntimeSnapshotClearedEvent`; `ValidateRestore()` runs recovery validator, returns `DroneSubsystemValidationReport`
+- **Recovery pipeline** — Deterministic: validate snapshot → validate version → validate fleet integrity → clear current runtime → restore runtime infos → restore counters → restore statistics → validate restored state → publish events; if any validation fails: restore pre-snapshot → publish failure event → leave runtime unchanged; rollback tested via pre-snapshot/restore cycle
+- 6 new files (`DroneSnapshotEntry.cs`, `DroneRuntimeSnapshot.cs`, `DronePersistenceManager.cs`, `DroneRecoveryPolicy.cs`, `DroneRecoveryValidator.cs`, `DronePersistenceEvents.cs`), 2 files modified (`DroneManager.cs` +4 methods, `DroneSubsystem.cs` +2 fields +6 methods + initialization + cleanup), 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
+- Zero spawning, prefabs, scene interaction, Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, file IO, serialization, Resources, ScriptableObjects, asmdef modifications, namespace changes, dependency graph changes, architecture expansion
+
+### Phase 5.5 — Runtime ↔ Controller Integration (2026-07-27)
+
+- **ID ownership transferred** — `DroneController` no longer self-allocates IDs via `_nextId` static counter; removed `InterlockedIncrement` method; delegates to `DroneManager.RegisterDrone(this)` during initialization
+- **DroneManager reference injected** — `DroneController.Initialize(EventBus, DroneConfig, IMotor, DroneManager)` now takes a `DroneManager` parameter; controller stores it for runtime state synchronization
+- **Runtime state bridge** — Every controller DroneState transition now maps to a DroneRuntimeState transition via `DroneManager.TransitionRuntimeState()`:
+  - `Initialize()` → `Registered` → `Initializing` → `Idle`
+  - `Activate()` → `Active`
+  - `Deactivate()` → `Idle`
+  - `Pause()` → `Paused`
+  - `Resume()` → `Active`
+  - `DestroyDrone()` → `Destroyed`
+  - `EmergencyStop()` / `Disable()`: No runtime equivalent (behaviour-only states)
+- **Transition validator extended** — Added `(Active, Idle)` to `DroneStateTransitionValidator._allowedTransitions` to support controller `Deactivate()` lifecycle
+- **Fleet counters driven by real transitions** — `ActiveDroneCount`, `InactiveCount`, `DestroyedCount` now synchronized through actual controller behaviour via `UpdateStateCounter()` during `TransitionRuntimeState()`
+- **Runtime events fully wired** — `DroneRuntimeStateChangingEvent` + `DroneRuntimeStateChangedEvent` fire for every behaviour-driven runtime transition; `DroneStateChangedEvent` (controller scope) and `DroneRuntimeStateChangedEvent` (fleet scope) coexist without duplication
+- **No duplicate event publication** — `DroneSpawnedEvent` (ADRL.Core) preserved for backward compatibility; `DroneRegisteredEvent` published by `RegisterDrone` remains the authoritative fleet registration event
+- **Ownership preserved** — `DroneManager` owns IDs, runtime lifecycle, statistics, validation, runtime events; `DroneController` owns behaviour, components, motor, health, energy, state machine; no ownership inversion
+- 2 files modified (`DroneController.cs`, `DroneStateTransitionValidator.cs`), zero asmdef changes, zero namespace changes, zero new files
+- Zero spawning, prefabs, GameObjects, Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, singletons, static mutable state, assembly changes
+
+### Phase 5.3 — Fleet Runtime Management (2026-07-27)
+
+- **Automatic ID management** — `DroneManager` now owns `_nextDroneId` (private, starts at 1); `AllocateDroneId()` returns and advances; IDs are deterministic, sequential, never duplicate; reset on fleet reset
+- **Registration overload** — `RegisterDrone(DroneController)` auto-allocates ID via `AllocateDroneId()` then delegates to existing `RegisterDrone(int, DroneController)`; full backward compatibility preserved
+- **Fleet statistics** — `DroneContext` extended with `TotalRegistered` (cumulative), `InactiveCount`, `DestroyedCount`, `NextAvailableId`; all synced during registration/unregistration/reset
+- **Runtime fleet queries** — `GetDrone(int)`, `ContainsDrone(int)`, `GetRegisteredDroneCount()`, `GetActiveDroneCount()`, `GetInactiveDroneCount()` — all read-only wrappers over Registry/Context
+- **FleetSnapshot** — New `readonly struct` in `ADRL.Drone.Core` capturing `RegisteredCount`, `TotalRegistered`, `ActiveCount`, `InactiveCount`, `DestroyedCount`, `NextAvailableId`, `SystemState`; no mutable internals exposed
+- **Validation hardening** — `RegisterDrone` and `UnregisterDrone` now throw `ArgumentNullException` (null controller) and `InvalidOperationException` (duplicate ID, missing ID, invalid state) instead of returning -1/false; `AllocateDroneId()` also guards against invalid states
+- **State tracking** — `ActiveDroneCount` is now maintained during `RegisterDrone` (increment) and `UnregisterDrone` (decrement, floor at 0)
+- **`ActiveDroneCount` maintained** — Previously passive counter, now incremented on register, decremented on unregister
+- Zero asmdef changes — ADRL.Drone still references only ADRL.Core
+- Zero changes to DroneController, DroneMotor, DroneHealth, DroneEnergy, DroneState, DroneStateMachine, DroneEvents, DroneConfiguration, DroneSystemState, DroneSystemEvents, DroneBootstrap, DroneRegistry
+- Zero spawning, prefab loading, hierarchy creation, environment integration, AI, navigation, sensors, ML-Agent, gameplay logic, or Update()
+
+### Phase 5.2 — Drone Runtime Lifecycle & Registration (2026-07-27)
+
+- **DroneManager lifecycle** — `Shutdown()` delegates cleanup from Bootstrap; `ResetFleet()` transitions through Resetting→Ready, clears registry and context counters; guards against invalid state transitions
+- **Drone registration** — `RegisterDrone(int, DroneController)` validates null/duplicate, stores in registry, updates `RegisteredDroneCount`, publishes `DroneRegisteredEvent`; `UnregisterDrone(int)` validates existence, removes from registry, updates count, publishes `DroneUnregisteredEvent`; follows EnvironmentManager.RegisterVictim pattern
+- **DroneRegistry** — Added `GetAll()` returning `IReadOnlyCollection<DroneController>` for enumeration
+- **DroneContext** — Added `RegisteredDroneCount` and `ActiveDroneCount` properties; both reset in `Reset()`
+- **DroneBootstrap** — `Shutdown()` now invokes `DroneManager.Shutdown()` before destroying GameObject (proper cleanup chain)
+- Zero asmdef changes — ADRL.Drone still references only ADRL.Core
+- Zero changes to DroneController, DroneMotor, DroneHealth, DroneEnergy, DroneState, DroneStateMachine, DroneEvents, DroneConfiguration, DroneSystemState, DroneSystemEvents
+- Zero spawning, prefab loading, hierarchy creation, environment integration, AI, navigation, sensors, ML-Agent, or gameplay logic
+
+### Phase 5.1 — Drone Framework Architecture Foundation (2026-07-27)
+
+- **DroneBootstrap** — Static bootstrap class with `Boot(EventBus)` and `Shutdown(EventBus)`; creates persistent `[DroneSystem]` GameObject; composes DroneManager, DroneContext, DroneRegistry, DroneConfiguration; publishes Initializing/Initialized/Shutdown lifecycle events; idempotent via `_initialized` guard; no runtime logic, no GameBootstrap wiring, no Environment interaction
+- **DroneManager** — MonoBehaviour owning only EventBus, DroneContext, DroneRegistry, DroneConfiguration, and DroneSystemState; method injection via `Initialize(EventBus, DroneContext, DroneRegistry, DroneConfiguration)`; publishes DroneInitializedEvent; cleanup in `OnDestroy()`; no spawning, no registration, no fleet creation, no hierarchy creation, no scene searching, no prefab instantiation
+- **DroneContext** — Plain C# class holding only runtime references: FleetState, EpisodeNumber, DroneRoot, CurrentConfiguration; `Reset()` clears data; no derived/cached state (RegisteredDroneCount deferred to Phase 5.2)
+- **DroneRegistry** — Instance-based (no singleton) pure storage with `Register(int, DroneController)`, `Unregister(int)`, `Contains(int)`, `Get(int)`, `Clear()`, `Count`; no auto-incrementing ID, no GetAll enumeration, no scene scanning
+- **DroneConfiguration** — Plain C# class with system-level settings only: MaxFleetSize, DefaultSpawnCount, EnableEnergyManagement; no duplicated DroneConfig fields (SpawnHeight removed); no DroneConfig reference (Manager retrieves it independently)
+- **DroneSystemState** — Enum in `ADRL.Drone.Core`: Uninitialized, Initializing, Ready, Running, Resetting, Completed, Failed (mirrors EnvironmentState)
+- **DroneSystemEvents** — 5 new events in `ADRL.Drone.Events`: `DroneInitializingEvent`, `DroneInitializedEvent`, `DroneShutdownEvent`, `DroneRegisteredEvent(int)`, `DroneUnregisteredEvent(int)` — all readonly structs implementing IEvent; lifecycle only, no gameplay/movement/battery/ML events
+- All code in ADRL.Drone assembly (`ADRL.Drone.Core`, `ADRL.Drone.Events` namespaces)
+- Zero changes to ADRL.Core, ADRL.Environment, ADRL.AI, ADRL.Sensors, ADRL.Training, ADRL.UI, ADRL.Editor
+- Zero asmdef changes — ADRL.Drone still references only ADRL.Core
+- Zero changes to existing Drone code (DroneController, DroneMotor, DroneHealth, DroneEnergy, DroneState, DroneStateMachine, DroneEvents)
+- Zero AI, zero physics, zero ML-Agent — fully decoupled architecture scaffolding
+
 ### Phase 2.3 — Core Framework & Configuration System (2026-07-22)
 
 - **Bootstrap System** — `GameBootstrap` initialization pipeline + `Bootstrapper` MonoBehaviour entry point
