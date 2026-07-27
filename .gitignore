@@ -241,3 +241,6 @@ build.log
 *.swp
 *.swo
 *~
+
+# Additional build logs
+build*.log
