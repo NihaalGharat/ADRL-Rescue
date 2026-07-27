@@ -825,6 +825,147 @@ Drone framework is fully decoupled from Environment, Sensors, AI, Training, and 
 
 ---
 
+## Entity Layer (Phase 6.1 — Drone Entity Foundation)
+
+The Entity Layer introduces the physical Drone Entity architecture — the runtime GameObject structure that serves as the foundation for all future spawning, pooling, and prefab management.
+
+### Architecture
+
+Every drone in the scene is a GameObject with the following entity components:
+
+```
+Drone GameObject
+├── DroneIdentity         (MonoBehaviour) — single source of identity
+├── DroneController       (MonoBehaviour) — orchestrates behaviour
+├── DroneMotor            (class, IMotor) — movement (created by Controller)
+├── DroneHealth           (class)         — damage/repair (created by Controller)
+└── DroneEnergy           (class)         — battery (created by Controller)
+```
+
+DroneIdentity is marked with `[DisallowMultipleComponent]`. DroneController requires DroneIdentity via `[RequireComponent(typeof(DroneIdentity))]` — Unity auto-adds the identity component when DroneController is added to a GameObject.
+
+### DroneIdentity
+
+MonoBehaviour in `ADRL.Drone.Controllers`. Single source of truth for drone identity on the GameObject.
+
+| Member | Description |
+|--------|-------------|
+| `DroneId` | `int` — Read-only. The allocated drone ID (-1 before assignment) |
+| `IsAssigned` | `bool` — True after `AssignId()` is called |
+| `AssignId(int droneId)` | Sets the drone ID and marks as assigned |
+| `ClearId()` | Resets to unassigned (-1, false) |
+
+**Registration flow (Phase 6.1):**
+
+```
+DroneController.Initialize()
+    ↓
+DroneManager.RegisterDrone(this) → returns _droneId
+    ↓
+DroneIdentity.AssignId(_droneId)          ← Phase 6.1
+    ↓
+Create Health, Energy, StateMachine, Motor
+    ↓
+stateMachine: Uninitialized → Initializing → Idle
+```
+
+The identity is populated immediately after registration, before any component creation. This ensures `DroneIdentity.DroneId` is available even if controller initialization fails partway through.
+
+### Component Ownership Rules
+
+| Component | Type | Owner | Created By | Scope |
+|-----------|------|-------|------------|-------|
+| `DroneIdentity` | MonoBehaviour | GameObject | Unity (auto-add via RequireComponent) | Entity identity |
+| `DroneController` | MonoBehaviour | GameObject | Manual / Spawner | Orchestration |
+| `DroneMotor` | class (IMotor) | DroneController | Controller.Initialize() | Movement |
+| `DroneHealth` | class | DroneController | Controller.Initialize() | Damage |
+| `DroneEnergy` | class | DroneController | Controller.Initialize() | Battery |
+| `DroneStateMachine` | class | DroneController | Controller.Initialize() | State transitions |
+
+Rules:
+- **DroneIdentity** is the single source of truth for `DroneId` on the GameObject. All entity-level lookups use DroneIdentity.
+- **DroneController** owns all runtime components (Health, Energy, Motor, StateMachine). These are NOT separate MonoBehaviours — they are plain C# objects created and owned by the controller.
+- **Future MonoBehaviours** (Sensors, Navigation, Physics) will be separate components on the GameObject, discovered via `GetComponent` during controller initialization.
+
+### Registration Compatibility
+
+The existing registration flow is fully preserved:
+
+```
+DroneManager.RegisterDrone(controller)
+  → AllocateDroneId() → id
+  → Registry.Register(id, controller)
+  → Create DroneRuntimeInfo(id, ..., controller)
+  → Publish DroneRegisteredEvent
+```
+
+Phase 6.1 adds only: `DroneIdentity.AssignId(id)` called by DroneController after registration returns. No changes to DroneManager, DroneRegistry, or DroneRuntimeInfo.
+
+`DroneRuntimeInfo.ControllerReference` continues to hold the `DroneController` reference. Entity lookups use `controller.GetComponent<DroneIdentity>()` for identity access.
+
+### DroneEntityValidator
+
+Static class in `ADRL.Drone.Utilities`. Validates entity completeness at runtime.
+
+| Method | Description |
+|--------|-------------|
+| `ValidateEntity(DroneController)` | Returns `EntityValidationResult` for a single controller |
+| `ValidateFleetEntities(DroneManager)` | Validates all registered controllers, returns error list |
+
+**Validation checks per entity:**
+1. Controller is not null
+2. DroneIdentity component exists on the GameObject
+3. DroneIdentity.IsAssigned == true
+4. DroneIdentity.DroneId matches controller's DroneId
+5. Motor is initialized (`IMotor.IsInitialized`)
+6. Controller state is not Uninitialized
+
+Integrated into `DroneSubsystem.Validate()` — entity errors are prefixed with `[Entity]` and included in the unified validation report.
+
+### EntityValidationResult
+
+`readonly struct` in `ADRL.Drone.Utilities`.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `IsValid` | bool | True if no errors |
+| `Errors` | IReadOnlyList<string> | Validation error messages |
+
+### Prefab Architecture Specification
+
+A valid drone prefab MUST contain the following components on the root GameObject:
+
+| Component | Required | Notes |
+|-----------|----------|-------|
+| `DroneIdentity` | Yes | Auto-added by `[RequireComponent]` on DroneController |
+| `DroneController` | Yes | Orchestrates all behaviour |
+| `IMotor` (future MonoBehaviour) | Future | Phase 6.2+ when motor becomes a MonoBehaviour |
+
+The prefab root naming convention: `Drone_{id}` (e.g., `Drone_1`, `Drone_2`).
+
+**Hierarchy template (Phase 6.2+):**
+
+```
+Drone_{id} (GameObject)
+├── DroneIdentity (MonoBehaviour)
+├── DroneController (MonoBehaviour)
+├── Model (Transform)
+│   └── (3D mesh/es)
+├── Sensors (Transform)          ← Phase 6.2+
+│   ├── Sensor_GPS
+│   └── Sensor_Camera
+├── Physics (Transform)          ← Phase 6.2+
+│   └── DroneMotorMB (MonoBehaviour)
+└── Colliders (Transform)        ← Phase 6.2+
+    └── (Collider components)
+```
+
+### Events
+
+No new events in Phase 6.1. Entity validation is reported through the existing `SubsystemValidatedEvent` via the unified `Validate()` report.
+
+---
+
 ## Components
 
 ### 1. Sensor Manager
@@ -980,4 +1121,4 @@ Drone spawning considers:
 
 ---
 
-*Last updated: July 2026 — Phase 5.8 (Runtime Persistence & Recovery)*
+*Last updated: July 2026 — Phase 6.1 (Drone Entity Foundation)*

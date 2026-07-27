@@ -162,6 +162,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 6 new files (`DroneSnapshotEntry.cs`, `DroneRuntimeSnapshot.cs`, `DronePersistenceManager.cs`, `DroneRecoveryPolicy.cs`, `DroneRecoveryValidator.cs`, `DronePersistenceEvents.cs`), 2 files modified (`DroneManager.cs` +4 methods, `DroneSubsystem.cs` +2 fields +6 methods + initialization + cleanup), 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
 - Zero spawning, prefabs, scene interaction, Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, file IO, serialization, Resources, ScriptableObjects, asmdef modifications, namespace changes, dependency graph changes, architecture expansion
 
+### Phase 6.1 — Drone Entity Foundation (2026-07-28)
+
+- **DroneIdentity** — New `[DisallowMultipleComponent]` MonoBehaviour (`ADRL.Drone.Controllers`): single source of identity on the drone GameObject; holds `DroneId`, `IsAssigned`, `AssignId(int)`, `ClearId()`; Unity auto-adds via `[RequireComponent]` on DroneController; enables entity-level identity before DroneController is fully initialized
+- **DroneController extended** — Added `[RequireComponent(typeof(DroneIdentity))]`; `Initialize()` now populates `DroneIdentity.AssignId(_droneId)` immediately after `DroneManager.RegisterDrone(this)` returns the allocated ID; entity identity is synchronized at registration time
+- **DroneEntityValidator** — New static class (`ADRL.Drone.Utilities`): `ValidateEntity(DroneController)` checks DroneIdentity existence + assignment + ID match + motor initialization + controller initialization; `ValidateFleetEntities(DroneManager)` iterates all registered controllers; returns `EntityValidationResult` (IsValid, Errors)
+- **EntityValidationResult** — New `readonly struct` (`ADRL.Drone.Utilities`): `IsValid` (bool), `Errors` (IReadOnlyList<string>); follows `FleetValidationResult` pattern
+- **DroneSubsystem.Validate() extended** — Entity validation integrated into fleet validation path; `DroneEntityValidator.ValidateFleetEntities()` called alongside `DroneFleetValidator.Validate()`; errors prefixed with `[Entity]`; "EntityValidator" added to validated components
+- **Component ownership rules** — Documented entity structure: DroneIdentity (identity), DroneController (orchestration), Health/Energy/Motor (owned components); DroneId single-sourced from DroneIdentity; registration flow preserved
+- **Prefab architecture specification** — Documented required components for a drone prefab: `DroneIdentity`, `DroneController`, `DroneMotor` (future); optional: `DroneHealth`, `DroneEnergy` (created by Controller); standardized hierarchy naming
+- 2 new files (`DroneIdentity.cs`, `DroneEntityValidator.cs`), 2 files modified (`DroneController.cs`, `DroneSubsystem.cs`), 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
+- Zero spawning, pooling, prefab instantiation, spawn manager, spawn queue, fleet spawning, Environment, AI, sensors, navigation, missions, RL changes
+
 ### Phase 5.5 — Runtime ↔ Controller Integration (2026-07-27)
 
 - **ID ownership transferred** — `DroneController` no longer self-allocates IDs via `_nextId` static counter; removed `InterlockedIncrement` method; delegates to `DroneManager.RegisterDrone(this)` during initialization

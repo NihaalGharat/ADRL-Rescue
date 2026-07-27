@@ -5,6 +5,7 @@ namespace ADRL.Drone.Core
     using ADRL.Core.Events;
     using ADRL.Drone.Events;
     using ADRL.Drone.Interfaces;
+    using ADRL.Drone.Utilities;
     using UnityEngine;
 
     public class DroneSubsystem : IDroneSubsystem
@@ -174,6 +175,12 @@ namespace ADRL.Drone.Core
                     }
                     if (!components.Contains("FleetValidator"))
                         components.Add("FleetValidator");
+
+                    var entityErrors = DroneEntityValidator.ValidateFleetEntities(_manager);
+                    foreach (var e in entityErrors)
+                        errors.Add(e);
+                    if (!components.Contains("EntityValidator"))
+                        components.Add("EntityValidator");
                 }
             }
 

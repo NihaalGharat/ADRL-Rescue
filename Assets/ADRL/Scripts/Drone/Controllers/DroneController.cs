@@ -8,6 +8,7 @@ namespace ADRL.Drone.Controllers
     using ADRL.Drone.Interfaces;
     using UnityEngine;
 
+    [RequireComponent(typeof(DroneIdentity))]
     public class DroneController : MonoBehaviour
     {
         private int _droneId;
@@ -34,6 +35,10 @@ namespace ADRL.Drone.Controllers
             _droneManager = droneManager;
 
             _droneId = _droneManager.RegisterDrone(this);
+
+            var identity = GetComponent<DroneIdentity>();
+            if (identity != null)
+                identity.AssignId(_droneId);
 
             _health = new DroneHealth(eventBus);
             _energy = new DroneEnergy(eventBus);
