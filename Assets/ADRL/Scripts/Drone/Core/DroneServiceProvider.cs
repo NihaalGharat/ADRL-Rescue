@@ -10,6 +10,7 @@ namespace ADRL.Drone.Core
         public DroneConfiguration Configuration { get; }
         public DroneDiagnostics Diagnostics { get; }
         public DroneStartupValidator Validator { get; }
+        public DroneSpawnManager SpawnManager { get; }
 
         public DroneServiceProvider(
             DroneManager manager,
@@ -17,7 +18,8 @@ namespace ADRL.Drone.Core
             DroneContext context,
             DroneConfiguration configuration,
             DroneDiagnostics diagnostics,
-            DroneStartupValidator validator)
+            DroneStartupValidator validator,
+            DroneSpawnManager spawnManager)
         {
             Manager = manager;
             Registry = registry;
@@ -25,6 +27,7 @@ namespace ADRL.Drone.Core
             Configuration = configuration;
             Diagnostics = diagnostics;
             Validator = validator;
+            SpawnManager = spawnManager;
         }
     }
 }

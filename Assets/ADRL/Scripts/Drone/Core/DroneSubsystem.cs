@@ -2,7 +2,9 @@ namespace ADRL.Drone.Core
 {
     using System;
     using System.Collections.Generic;
+    using ADRL.Core.Configuration;
     using ADRL.Core.Events;
+    using ADRL.Core.Resources;
     using ADRL.Drone.Events;
     using ADRL.Drone.Interfaces;
     using ADRL.Drone.Utilities;
@@ -70,8 +72,16 @@ namespace ADRL.Drone.Core
             var validator = new DroneStartupValidator(
                 _manager, _context, _registry, _configuration, _health);
 
+            var droneConfig = ResourceLocator.IsInitialized
+                ? ResourceLocator.Configs.Get<DroneConfig>()
+                : null;
+
+            var spawnManager = new DroneSpawnManager();
+            spawnManager.Initialize(_eventBus, _manager, droneConfig);
+
             _serviceProvider = new DroneServiceProvider(
-                _manager, _registry, _context, _configuration, initialDiagnostics, validator);
+                _manager, _registry, _context, _configuration,
+                initialDiagnostics, validator, spawnManager);
 
             _persistenceManager = new DronePersistenceManager();
             _recoveryValidator = new DroneRecoveryValidator(_manager, _serviceProvider);

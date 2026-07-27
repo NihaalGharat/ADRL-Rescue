@@ -1097,16 +1097,186 @@ Stabilization Forces:
 
 ---
 
-## Spawn System
+## Spawn Pipeline (Phase 6.2)
 
-Drone spawning considers:
+The spawn pipeline provides deterministic, validated drone creation through a structured orchestration layer.
 
-| Factor | Description |
+### Architecture
+
+```
+DroneSpawnManager
+        │
+        ▼
+DroneFactory
+        │
+        ▼
+DronePrefabRegistry  →  Instantiate Prefab
+                             │
+                             ▼
+                    DroneController.Initialize()
+                             │
+                             ▼
+                    DroneManager.RegisterDrone()
+                             │
+                             ▼
+                    RuntimeInfo Created
+```
+
+**Ownership Boundaries:**
+
+| Component | Owns | Never Owns |
+|-----------|------|------------|
+| DroneSpawnManager | Spawn orchestration, queue, validation, prefab registry, factory, events | Registration, IDs, RuntimeInfo, persistence, hierarchy, behaviour |
+| DroneFactory | GameObject creation, SpawnParameters application, motor creation | Registration, IDs, prefab storage |
+| DronePrefabRegistry | Prefab reference storage (read-only) | Instantiation, spawning, registration, destruction |
+
+### Spawn Pipeline (deterministic)
+
+```
+SpawnRequest
+↓
+Validate Request (SpawnValidator)
+↓
+Resolve Prefab (DronePrefabRegistry)
+↓
+Validate Prefab (SpawnValidator)
+↓
+Calculate Spawn Parameters (deterministic formula)
+↓
+Validate Spawn Location (SpawnValidator)
+↓
+Validate Configuration (SpawnValidator)
+↓
+Validate Spawn Parent (SpawnValidator)
+↓
+DroneSpawningEvent published
+↓
+DroneFactory.Create() → Instantiate Prefab + Create DroneMotor
+↓
+DroneController.Initialize()
+↓
+(Internally) DroneManager.RegisterDrone()
+↓
+SpawnResult created
+↓
+DroneSpawnCompletedEvent published
+```
+
+No shortcuts. All validation occurs BEFORE instantiation.
+
+### Data Models
+
+#### SpawnRequest (`ADRL.Drone.Core`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `DroneType` | string | Prefab identifier for registry lookup |
+| `SpawnPointId` | string | Future spawn point reference |
+| `Team` | string | Team affiliation |
+| `MissionContext` | string | Mission metadata |
+
+Pure request data — no runtime settings.
+
+#### SpawnParameters (`ADRL.Drone.Core`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Position` | Vector3 | Spawn world position |
+| `Rotation` | Quaternion | Spawn rotation |
+| `InitialHealth` | float | Starting health value |
+| `InitialBattery` | float | Starting battery value |
+| `InitialState` | DroneState | Starting behaviour state |
+
+Only initialization data. Applied by DroneFactory (position/rotation) and post-init (health/battery/state).
+
+#### SpawnResult (`ADRL.Drone.Core`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | bool | Spawn outcome |
+| `Drone` | DroneController | Reference to spawned controller (null on failure) |
+| `AssignedDroneId` | int | Drone ID allocated by DroneManager (-1 on failure) |
+| `FailureReason` | string | Error description (null on success) |
+| `SpawnTimestamp` | float | Time.time at spawn completion |
+
+Created via factory methods `CreateSuccess(DroneController, int, float)` and `CreateFailure(string)`. Never returns raw GameObject.
+
+### DronePrefabRegistry
+
+Read-only registry storing direct GameObject prefab references keyed by drone type string.
+
+| Method | Description |
 |--------|-------------|
-| Safe Position | Not inside obstacles |
-| Random Location | Different each episode |
-| Valid Height | Above ground, below ceiling |
-| Orientation | Facing random direction |
+| `Register(string, GameObject)` | Store prefab reference |
+| `TryGetPrefab(string, out GameObject)` | Retrieve prefab by drone type |
+| `Contains(string)` | Check if drone type is registered |
+| `Clear()` | Remove all entries |
+
+Must NOT instantiate, spawn, register, or destroy. Separate from the Core `PrefabRegistry` (which stores resource paths for ScriptableObject-driven loading).
+
+### DroneFactory
+
+Plain C# factory. Single method `Create(GameObject, SpawnParameters, Transform, out IMotor)` instantiates the prefab at the given position/rotation, validates required components, creates a `DroneMotor`, and returns the `DroneController` with an `out IMotor`. Does NOT register drones, generate IDs, or store prefabs.
+
+### DroneSpawnManager
+
+Orchestration facade. Owns the `DronePrefabRegistry`, `DroneFactory`, and spawn queue.
+
+| Method | Description |
+|--------|-------------|
+| `Initialize(EventBus, DroneManager, DroneConfig)` | Wire dependencies; creates `[DroneRuntime]` hierarchy root |
+| `Spawn(SpawnRequest)` | Execute spawn synchronously; publish `DroneSpawnCompletedEvent` |
+| `EnqueueSpawn(SpawnRequest)` | Queue and process immediately |
+| `ProcessQueue()` | Drain all pending spawn requests |
+| `ClearQueue()` | Clear pending queue |
+| `PrefabRegistry` | Public read-only access to prefab registry |
+| `PendingCount` | Number of queued spawns |
+
+**Spawn Queue:** Deterministic `Queue<SpawnRequest>`. Processes immediately (synchronous). Prepares Phase 6.5 queuing without implementing batch/async/wave spawning.
+
+**Failure Handling:** All exceptions in `DroneFactory.Create()` and `DroneController.Initialize()` are caught. On initialization failure, the partially-created `GameObject` is destroyed and a `SpawnResult` with failure reason is returned.
+
+**Deterministic Spawn Position:** Calculated from `DroneConfig.SpawnOffset + DroneConfig.TakeoffHeight`. No Random, no Time, no external state.
+
+### Integration
+
+DroneSpawnManager is created by `DroneSubsystem.Boot()` and exposed as `DroneServiceProvider.SpawnManager`. The `[DroneRuntime]` child GameObject is created under `[DroneSystem]` as the drone hierarchy root during initialization.
+
+### Spawn Events (Phase 6.2)
+
+| Event | Payload | When Published |
+|-------|---------|----------------|
+| `DroneSpawningEvent` | `SpawnRequest Request`, `SpawnParameters Parameters` | Before instantiation |
+| `DroneSpawnCompletedEvent` | `SpawnResult Result` | After spawn completes |
+| `DroneSpawnedEvent` (existing, ADRL.Core.Events) | `int DroneId` | Published by DroneController.Initialize() after full initialization |
+
+### Validation (Phase 6.2)
+
+`SpawnValidator` (`ADRL.Drone.Utilities`) — static validation class:
+
+| Method | Checks |
+|--------|--------|
+| `ValidateRequest(SpawnRequest)` | Null/empty DroneType |
+| `ValidatePrefab(GameObject)` | Null prefab, missing DroneController, missing DroneIdentity |
+| `ValidateSpawnLocation(Vector3)` | NaN, Infinity |
+| `ValidateConfiguration(DroneConfig)` | Null config |
+| `ValidateSpawnParent(Transform)` | Null parent transform |
+
+Returns `ValidationResult` struct with `IsValid` (bool) and `Error` (string). All validation occurs before `DroneFactory.Create()` — invalid requests never reach instantiation.
+
+### Explicitly Deferred (Future Phases)
+
+| Feature | Phase |
+|---------|-------|
+| Object Pooling (Release, Acquire, Recycle) | 6.3+ |
+| Addressables / async loading | 6.3+ |
+| Network / multiplayer spawning | Future |
+| Replay / scenario spawning | Future |
+| Wave spawning | Future |
+| Spawn zones | Future |
+| Spawn scheduler | Future |
+| Environment integration | 6.4+ |
+| Async spawning | Future |
 
 ---
 
@@ -1121,4 +1291,4 @@ Drone spawning considers:
 
 ---
 
-*Last updated: July 2026 — Phase 6.1 (Drone Entity Foundation)*
+*Last updated: July 2026 — Phase 6.2 (Drone Spawn Pipeline & Prefab Runtime)*
