@@ -57,5 +57,23 @@ namespace ADRL.Drone.Core
         {
             _available.Enqueue(controller);
         }
+
+        internal bool TryRemoveStale(DroneController controller)
+        {
+            if (controller == null)
+                return false;
+
+            var removed = _active.Remove(controller);
+
+            var snapshot = _available.ToArray();
+            _available.Clear();
+            foreach (var c in snapshot)
+            {
+                if (c != null && !ReferenceEquals(c, controller))
+                    _available.Enqueue(c);
+            }
+
+            return removed;
+        }
     }
 }

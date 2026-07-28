@@ -79,9 +79,13 @@ namespace ADRL.Drone.Core
             var spawnManager = new DroneSpawnManager();
             spawnManager.Initialize(_eventBus, _manager, droneConfig);
 
+            var poolManager = new DronePoolManager();
+            poolManager.Initialize(spawnManager.PrefabRegistry, _manager.Context.DroneRoot);
+            spawnManager.SetAllocator(poolManager);
+
             _serviceProvider = new DroneServiceProvider(
                 _manager, _registry, _context, _configuration,
-                initialDiagnostics, validator, spawnManager);
+                initialDiagnostics, validator, spawnManager, poolManager);
 
             _persistenceManager = new DronePersistenceManager();
             _recoveryValidator = new DroneRecoveryValidator(_manager, _serviceProvider);
@@ -121,6 +125,9 @@ namespace ADRL.Drone.Core
             _eventBus?.Publish(new SubsystemShutdownEvent());
 
             DroneBootstrap.Shutdown(_eventBus);
+
+            if (_serviceProvider?.Allocator is DronePoolManager poolManager)
+                poolManager.Shutdown();
 
             _persistenceManager = null;
             _recoveryValidator = null;

@@ -15,6 +15,7 @@ namespace ADRL.Drone.Core
         private readonly Queue<SpawnRequest> _spawnQueue = new(64);
         private readonly DroneFactory _factory = new();
         private readonly DronePrefabRegistry _prefabRegistry = new();
+        private IDroneAllocator _allocator;
         private EventBus _eventBus;
         private DroneManager _droneManager;
         private DroneConfig _droneConfig;
@@ -22,6 +23,11 @@ namespace ADRL.Drone.Core
 
         public DronePrefabRegistry PrefabRegistry => _prefabRegistry;
         public int PendingCount => _spawnQueue.Count;
+
+        public void SetAllocator(IDroneAllocator allocator)
+        {
+            _allocator = allocator;
+        }
 
         public void Initialize(
             EventBus eventBus,
@@ -74,6 +80,17 @@ namespace ADRL.Drone.Core
             _spawnQueue.Clear();
         }
 
+        public void Return(DroneController controller)
+        {
+            if (controller == null)
+                return;
+
+            controller.ResetDrone();
+
+            if (_allocator != null)
+                _allocator.Return(controller);
+        }
+
         private SpawnResult ExecuteSpawn(SpawnRequest request)
         {
             var requestValidation = SpawnValidator.ValidateRequest(request);
@@ -106,16 +123,33 @@ namespace ADRL.Drone.Core
             _eventBus?.Publish(new DroneSpawningEvent(request, spawnParams));
 
             DroneController controller;
-            IMotor motor;
+            IMotor motor = null;
             try
             {
-                controller = _factory.Create(prefab, spawnParams, _droneRoot, out motor);
+                if (_allocator != null)
+                {
+                    controller = _allocator.BorrowOrCreate(
+                        request, spawnParams, _droneRoot);
+                    motor = controller?.Motor;
+                }
+                else
+                {
+                    controller = _factory.Create(
+                        prefab, spawnParams, _droneRoot, out motor);
+                }
             }
             catch (Exception ex)
             {
                 return SpawnResult.CreateFailure(
-                    $"Factory.Create failed: {ex.Message}");
+                    $"Allocation failed: {ex.Message}");
             }
+
+            if (controller == null)
+                return SpawnResult.CreateFailure("Allocator returned null.");
+
+            if (motor == null)
+                return SpawnResult.CreateFailure(
+                    "Allocator returned a drone with no motor.");
 
             try
             {

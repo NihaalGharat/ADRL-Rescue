@@ -44,7 +44,8 @@ namespace ADRL.Drone.Core
                 return null;
             }
 
-            controller = _factory.Create(prefab, parameters, parent, out _);
+            controller = _factory.Create(prefab, parameters, parent, out var motor);
+            controller.AssignMotor(motor);
             pool.AddActive(controller);
             _controllerToPool[controller] = request.DroneType;
             _borrowCount++;
@@ -67,6 +68,31 @@ namespace ADRL.Drone.Core
             }
         }
 
+        public void CleanupStaleControllers()
+        {
+            List<(DroneController, string)> staleEntries = null;
+
+            foreach (var kvp in _controllerToPool)
+            {
+                var controller = kvp.Key;
+                if (controller == null || controller.gameObject == null)
+                {
+                    staleEntries ??= new List<(DroneController, string)>();
+                    staleEntries.Add((controller, kvp.Value));
+                }
+            }
+
+            if (staleEntries == null)
+                return;
+
+            foreach (var (controller, droneType) in staleEntries)
+            {
+                if (_pools.TryGetValue(droneType, out var pool))
+                    pool.TryRemoveStale(controller);
+                _controllerToPool.Remove(controller);
+            }
+        }
+
         public void Prewarm(string droneType, int count)
         {
             if (_prefabRegistry == null || count <= 0)
@@ -86,7 +112,8 @@ namespace ADRL.Drone.Core
 
             for (int i = 0; i < count; i++)
             {
-                var controller = _factory.Create(prefab, parameters, _droneRoot, out _);
+                var controller = _factory.Create(prefab, parameters, _droneRoot, out var motor);
+                controller.AssignMotor(motor);
                 controller.gameObject.SetActive(false);
                 pool.AddToAvailable(controller);
             }
