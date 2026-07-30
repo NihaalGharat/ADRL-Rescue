@@ -13,6 +13,9 @@ namespace ADRL.Drone.Core
         private DronePrefabRegistry _prefabRegistry;
         private Transform _droneRoot;
 
+        private const float DefaultInitialHealth = 100f;
+        private const float DefaultInitialBattery = 100f;
+
         private int _borrowCount;
         private int _returnCount;
         private int _poolMissCount;
@@ -106,8 +109,8 @@ namespace ADRL.Drone.Core
             var parameters = new SpawnParameters(
                 Vector3.zero,
                 Quaternion.identity,
-                100f,
-                100f,
+                DefaultInitialHealth,
+                DefaultInitialBattery,
                 DroneState.Uninitialized);
 
             for (int i = 0; i < count; i++)
@@ -126,6 +129,54 @@ namespace ADRL.Drone.Core
             _borrowCount = 0;
             _returnCount = 0;
             _poolMissCount = 0;
+        }
+
+        public int TotalActiveCount
+        {
+            get
+            {
+                int count = 0;
+                foreach (var pool in _pools.Values)
+                    count += pool.ActiveCount;
+                return count;
+            }
+        }
+
+        public int TotalAvailableCount
+        {
+            get
+            {
+                int count = 0;
+                foreach (var pool in _pools.Values)
+                    count += pool.AvailableCount;
+                return count;
+            }
+        }
+
+        public int TotalPoolObjectsCount => TotalActiveCount + TotalAvailableCount;
+
+        public int TotalBorrowCount => _borrowCount;
+
+        public int TotalReturnCount => _returnCount;
+
+        public int TotalPoolMissCount => _poolMissCount;
+
+        public int PoolCount => _pools.Count;
+
+        public IEnumerable<string> AllPoolTypes => _pools.Keys;
+
+        public Dictionary<string, PoolStatistics> GetAllStatistics()
+        {
+            var stats = new Dictionary<string, PoolStatistics>(_pools.Count);
+            foreach (var kvp in _pools)
+                stats[kvp.Key] = new PoolStatistics(
+                    kvp.Value.AvailableCount,
+                    kvp.Value.ActiveCount,
+                    kvp.Value.AvailableCount + kvp.Value.ActiveCount,
+                    _borrowCount,
+                    _returnCount,
+                    _poolMissCount);
+            return stats;
         }
 
         public bool PoolExists(string droneType)

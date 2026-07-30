@@ -1,5 +1,6 @@
 namespace ADRL.Drone.Interfaces
 {
+    using System.Collections.Generic;
     using ADRL.Drone.Core;
 
     public interface IDroneDiagnostics
@@ -15,5 +16,12 @@ namespace ADRL.Drone.Interfaces
         float InitializationDuration { get; }
         float SubsystemUptime { get; }
         long LastValidationTime { get; }
+        int PendingSpawnCount { get; }
+        int TotalPoolObjects { get; }
+        int TotalBorrowCount { get; }
+        int TotalReturnCount { get; }
+        int TotalPoolMissCount { get; }
+        IReadOnlyDictionary<string, PoolStatistics> PoolStatisticsByType { get; }
+        DroneHealthReport HealthReport { get; }
     }
 }

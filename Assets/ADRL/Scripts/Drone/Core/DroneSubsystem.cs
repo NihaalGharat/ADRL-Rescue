@@ -10,6 +10,8 @@ namespace ADRL.Drone.Core
     using ADRL.Drone.Utilities;
     using UnityEngine;
 
+    using PoolStatsDict = System.Collections.Generic.IReadOnlyDictionary<string, ADRL.Drone.Core.PoolStatistics>;
+
     public class DroneSubsystem : IDroneSubsystem
     {
         private EventBus _eventBus;
@@ -94,6 +96,8 @@ namespace ADRL.Drone.Core
             _lastValidationTime = DateTime.UtcNow.Ticks;
             _lastValidationPassed = report.Passed;
 
+            InitializeDebugDrawer();
+
             if (!report.Passed && report.Errors.Count > 0)
             {
                 DroneBootstrap.Shutdown(_eventBus);
@@ -124,10 +128,12 @@ namespace ADRL.Drone.Core
 
             _eventBus?.Publish(new SubsystemShutdownEvent());
 
-            DroneBootstrap.Shutdown(_eventBus);
-
             if (_serviceProvider?.Allocator is DronePoolManager poolManager)
                 poolManager.Shutdown();
+
+            _serviceProvider?.SpawnManager?.ClearQueue();
+
+            DroneBootstrap.Shutdown(_eventBus);
 
             _persistenceManager = null;
             _recoveryValidator = null;
@@ -198,6 +204,22 @@ namespace ADRL.Drone.Core
                         errors.Add(e);
                     if (!components.Contains("EntityValidator"))
                         components.Add("EntityValidator");
+
+                    if (_serviceProvider?.Allocator is DronePoolManager poolManager)
+                    {
+                        foreach (var type in poolManager.AllPoolTypes)
+                        {
+                            if (!components.Contains($"Pool:{type}"))
+                                components.Add($"Pool:{type}");
+                        }
+                        if (!components.Contains("PoolManager"))
+                            components.Add("PoolManager");
+                        if (poolManager.TotalActiveCount > 0 || poolManager.PoolCount > 0)
+                        {
+                            if (!components.Contains("PoolStorage"))
+                                components.Add("PoolStorage");
+                        }
+                    }
                 }
             }
 
@@ -273,6 +295,38 @@ namespace ADRL.Drone.Core
             var uptime = _bootTime > 0f ? Time.realtimeSinceStartup - _bootTime : 0f;
             var initDuration = _bootTime > 0f ? _bootTime - _initializationStartTime : 0f;
 
+            int pendingSpawns = 0;
+            int totalPoolObjs = 0;
+            int borrowCount = 0;
+            int returnCount = 0;
+            int missCount = 0;
+            PoolStatsDict poolStatsByType = null;
+
+            if (_serviceProvider?.Allocator is DronePoolManager poolManager)
+            {
+                pendingSpawns = _serviceProvider.SpawnManager?.PendingCount ?? 0;
+                totalPoolObjs = poolManager.TotalPoolObjectsCount;
+                borrowCount = poolManager.TotalBorrowCount;
+                returnCount = poolManager.TotalReturnCount;
+                missCount = poolManager.TotalPoolMissCount;
+                poolStatsByType = poolManager.GetAllStatistics();
+            }
+
+            var isOperational = _health == DroneSubsystemHealth.Healthy
+                             || _health == DroneSubsystemHealth.Degraded;
+
+            var healthReport = new DroneHealthReport(
+                isOperational,
+                _context.RegisteredDroneCount,
+                fleetStats.Active,
+                fleetStats.Idle,
+                borrowCount,
+                returnCount,
+                missCount,
+                pendingSpawns,
+                totalPoolObjs,
+                _health.ToString());
+
             return new DroneDiagnostics(
                 _health,
                 DroneRuntimeState.Uninitialized,
@@ -284,7 +338,14 @@ namespace ADRL.Drone.Core
                 _context.EpisodeNumber,
                 initDuration,
                 uptime,
-                _lastValidationTime);
+                _lastValidationTime,
+                pendingSpawns,
+                totalPoolObjs,
+                borrowCount,
+                returnCount,
+                missCount,
+                poolStatsByType,
+                healthReport);
         }
 
         public DroneRuntimeSnapshot CreateSnapshot()
@@ -374,6 +435,16 @@ namespace ADRL.Drone.Core
 
             _persistenceManager.ClearSnapshots();
             _eventBus?.Publish(new RuntimeSnapshotClearedEvent());
+        }
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        private void InitializeDebugDrawer()
+        {
+            if (_manager == null) return;
+            var drawer = _manager.gameObject.GetComponent<DroneDebugDrawer>();
+            if (drawer == null)
+                drawer = _manager.gameObject.AddComponent<DroneDebugDrawer>();
+            drawer.Initialize(this);
         }
 
         public DroneSubsystemValidationReport ValidateRestore()

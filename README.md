@@ -6,7 +6,7 @@
 [![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-blue.svg)](https://unity.com/)
 [![ML-Agents](https://img.shields.io/badge/ML--Agents-1.0-green.svg)](https://github.com/Unity-Technologies/ml-agents)
 [![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/Version-v0.2.0-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
+[![Version](https://img.shields.io/badge/Version-v0.7.0-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
 
 ---
 
@@ -22,13 +22,11 @@ The drone learns its behavior entirely through **Reinforcement Learning (PPO)** 
 
 ## Project Status
 
-🚧 **Version v0.2.0 — Unity Foundation**
+🚧 **Version v0.7.0 — Runtime Framework**
 
 ADRL-Rescue is currently in active development.
 
-Version v0.2.0 implements the core framework, resource management, drone framework, environment framework, procedural generation, and scenario systems.
-
-**Sensors and ML-Agents begin in v0.4.0 (Sensors & AI). Training begins in v0.5.0 (Training).**
+Version v0.7.0 implements the complete drone runtime framework including spawning, lifecycle management, persistence, and object pooling.
 
 | Milestone | Status |
 |:----------|:-------|
@@ -37,11 +35,12 @@ Version v0.2.0 implements the core framework, resource management, drone framewo
 | Resource Management | ✅ Complete (Registries, Validation, AssetProvider) |
 | Drone Framework | ✅ Complete (Controller, Motor, Health, Energy) |
 | Environment Framework | ✅ Complete (Hazards, Obstacles, Victims, Scenarios) |
-| Procedural Generation | ✅ Complete (3 rule types, placement utility) |
-| Sensor Implementation | 🔲 Pending (v0.4.0) |
-| ML-Agents / AI | 🔲 Pending (v0.4.0) |
-| Training Pipeline | 🔲 Pending (v0.5.0) |
-| UI / Polish | 🔲 Pending (v0.6.0) |
+| Procedural Generation | ✅ Complete (5 heightmap algorithms, placement rules) |
+| Runtime Framework | ✅ Complete (Spawn, Lifecycle, Pooling, Diagnostics, Validation, Persistence) |
+| Sensor Implementation | 🔲 Pending |
+| ML-Agents / AI | 🔲 Pending |
+| Training Pipeline | 🔲 Pending |
+| UI / Polish | 🔲 Pending |
 | Stable Release | 🔲 Pending (v1.0.0) |
 
 **Documentation Status:** ✅ Frozen (v0.2.0 Baseline)
@@ -109,13 +108,13 @@ ADRL-Rescue/
 │   │   ├── Scripts/          # C# source code
 │   │   │   ├── Core/         # Bootstrap, config, events, services, resources
 │   │   │   ├── AI/           # Empty (Phase 7)
-│   │   │   ├── Drone/        # Drone controller, motor, health, energy
-│   │   │   ├── Environment/  # Hazards, obstacles, victims, procedural, scenarios
+│   │   │   ├── Drone/        # Controllers, components, runtime, spawning, pooling, diagnostics, validation
+│   │   │   ├── Environment/  # Hazards, obstacles, victims, procedural, terrain, scenarios
 │   │   │   ├── Sensors/      # Empty (Phase 7)
 │   │   │   ├── Training/     # Empty (Phase 7)
 │   │   │   ├── Editor/       # Editor validators, menu items
 │   │   │   └── UI/           # Empty (Phase 7)
-│   │   ├── Prefabs/          # Empty (Phase 6+)
+│   │   ├── Prefabs/          # Prefab registry (Phase 6+)
 │   │   ├── Materials/        # Empty (Phase 6+)
 │   │   ├── Scenes/           # Main.unity (starter)
 │   │   ├── ScriptableObjects/# Config assets (Phase 6+)
@@ -261,10 +260,10 @@ graph TD
 |-------|---------|-------------|--------|
 | Foundation | v0.1.0 | Repository architecture and documentation | ✅ Complete |
 | Unity Foundation | v0.2.0 | Core framework, resource management, drone framework | ✅ Complete |
-| Environment | v0.3.0 | Environment framework, disaster types | 🔲 Pending |
-| Sensors & AI | v0.4.0 | Sensor implementations, ML-Agents integration | 🔲 Pending |
-| Training | v0.5.0 | Reward system, PPO training pipeline | 🔲 Pending |
-| Polish | v0.6.0 | UI, performance, final documentation | 🔲 Pending |
+| Environment | v0.3.0 | Environment framework, terrain generation, procedural rules | ✅ Complete |
+| Runtime Framework | v0.4.0–v0.7.0 | Drone spawning, lifecycle, persistence, object pooling, diagnostics | ✅ Complete |
+| Sensors & AI | v0.8.0 | Sensor implementations, ML-Agents integration | 🔲 Pending |
+| Training | v0.9.0 | Reward system, PPO training pipeline | 🔲 Pending |
 | Release | v1.0.0 | Full stable release | 🔲 Pending |
 
 ---

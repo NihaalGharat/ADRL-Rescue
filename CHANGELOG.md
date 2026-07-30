@@ -101,7 +101,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-07-29
+
+### Phase 6.1 — Drone Entity Foundation
+
+- `DroneIdentity` component as single source of drone ID on the prefab; entity validation via `DroneEntityValidator`; `DroneController` updated with `[RequireComponent]` and ID synchronization
+- 2 new files, 2 modified — zero asmdef/namespace changes
+
+### Phase 6.2 — Drone Spawn Pipeline & Prefab Runtime
+
+- Deterministic spawn pipeline: `SpawnRequest`/`SpawnParameters`/`SpawnResult` data structs, `DronePrefabRegistry`, `DroneFactory`, `DroneSpawnManager` with queue and validation; `SpawnValidator` utility; spawn lifecycle events
+- 8 new files, 2 modified — zero asmdef/namespace changes
+
+### Phase 6.3 — Runtime Object Pooling
+
+- `DronePool` with FIFO borrow and O(1) return; `PoolPolicy`/`PoolStatistics` data structs; `DronePoolManager` implementing `IDroneAllocator` with lazy pool creation, bidirectional tracking, stale cleanup, and prewarm; full integration into `DroneSpawnManager` and `DroneSubsystem`; reverse-creation-order shutdown verified
+- 4 new files, 5 modified — zero asmdef/namespace changes
+
+---
+
 ## [Unreleased]
+
+### Phase 6.4 — Runtime Completion & Diagnostics (2026-07-30)
+
+- **Live diagnostics enhancement** — `IDroneDiagnostics` extended with `PendingSpawnCount`, `TotalPoolObjects`, `TotalBorrowCount`, `TotalReturnCount`, `TotalPoolMissCount`, `PoolStatisticsByType`, `HealthReport`; `DroneDiagnostics` constructor updated with optional parameters (backward compatible)
+- **DroneHealthReport** — New `readonly struct` (`ADRL.Drone.Core`): runtime health summary with `IsOperational`, drone counts, pool counters, spawn queue depth, subsystem status; included in every `GetDiagnostics()` call
+- **DronePoolManager aggregate stats** — New properties: `TotalActiveCount`, `TotalAvailableCount`, `TotalPoolObjectsCount`, `TotalBorrowCount`, `TotalReturnCount`, `TotalPoolMissCount`, `PoolCount`, `AllPoolTypes`; new `GetAllStatistics()` returns typed dictionary; enables diagnostics without per-pool iteration
+- **Pool validation** — `DroneSubsystem.Validate()` now validates pool manager state: enumerates active pools, records pool components in validation report; zero new classes
+- **Spawn queue depth** — `DroneSubsystem.GetDiagnostics()` now reads `DroneSpawnManager.PendingCount` for live queue depth reporting
+- **DroneDebugDrawer** — New `MonoBehaviour` (`ADRL.Drone.Core`): optional Gizmos visualization for subsystem health (green/yellow/red wireframe sphere) and per-pool indicators (cyan/grey spheres); attached automatically in editor builds via `[Conditional("UNITY_EDITOR")]`; detached during shutdown; zero runtime cost in release builds
+- **DroneFleetValidator static buffer fix** — Replaced static `_buffer` list with per-call allocation; eliminates thread-unsafe shared state; `buffer` parameter threaded through all private validation methods
+- 2 new files, 5 modified — zero asmdef/namespace/dependency changes
 
 ### Phase 5.4 — Runtime Lifecycle & Fleet State Management (2026-07-27)
 
@@ -162,35 +192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 6 new files (`DroneSnapshotEntry.cs`, `DroneRuntimeSnapshot.cs`, `DronePersistenceManager.cs`, `DroneRecoveryPolicy.cs`, `DroneRecoveryValidator.cs`, `DronePersistenceEvents.cs`), 2 files modified (`DroneManager.cs` +4 methods, `DroneSubsystem.cs` +2 fields +6 methods + initialization + cleanup), 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
 - Zero spawning, prefabs, scene interaction, Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, file IO, serialization, Resources, ScriptableObjects, asmdef modifications, namespace changes, dependency graph changes, architecture expansion
 
-### Phase 6.2 — Drone Spawn Pipeline & Prefab Runtime (2026-07-28)
 
-- **SpawnRequest** — New `readonly struct` (`ADRL.Drone.Core`): spawn request data; contains `DroneType`, `SpawnPointId`, `Team`, `MissionContext`; all strings default to empty; no runtime settings
-- **SpawnParameters** — New `readonly struct` (`ADRL.Drone.Core`): initialization data for spawned drones; contains `Position`, `Rotation`, `InitialHealth`, `InitialBattery`, `InitialState`; pure data — no behaviour logic
-- **SpawnResult** — New `readonly struct` (`ADRL.Drone.Core`): spawn outcome; `Success` (bool), `Drone` (DroneController), `AssignedDroneId` (int), `FailureReason` (string), `SpawnTimestamp` (float); factory methods `CreateSuccess` and `CreateFailure`; never returns raw GameObject
-- **DronePrefabRegistry** — New class (`ADRL.Drone.Core`): read-only prefab storage keyed by drone type string; `Register(string, GameObject)`, `TryGetPrefab(string, out GameObject)`, `Contains(string)`, `Clear()`; stores direct GameObject references; does NOT instantiate, spawn, register, or destroy
-- **DroneFactory** — New class (`ADRL.Drone.Core`): creates drone GameObjects from prefab + SpawnParameters; `Create(GameObject, SpawnParameters, Transform)` instantiates prefab at given position/rotation, validates DroneController component, returns controller; does NOT register drones, generate IDs, or store prefabs
-- **DroneSpawnManager** — New class (`ADRL.Drone.Core`): spawn orchestration facade; owns `DronePrefabRegistry` and `DroneFactory`; `Initialize(EventBus, DroneManager, DroneConfig)` wires dependencies and creates `[DroneRuntime]` hierarchy root; `Spawn(SpawnRequest)` executes spawn synchronously and publishes `DroneSpawnCompletedEvent`; `EnqueueSpawn(SpawnRequest)` queues and processes; `ProcessQueue()` drains all pending; `ClearQueue()`; deterministic spawn position calculation using `DroneConfig.TakeoffHeight + SpawnOffset` (no Random, no Time)
-- **Spawn pipeline** — Deterministic: validate request → resolve prefab → validate prefab → calculate spawn parameters → validate spawn location → publish `DroneSpawningEvent` → `DroneFactory.Create()` → create `DroneMotor` → `DroneController.Initialize(EventBus, DroneConfig, IMotor, DroneManager)` (which internally calls `DroneManager.RegisterDrone`) → publish `DroneSpawnCompletedEvent`; all exceptions in Factory.Create or Controller.Initialize caught; GameObject destroyed on initialization failure; no shortcuts
-- **Validation pipeline** — New static `SpawnValidator` (`ADRL.Drone.Utilities`) with `ValidateRequest` (checks null/empty DroneType), `ValidatePrefab` (checks null, missing DroneController, missing DroneIdentity), `ValidateSpawnLocation` (checks NaN/infinite position); all validation occurs BEFORE instantiation; never instantiates invalid requests
-- **ValidationResult** — New `readonly struct` (`ADRL.Drone.Utilities`): `IsValid` (bool), `Error` (string); factory methods `Valid()` and `Invalid(string)`; follows `FleetValidationResult`/`EntityValidationResult` pattern
-- **DroneSpawnEvents** — 2 new event structs (`ADRL.Drone.Events`): `DroneSpawningEvent(SpawnRequest, SpawnParameters)` published before instantiation; `DroneSpawnCompletedEvent(SpawnResult)` published after spawn completes (success or failure); existing `DroneSpawnedEvent` (ADRL.Core.Events, published by DroneController.Initialize) remains authoritative "fully initialized" event
-- **DroneSpawnManager integration** — `DroneServiceProvider` gains `SpawnManager` property (7th service); `DroneSubsystem.Boot()` creates `DroneSpawnManager`, initializes with EventBus/DroneManager/DroneConfig, passes to `DroneServiceProvider` constructor; `[DroneRuntime]` child GameObject created under `[DroneSystem]` as drone hierarchy root; zero changes to DroneManager, DroneController, DroneBootstrap, DroneRegistry, DroneContext
-- **Spawn queue** — Deterministic `Queue<SpawnRequest>` in DroneSpawnManager; `EnqueueSpawn` queues and processes immediately (synchronous); prepares Phase 6.5 without implementing batch/async/wave spawning
-- **ZERO future-phase functionality** — No Object Pooling, Release, Acquire, Recycle, Addressables, async spawning, network spawning, replay spawning, wave spawning, scenario spawning, spawn zones, spawn scheduler, environment integration, or Update()
-- 8 new files (3 data structs, 1 registry, 1 factory, 1 manager, 1 events file, 1 validator), 2 modified files (DroneServiceProvider, DroneSubsystem), 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
-- Zero Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, FindObjectOfType, GameObject.Find, singletons, static mutable state, assembly changes
-
-### Phase 6.1 — Drone Entity Foundation (2026-07-28)
-
-- **DroneIdentity** — New `[DisallowMultipleComponent]` MonoBehaviour (`ADRL.Drone.Controllers`): single source of identity on the drone GameObject; holds `DroneId`, `IsAssigned`, `AssignId(int)`, `ClearId()`; Unity auto-adds via `[RequireComponent]` on DroneController; enables entity-level identity before DroneController is fully initialized
-- **DroneController extended** — Added `[RequireComponent(typeof(DroneIdentity))]`; `Initialize()` now populates `DroneIdentity.AssignId(_droneId)` immediately after `DroneManager.RegisterDrone(this)` returns the allocated ID; entity identity is synchronized at registration time
-- **DroneEntityValidator** — New static class (`ADRL.Drone.Utilities`): `ValidateEntity(DroneController)` checks DroneIdentity existence + assignment + ID match + motor initialization + controller initialization; `ValidateFleetEntities(DroneManager)` iterates all registered controllers; returns `EntityValidationResult` (IsValid, Errors)
-- **EntityValidationResult** — New `readonly struct` (`ADRL.Drone.Utilities`): `IsValid` (bool), `Errors` (IReadOnlyList<string>); follows `FleetValidationResult` pattern
-- **DroneSubsystem.Validate() extended** — Entity validation integrated into fleet validation path; `DroneEntityValidator.ValidateFleetEntities()` called alongside `DroneFleetValidator.Validate()`; errors prefixed with `[Entity]`; "EntityValidator" added to validated components
-- **Component ownership rules** — Documented entity structure: DroneIdentity (identity), DroneController (orchestration), Health/Energy/Motor (owned components); DroneId single-sourced from DroneIdentity; registration flow preserved
-- **Prefab architecture specification** — Documented required components for a drone prefab: `DroneIdentity`, `DroneController`, `DroneMotor` (future); optional: `DroneHealth`, `DroneEnergy` (created by Controller); standardized hierarchy naming
-- 2 new files (`DroneIdentity.cs`, `DroneEntityValidator.cs`), 2 files modified (`DroneController.cs`, `DroneSubsystem.cs`), 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
-- Zero spawning, pooling, prefab instantiation, spawn manager, spawn queue, fleet spawning, Environment, AI, sensors, navigation, missions, RL changes
 
 ### Phase 5.5 — Runtime ↔ Controller Integration (2026-07-27)
 
@@ -592,6 +594,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | v0.4.0 | Sensors & AI | Sensor implementations, ML-Agents integration |
 | v0.5.0 | Training | Reward system, PPO training pipeline |
 | v0.6.0 | Polish | UI, performance, final documentation |
+| v0.7.0 | Runtime Framework | Object Pooling, Spawn Pipeline, Diagnostics, Runtime Integration |
 | v1.0.0 | Release | Full stable release |
 
 ---
