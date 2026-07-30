@@ -232,9 +232,15 @@ Python/logs/*
 Python/models/*
 !Python/models/.gitkeep
 
+# Build logs
+build.log
+
 # Temporary files
 *.tmp
 *.bak
 *.swp
 *.swo
 *~
+
+# Additional build logs
+build*.log

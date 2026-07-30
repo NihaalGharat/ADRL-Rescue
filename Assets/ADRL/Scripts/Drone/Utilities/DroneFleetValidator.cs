@@ -18,8 +18,6 @@ namespace ADRL.Drone.Utilities
 
     public static class DroneFleetValidator
     {
-        private static readonly List<string> _buffer = new();
-
         public static FleetValidationResult Validate(
             DroneRegistry registry,
             DroneContext context,
@@ -27,31 +25,31 @@ namespace ADRL.Drone.Utilities
             DroneSystemState systemState,
             int nextAvailableId)
         {
-            _buffer.Clear();
+            var buffer = new List<string>();
 
-            ValidateRuntimeStore(runtimeInfos);
-            ValidateRegistryConsistency(registry, runtimeInfos);
-            ValidateContextCounters(context, runtimeInfos);
-            ValidateSnapshotConsistency(context, systemState, nextAvailableId);
+            ValidateRuntimeStore(runtimeInfos, buffer);
+            ValidateRegistryConsistency(registry, runtimeInfos, buffer);
+            ValidateContextCounters(context, runtimeInfos, buffer);
+            ValidateSnapshotConsistency(context, systemState, nextAvailableId, buffer);
 
-            var errors = _buffer.Count > 0 ? new List<string>(_buffer) : new List<string>();
-            return new FleetValidationResult(errors.Count == 0, errors);
+            return new FleetValidationResult(buffer.Count == 0, buffer);
         }
 
         private static void ValidateRuntimeStore(
-            IReadOnlyDictionary<int, DroneRuntimeInfo> runtimeInfos)
+            IReadOnlyDictionary<int, DroneRuntimeInfo> runtimeInfos,
+            List<string> buffer)
         {
             foreach (var kvp in runtimeInfos)
             {
                 if (kvp.Value.RuntimeState == DroneRuntimeState.Uninitialized)
                 {
-                    _buffer.Add(
+                    buffer.Add(
                         $"Drone {kvp.Key} has Uninitialized runtime state after registration.");
                 }
 
                 if (kvp.Value.DroneId != kvp.Key)
                 {
-                    _buffer.Add(
+                    buffer.Add(
                         $"Runtime info key mismatch: key={kvp.Key}, id={kvp.Value.DroneId}");
                 }
             }
@@ -59,7 +57,8 @@ namespace ADRL.Drone.Utilities
 
         private static void ValidateRegistryConsistency(
             DroneRegistry registry,
-            IReadOnlyDictionary<int, DroneRuntimeInfo> runtimeInfos)
+            IReadOnlyDictionary<int, DroneRuntimeInfo> runtimeInfos,
+            List<string> buffer)
         {
             var registryIds = new HashSet<int>();
 
@@ -72,7 +71,7 @@ namespace ADRL.Drone.Utilities
             {
                 if (!registry.Contains(kvp.Key))
                 {
-                    _buffer.Add(
+                    buffer.Add(
                         $"Drone {kvp.Key} has runtime info but is not in registry.");
                 }
             }
@@ -81,7 +80,7 @@ namespace ADRL.Drone.Utilities
             {
                 if (!runtimeInfos.ContainsKey(id))
                 {
-                    _buffer.Add(
+                    buffer.Add(
                         $"Drone {id} is in registry but has no runtime info.");
                 }
             }
@@ -89,22 +88,23 @@ namespace ADRL.Drone.Utilities
 
         private static void ValidateContextCounters(
             DroneContext context,
-            IReadOnlyDictionary<int, DroneRuntimeInfo> runtimeInfos)
+            IReadOnlyDictionary<int, DroneRuntimeInfo> runtimeInfos,
+            List<string> buffer)
         {
             if (context.RegisteredDroneCount < 0)
-                _buffer.Add($"RegisteredDroneCount is negative ({context.RegisteredDroneCount}).");
+                buffer.Add($"RegisteredDroneCount is negative ({context.RegisteredDroneCount}).");
 
             if (context.ActiveDroneCount < 0)
-                _buffer.Add($"ActiveDroneCount is negative ({context.ActiveDroneCount}).");
+                buffer.Add($"ActiveDroneCount is negative ({context.ActiveDroneCount}).");
 
             if (context.InactiveCount < 0)
-                _buffer.Add($"InactiveCount is negative ({context.InactiveCount}).");
+                buffer.Add($"InactiveCount is negative ({context.InactiveCount}).");
 
             if (context.DestroyedCount < 0)
-                _buffer.Add($"DestroyedCount is negative ({context.DestroyedCount}).");
+                buffer.Add($"DestroyedCount is negative ({context.DestroyedCount}).");
 
             if (context.TotalRegistered < 0)
-                _buffer.Add($"TotalRegistered is negative ({context.TotalRegistered}).");
+                buffer.Add($"TotalRegistered is negative ({context.TotalRegistered}).");
 
             var activeCount = 0;
             var destroyedCount = 0;
@@ -124,13 +124,13 @@ namespace ADRL.Drone.Utilities
 
             if (context.ActiveDroneCount != activeCount)
             {
-                _buffer.Add(
+                buffer.Add(
                     $"ActiveDroneCount mismatch: context={context.ActiveDroneCount}, computed={activeCount}");
             }
 
             if (context.DestroyedCount != destroyedCount)
             {
-                _buffer.Add(
+                buffer.Add(
                     $"DestroyedCount mismatch: context={context.DestroyedCount}, computed={destroyedCount}");
             }
         }
@@ -138,17 +138,18 @@ namespace ADRL.Drone.Utilities
         private static void ValidateSnapshotConsistency(
             DroneContext context,
             DroneSystemState systemState,
-            int nextAvailableId)
+            int nextAvailableId,
+            List<string> buffer)
         {
             if (context.NextAvailableId != nextAvailableId)
             {
-                _buffer.Add(
+                buffer.Add(
                     $"NextAvailableId mismatch: context={context.NextAvailableId}, manager={nextAvailableId}");
             }
 
             if (context.FleetState != systemState)
             {
-                _buffer.Add(
+                buffer.Add(
                     $"FleetState mismatch: context={context.FleetState}, manager={systemState}");
             }
         }

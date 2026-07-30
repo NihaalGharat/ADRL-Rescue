@@ -8,6 +8,7 @@ namespace ADRL.Drone.Controllers
     using ADRL.Drone.Interfaces;
     using UnityEngine;
 
+    [RequireComponent(typeof(DroneIdentity))]
     public class DroneController : MonoBehaviour
     {
         private int _droneId;
@@ -30,17 +31,32 @@ namespace ADRL.Drone.Controllers
         {
             _eventBus = eventBus;
             _config = config;
-            _motor = motor;
             _droneManager = droneManager;
 
-            _droneId = _droneManager.RegisterDrone(this);
+            if (_droneId == 0)
+            {
+                _droneId = _droneManager.RegisterDrone(this);
 
-            _health = new DroneHealth(eventBus);
-            _energy = new DroneEnergy(eventBus);
-            _stateMachine = new DroneStateMachine(eventBus, _droneId);
+                var identity = GetComponent<DroneIdentity>();
+                if (identity != null)
+                    identity.AssignId(_droneId);
 
-            _health.SetDroneId(_droneId);
-            _energy.SetDroneId(_droneId);
+                _health = new DroneHealth(eventBus);
+                _energy = new DroneEnergy(eventBus);
+                _stateMachine = new DroneStateMachine(eventBus, _droneId);
+
+                _health.SetDroneId(_droneId);
+                _energy.SetDroneId(_droneId);
+            }
+            else
+            {
+                var identity = GetComponent<DroneIdentity>();
+                if (identity != null && !identity.IsAssigned)
+                    identity.AssignId(_droneId);
+            }
+
+            if (!ReferenceEquals(_motor, motor))
+                _motor = motor;
 
             _health.Initialize(config);
             _energy.Initialize(config);
@@ -54,6 +70,32 @@ namespace ADRL.Drone.Controllers
             _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Idle);
 
             _eventBus?.Publish(new DroneSpawnedEvent(_droneId));
+        }
+
+        public void ResetDrone()
+        {
+            _motor?.Stop();
+
+            _health.Reset();
+            _energy.Reset();
+            _stateMachine.Initialize(DroneState.Uninitialized);
+
+            var identity = GetComponent<DroneIdentity>();
+            if (identity != null && identity.IsAssigned)
+                identity.ClearId();
+
+            if (_droneManager != null && _droneId > 0)
+            {
+                _droneManager.TransitionRuntimeState(_droneId, DroneRuntimeState.Registered);
+            }
+        }
+
+        internal void AssignMotor(IMotor motor)
+        {
+            if (motor == null || _motor != null)
+                return;
+
+            _motor = motor;
         }
 
         public void Activate()

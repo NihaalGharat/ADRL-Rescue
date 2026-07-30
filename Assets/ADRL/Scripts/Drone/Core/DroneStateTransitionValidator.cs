@@ -21,6 +21,9 @@ namespace ADRL.Drone.Core
             (DroneRuntimeState.Paused, DroneRuntimeState.Destroyed),
             (DroneRuntimeState.Returning, DroneRuntimeState.Destroyed),
             (DroneRuntimeState.Initializing, DroneRuntimeState.Destroyed),
+            (DroneRuntimeState.Active, DroneRuntimeState.Registered),
+            (DroneRuntimeState.Idle, DroneRuntimeState.Registered),
+            (DroneRuntimeState.Paused, DroneRuntimeState.Registered),
         };
 
         public static bool IsValid(DroneRuntimeState from, DroneRuntimeState to)

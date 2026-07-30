@@ -101,7 +101,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-07-29
+
+### Phase 6.1 — Drone Entity Foundation
+
+- `DroneIdentity` component as single source of drone ID on the prefab; entity validation via `DroneEntityValidator`; `DroneController` updated with `[RequireComponent]` and ID synchronization
+- 2 new files, 2 modified — zero asmdef/namespace changes
+
+### Phase 6.2 — Drone Spawn Pipeline & Prefab Runtime
+
+- Deterministic spawn pipeline: `SpawnRequest`/`SpawnParameters`/`SpawnResult` data structs, `DronePrefabRegistry`, `DroneFactory`, `DroneSpawnManager` with queue and validation; `SpawnValidator` utility; spawn lifecycle events
+- 8 new files, 2 modified — zero asmdef/namespace changes
+
+### Phase 6.3 — Runtime Object Pooling
+
+- `DronePool` with FIFO borrow and O(1) return; `PoolPolicy`/`PoolStatistics` data structs; `DronePoolManager` implementing `IDroneAllocator` with lazy pool creation, bidirectional tracking, stale cleanup, and prewarm; full integration into `DroneSpawnManager` and `DroneSubsystem`; reverse-creation-order shutdown verified
+- 4 new files, 5 modified — zero asmdef/namespace changes
+
+---
+
 ## [Unreleased]
+
+### Phase 6.4 — Runtime Completion & Diagnostics (2026-07-30)
+
+- **Live diagnostics enhancement** — `IDroneDiagnostics` extended with `PendingSpawnCount`, `TotalPoolObjects`, `TotalBorrowCount`, `TotalReturnCount`, `TotalPoolMissCount`, `PoolStatisticsByType`, `HealthReport`; `DroneDiagnostics` constructor updated with optional parameters (backward compatible)
+- **DroneHealthReport** — New `readonly struct` (`ADRL.Drone.Core`): runtime health summary with `IsOperational`, drone counts, pool counters, spawn queue depth, subsystem status; included in every `GetDiagnostics()` call
+- **DronePoolManager aggregate stats** — New properties: `TotalActiveCount`, `TotalAvailableCount`, `TotalPoolObjectsCount`, `TotalBorrowCount`, `TotalReturnCount`, `TotalPoolMissCount`, `PoolCount`, `AllPoolTypes`; new `GetAllStatistics()` returns typed dictionary; enables diagnostics without per-pool iteration
+- **Pool validation** — `DroneSubsystem.Validate()` now validates pool manager state: enumerates active pools, records pool components in validation report; zero new classes
+- **Spawn queue depth** — `DroneSubsystem.GetDiagnostics()` now reads `DroneSpawnManager.PendingCount` for live queue depth reporting
+- **DroneDebugDrawer** — New `MonoBehaviour` (`ADRL.Drone.Core`): optional Gizmos visualization for subsystem health (green/yellow/red wireframe sphere) and per-pool indicators (cyan/grey spheres); attached automatically in editor builds via `[Conditional("UNITY_EDITOR")]`; detached during shutdown; zero runtime cost in release builds
+- **DroneFleetValidator static buffer fix** — Replaced static `_buffer` list with per-call allocation; eliminates thread-unsafe shared state; `buffer` parameter threaded through all private validation methods
+- 2 new files, 5 modified — zero asmdef/namespace/dependency changes
 
 ### Phase 5.4 — Runtime Lifecycle & Fleet State Management (2026-07-27)
 
@@ -161,6 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Recovery pipeline** — Deterministic: validate snapshot → validate version → validate fleet integrity → clear current runtime → restore runtime infos → restore counters → restore statistics → validate restored state → publish events; if any validation fails: restore pre-snapshot → publish failure event → leave runtime unchanged; rollback tested via pre-snapshot/restore cycle
 - 6 new files (`DroneSnapshotEntry.cs`, `DroneRuntimeSnapshot.cs`, `DronePersistenceManager.cs`, `DroneRecoveryPolicy.cs`, `DroneRecoveryValidator.cs`, `DronePersistenceEvents.cs`), 2 files modified (`DroneManager.cs` +4 methods, `DroneSubsystem.cs` +2 fields +6 methods + initialization + cleanup), 0 asmdef changes, 0 namespace changes, 0 dependency graph changes
 - Zero spawning, prefabs, scene interaction, Environment, AI, sensors, navigation, physics, rewards, ML-Agents, Update(), coroutines, file IO, serialization, Resources, ScriptableObjects, asmdef modifications, namespace changes, dependency graph changes, architecture expansion
+
+
 
 ### Phase 5.5 — Runtime ↔ Controller Integration (2026-07-27)
 
@@ -562,6 +594,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | v0.4.0 | Sensors & AI | Sensor implementations, ML-Agents integration |
 | v0.5.0 | Training | Reward system, PPO training pipeline |
 | v0.6.0 | Polish | UI, performance, final documentation |
+| v0.7.0 | Runtime Framework | Object Pooling, Spawn Pipeline, Diagnostics, Runtime Integration |
 | v1.0.0 | Release | Full stable release |
 
 ---
