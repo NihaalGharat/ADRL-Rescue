@@ -288,14 +288,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85fbf243b4ed16946bb50a0fb0e89a04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _projectConfig: {fileID: 0}
-  _runtimeConfig: {fileID: 0}
-  _simulationConfig: {fileID: 0}
-  _droneConfig: {fileID: 0}
-  _environmentConfig: {fileID: 0}
-  _sensorConfig: {fileID: 0}
-  _rewardConfig: {fileID: 0}
-  _trainingConfig: {fileID: 0}
+  _projectConfig: {fileID: 11400000, guid: 1dcb378e5c4a65045a034ac11f60f908, type: 2}
+  _runtimeConfig: {fileID: 11400000, guid: f7eb7b41a77984a43bba149514797d30, type: 2}
+  _simulationConfig: {fileID: 11400000, guid: b295d1924c7b8ac4e8087e4c40f3e0a9, type: 2}
+  _droneConfig: {fileID: 11400000, guid: 95ee7d42a66d88c4788a5d3ad9f93e95, type: 2}
+  _environmentConfig: {fileID: 11400000, guid: 27b76c07447cba143ab52909b629f881, type: 2}
+  _sensorConfig: {fileID: 11400000, guid: b17b55e5c9f10bd4fb0de6b8bf6722bf, type: 2}
+  _rewardConfig: {fileID: 11400000, guid: ff8d01a3c0baddc479dfc877e7975922, type: 2}
+  _trainingConfig: {fileID: 11400000, guid: b802b84e740ab144cba0f1ef9f5ba7f6, type: 2}
   _initializeOnAwake: 1
   _dontDestroyOnLoad: 1
 --- !u!4 &670089536

@@ -1,9 +1,10 @@
 namespace ADRL.Environment.Victims
 {
     using ADRL.Environment.Interfaces;
+    using ADRL.Sensors.Interfaces;
     using UnityEngine;
 
-    public class Victim : MonoBehaviour, IEnvironmentObject
+    public class Victim : MonoBehaviour, IEnvironmentObject, IVictimDetectable
     {
         [SerializeField]
         private int _victimId;
@@ -14,6 +15,10 @@ namespace ADRL.Environment.Victims
         public int Id => _victimId;
 
         public VictimState State => _state;
+
+        public bool IsAlive => _state == VictimState.Waiting || _state == VictimState.Detected;
+
+        public Vector3 VictimPosition => transform.position;
 
         public void SetId(int victimId)
         {

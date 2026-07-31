@@ -2,7 +2,8 @@
     "name": "ADRL.Environment",
     "rootNamespace": "ADRL.Environment",
     "references": [
-        "ADRL.Core"
+        "ADRL.Core",
+        "ADRL.Sensors"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
