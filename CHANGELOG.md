@@ -122,6 +122,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 7.2 — RL Foundation: Sensors, AI Agent & Runtime Activation (2026-08-01)
+
+#### ML-Agents Integration
+
+- **ML-Agents 2.0.2** added via `Packages/manifest.json`; **Barracuda 3.0.0** resolved in `packages-lock.json`; `ADRL.AI` and `ADRL.Training` assemblies now reference the `Unity.ML-Agents` package
+
+#### Sensor Layer (ADRL.Sensors)
+
+- **DroneRaySensor** — deterministic raycast proximity + victim-flag readings; reusable buffer, zero per-frame allocation
+- **DroneThermalSensor** — victim presence + proximity via `OverlapSphereNonAlloc` with a reused buffer
+- **SensorFusionProvider** — deterministic concatenation of providers in registration order; owns the reading buffers
+- **Sensor contracts** — `ISensorReading`, `ISensorDataProvider`, `IVictimDetectable`; `Victim` implements `IVictimDetectable`
+- Sensors are pure, ML-free data sources — no ML-Agents references, no runtime state mutation
+
+#### AI Layer (ADRL.AI)
+
+- **DroneAgent** — ML-Agents agent with 4 continuous actions and a 28-float vector observation (24 ray + 2 thermal + energy + health); brain configured in `Awake` before the policy is built in `OnEnable`; scripted-heuristic override for deterministic smoke testing
+- **DroneActionResolver** — maps 4 continuous actions to a normalized, ML-free `DroneCommand` (strafe/forward/yaw/altitude)
+- **RewardEvaluator** — RewardConfig-driven step time penalty, per-meter exploration bonus, and terminal hooks; isolated from controller mechanics
+- **Heuristic input fix** — the non-scripted heuristic emits neutral (zero) actions instead of the legacy `UnityEngine.Input` API, which is incompatible with the project's Input System-only configuration; manual play no longer throws
+
+#### Runtime Activation (ADRL.Training)
+
+- **RuntimeOrchestrator** — composition root that boots the environment and drone subsystems, registers generated settings and the drone prefab, spawns a drone deterministically, and kicks off the smoke test
+- **DroneSmokeTest** — scripted forward-run pipeline validation; completes the moment PASS conditions are satisfied (movement, observations, sensor fusion, reward evaluator) rather than after a fixed-duration play session, so batch validation finishes in seconds
+- **SmokeTestBatchRunner** (editor) — batch entry point `ADRL.Editor.Validation.SmokeTestBatchRunner.Run` with reduced activation/completion timeouts for a <30 s batch target and a two-phase exit for reliable CI exit codes
+
+#### Drone Prefab & Configuration
+
+- **Drone.prefab** under `Assets/ADRL/Resources/Prefabs/Drone/` — Transform plus DroneIdentity, DroneController, DroneLocomotion, CapsuleCollider, BehaviorParameters, DecisionRequester, and DroneAgent
+- **Config assets** — Project, Runtime, Simulation, Drone, Environment, Sensor, Reward, Training under `ScriptableObjects/`; `ConfigAssetGenerator` editor utility
+- **Scene wiring** — `Main.unity` Bootstrapper now references the 8 config assets
+
+#### Delivery Notes
+
+- 60 files, +2105/−14; asmdef reference additions only (`ADRL.AI`, `ADRL.Environment`, `ADRL.Training`); zero new asmdefs, zero namespace changes
+- Automated validation: batch compile with zero errors; batch smoke test PASSED in under 20 seconds (exit code 0) with deterministic movement, 28-dim observations, 2 fused sensor providers, and an active reward evaluator
+
 ### Phase 6.4 — Runtime Completion & Diagnostics (2026-07-30)
 
 - **Live diagnostics enhancement** — `IDroneDiagnostics` extended with `PendingSpawnCount`, `TotalPoolObjects`, `TotalBorrowCount`, `TotalReturnCount`, `TotalPoolMissCount`, `PoolStatisticsByType`, `HealthReport`; `DroneDiagnostics` constructor updated with optional parameters (backward compatible)

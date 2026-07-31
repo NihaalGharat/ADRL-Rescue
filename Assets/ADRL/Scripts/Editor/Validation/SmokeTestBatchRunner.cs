@@ -18,8 +18,8 @@ namespace ADRL.Editor.Validation
     public static class SmokeTestBatchRunner
     {
         private const string ScenePath = "Assets/ADRL/Scenes/Main.unity";
-        private const float ActivationTimeout = 25f;
-        private const float CompletionTimeout = 60f;
+        private const float ActivationTimeout = 15f;
+        private const float CompletionTimeout = 20f;
 
         private static double _startTime;
         private static bool _running;

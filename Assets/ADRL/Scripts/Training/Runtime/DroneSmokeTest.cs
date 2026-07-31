@@ -6,15 +6,15 @@ namespace ADRL.Training.Runtime
 
     /// <summary>
     /// Automated heuristic smoke test. After the orchestrator spawns a drone it
-    /// drives the agent with a scripted forward command, samples movement for a
-    /// fixed duration, and logs a PASS/FAIL summary proving that the full runtime
-    /// pipeline (spawn -&gt; controller -&gt; agent -&gt; resolver -&gt; motor -&gt;
-    /// locomotion -&gt; reward) is functional.
+    /// drives the agent with a scripted forward command and completes as soon as
+    /// the full runtime pipeline (spawn -&gt; controller -&gt; agent -&gt; resolver -&gt;
+    /// motor -&gt; locomotion -&gt; reward) is proven functional, so batch validation
+    /// finishes within seconds rather than a fixed play session.
     /// </summary>
     public sealed class DroneSmokeTest : MonoBehaviour
     {
-        private const float TestDuration = 4f;
         private const float MinMovement = 1f;
+        private const float MaxDuration = 3f;
         private static readonly Vector3 ForwardAction = new(0f, 0f, 1f);
 
         private DroneController _controller;
@@ -63,8 +63,28 @@ namespace ADRL.Training.Runtime
                     _maxDistanceFromOrigin = distance;
             }
 
-            if (_elapsed >= TestDuration)
+            if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
+        }
+
+        /// <summary>
+        /// True once every stage of the runtime pipeline is proven: the controller
+        /// exists, the drone actually moved, observations were generated, both
+        /// sensor providers are fused, and the reward evaluator is active.
+        /// </summary>
+        private bool HasPassed()
+        {
+            var obsDim = _agent != null ? _agent.ObservationDimension : 0;
+            var fusionCount = _agent?.Fusion != null ? _agent.Fusion.ProviderCount : 0;
+            var observed = _agent != null && _agent.Fusion != null;
+            var evaluatorPresent = _agent?.Evaluator != null;
+
+            return _controller != null
+                && _maxDistanceFromOrigin > MinMovement
+                && obsDim > 0
+                && fusionCount >= 2
+                && observed
+                && evaluatorPresent;
         }
 
         private void Complete()
@@ -81,12 +101,41 @@ namespace ADRL.Training.Runtime
             var state = _controller != null ? _controller.CurrentState.ToString() : "none";
             var evaluatorPresent = _agent?.Evaluator != null;
 
-            var observed = _agent != null && _agent.Fusion != null;
-            Passed = _controller != null && moved > MinMovement && obsDim > 0 && fusionCount >= 2 && observed;
+            Passed = HasPassed();
 
             Debug.Log(
                 $"[DroneSmokeTest] PASSED={Passed} | moved={moved:F2}m | cumulativeReward={reward:F3} | " +
                 $"state={state} | obsDim={obsDim} | fusedProviders={fusionCount} | evaluator={evaluatorPresent}");
+
+#if UNITY_EDITOR
+            if (Application.isBatchMode)
+                RequestEditorExit(Passed ? 0 : 1);
+#endif
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Terminates a batch-mode editor with the given exit code. Batch mode
+        /// does not pump <c>EditorApplication.update</c> while in play mode, so an
+        /// editor-side poll loop can never finish; the game loop must request the
+        /// exit itself. Never invoked during interactive play.
+        /// </summary>
+        private static void RequestEditorExit(int exitCode)
+        {
+            var editorApplicationType =
+                System.Type.GetType("UnityEditor.EditorApplication, UnityEditor");
+            if (editorApplicationType == null)
+            {
+                Debug.LogError(
+                    "[DroneSmokeTest] Could not resolve UnityEditor.EditorApplication; batch exit skipped.");
+                return;
+            }
+
+            var exit = editorApplicationType.GetMethod(
+                "Exit",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+            exit?.Invoke(null, new object[] { exitCode });
+        }
+#endif
     }
 }

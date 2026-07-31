@@ -236,10 +236,13 @@ namespace ADRL.AI.Agents
                 return;
             }
 
-            SetContinuous(continuous, DroneActionResolver.IndexStrafe, Input.GetAxisRaw("Horizontal"));
-            SetContinuous(continuous, DroneActionResolver.IndexForward, Input.GetAxisRaw("Vertical"));
-            SetContinuous(continuous, DroneActionResolver.IndexYaw, GetYawInput());
-            SetContinuous(continuous, DroneActionResolver.IndexAltitude, GetAltitudeInput());
+            // Manual controls are not implemented yet. The project is configured
+            // with the Input System package only, so the legacy Input API cannot
+            // be used here; emit neutral actions until a manual-control path exists.
+            SetContinuous(continuous, DroneActionResolver.IndexStrafe, 0f);
+            SetContinuous(continuous, DroneActionResolver.IndexForward, 0f);
+            SetContinuous(continuous, DroneActionResolver.IndexYaw, 0f);
+            SetContinuous(continuous, DroneActionResolver.IndexAltitude, 0f);
         }
 
         /// <summary>
@@ -253,9 +256,10 @@ namespace ADRL.AI.Agents
         }
 
         /// <summary>
-        /// Overrides the keyboard heuristic with a fixed action vector until the
-        /// episode ends or <see cref="ClearScriptedHeuristic"/> is called. Used by
-        /// the automated smoke test to demonstrate deterministic movement.
+        /// Overrides the default (neutral) heuristic with a fixed action vector
+        /// until the episode ends or <see cref="ClearScriptedHeuristic"/> is
+        /// called. Used by the automated smoke test to demonstrate deterministic
+        /// movement.
         /// </summary>
         public void SetScriptedHeuristic(Vector3 action)
         {
@@ -329,20 +333,6 @@ namespace ADRL.AI.Agents
             return ResourceLocator.IsInitialized
                 ? ResourceLocator.Configs.Get<DroneConfig>()
                 : null;
-        }
-
-        private static float GetYawInput()
-        {
-            if (Input.GetKey(KeyCode.Q)) return -1f;
-            if (Input.GetKey(KeyCode.E)) return 1f;
-            return 0f;
-        }
-
-        private static float GetAltitudeInput()
-        {
-            if (Input.GetKey(KeyCode.Space)) return 1f;
-            if (Input.GetKey(KeyCode.LeftShift)) return -1f;
-            return 0f;
         }
     }
 }
