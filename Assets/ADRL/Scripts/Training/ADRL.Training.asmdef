@@ -6,7 +6,8 @@
         "ADRL.Drone",
         "ADRL.AI",
         "ADRL.Environment",
-        "ADRL.Sensors"
+        "ADRL.Sensors",
+        "Unity.ML-Agents"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

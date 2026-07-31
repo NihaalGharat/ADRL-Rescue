@@ -3,7 +3,9 @@
     "rootNamespace": "ADRL.AI",
     "references": [
         "ADRL.Core",
-        "ADRL.Drone"
+        "ADRL.Drone",
+        "ADRL.Sensors",
+        "Unity.ML-Agents"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

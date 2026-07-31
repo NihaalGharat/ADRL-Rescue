@@ -4,9 +4,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-blue.svg)](https://unity.com/)
-[![ML-Agents](https://img.shields.io/badge/ML--Agents-1.0-green.svg)](https://github.com/Unity-Technologies/ml-agents)
+[![ML-Agents](https://img.shields.io/badge/ML--Agents-2.0.2-green.svg)](https://github.com/Unity-Technologies/ml-agents)
 [![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/Version-v0.7.0-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
+[![Version](https://img.shields.io/badge/Version-v0.8.0-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
 
 ---
 
@@ -22,11 +22,11 @@ The drone learns its behavior entirely through **Reinforcement Learning (PPO)** 
 
 ## Project Status
 
-🚧 **Version v0.7.0 — Runtime Framework**
+🚧 **Version v0.8.0 — RL Foundation (Phase 7)**
 
 ADRL-Rescue is currently in active development.
 
-Version v0.7.0 implements the complete drone runtime framework including spawning, lifecycle management, persistence, and object pooling.
+Version v0.8.0 implements the complete drone runtime framework (spawning, lifecycle, persistence, object pooling) plus the Phase 7 RL foundation: the ML-free sensor layer, ML-Agents agent, action resolver, reward evaluator, runtime orchestration, and an automated batch smoke test.
 
 | Milestone | Status |
 |:----------|:-------|
@@ -37,8 +37,8 @@ Version v0.7.0 implements the complete drone runtime framework including spawnin
 | Environment Framework | ✅ Complete (Hazards, Obstacles, Victims, Scenarios) |
 | Procedural Generation | ✅ Complete (5 heightmap algorithms, placement rules) |
 | Runtime Framework | ✅ Complete (Spawn, Lifecycle, Pooling, Diagnostics, Validation, Persistence) |
-| Sensor Implementation | 🔲 Pending |
-| ML-Agents / AI | 🔲 Pending |
+| Sensor Implementation | ✅ Complete (Ray, Thermal, Fusion) |
+| ML-Agents / AI | ✅ Complete (Agent, Action Resolver, Reward Evaluator) |
 | Training Pipeline | 🔲 Pending |
 | UI / Polish | 🔲 Pending |
 | Stable Release | 🔲 Pending (v1.0.0) |
@@ -107,14 +107,14 @@ ADRL-Rescue/
 │   ├── ADRL/
 │   │   ├── Scripts/          # C# source code
 │   │   │   ├── Core/         # Bootstrap, config, events, services, resources
-│   │   │   ├── AI/           # Empty (Phase 7)
+│   │   │   ├── AI/           # Agent, decision making, rewards (Phase 7)
 │   │   │   ├── Drone/        # Controllers, components, runtime, spawning, pooling, diagnostics, validation
 │   │   │   ├── Environment/  # Hazards, obstacles, victims, procedural, terrain, scenarios
-│   │   │   ├── Sensors/      # Empty (Phase 7)
-│   │   │   ├── Training/     # Empty (Phase 7)
-│   │   │   ├── Editor/       # Editor validators, menu items
-│   │   │   └── UI/           # Empty (Phase 7)
-│   │   ├── Prefabs/          # Prefab registry (Phase 6+)
+│   │   │   ├── Sensors/      # Raycasting, detection, fusion, interfaces (Phase 7)
+│   │   │   ├── Training/     # Runtime orchestration, smoke test (Phase 7)
+│   │   │   ├── Editor/       # Editor validators, batch smoke test runner, config asset generator
+│   │   │   └── UI/           # Empty
+│   │   ├── Prefabs/          # Prefab registry; Drone prefab (Phase 6+)
 │   │   ├── Materials/        # Empty (Phase 6+)
 │   │   ├── Scenes/           # Main.unity (starter)
 │   │   ├── ScriptableObjects/# Config assets (Phase 6+)
@@ -211,11 +211,9 @@ ADRL-Rescue/
    - Click "Open" → Navigate to the repository root (contains `Assets/`)
    - Select Unity 2022.3 LTS
 
-3. **Install ML-Agents (Phase 7)**
-   - ML-Agents is not yet installed. When Phase 7 begins:
-   - Open Window → Package Manager
-   - Click "+" → "Add package from git URL"
-   - Enter: `com.unity.ml-agents`
+3. **ML-Agents**
+   - ML-Agents **2.0.2** is installed via `Packages/manifest.json` (with Barracuda 3.0.0).
+   - No manual package installation is required.
 
 4. **Install Python Dependencies**
    ```bash
@@ -262,8 +260,8 @@ graph TD
 | Unity Foundation | v0.2.0 | Core framework, resource management, drone framework | ✅ Complete |
 | Environment | v0.3.0 | Environment framework, terrain generation, procedural rules | ✅ Complete |
 | Runtime Framework | v0.4.0–v0.7.0 | Drone spawning, lifecycle, persistence, object pooling, diagnostics | ✅ Complete |
-| Sensors & AI | v0.8.0 | Sensor implementations, ML-Agents integration | 🔲 Pending |
-| Training | v0.9.0 | Reward system, PPO training pipeline | 🔲 Pending |
+| Sensors & AI | v0.8.0 | Sensor implementations, ML-Agents integration | ✅ Complete (Phase 7) |
+| Training | v0.9.0 | PPO training pipeline | 🔲 Pending |
 | Release | v1.0.0 | Full stable release | 🔲 Pending |
 
 ---
