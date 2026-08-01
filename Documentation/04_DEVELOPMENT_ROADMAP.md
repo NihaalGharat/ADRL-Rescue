@@ -239,7 +239,7 @@ gantt
 | 7.3.1 | `RewardEvaluator` — per-step continuous + event-driven terminal rewards | ✅ Complete |
 | 7.3.2 | `RewardBreakdown` — per-category diagnostics and event counters | ✅ Complete |
 | 7.3.3 | `IRewardSink` decoupling from ML-Agents | ✅ Complete |
-| 7.3.4 | Reward evaluation tests (41/41 passing) | ✅ Complete |
+| 7.3.4 | Reward evaluation tests (42/42 passing) | ✅ Complete |
 | 7.3.5 | Documentation synchronization | ⏳ In Progress |
 
 ### Milestone

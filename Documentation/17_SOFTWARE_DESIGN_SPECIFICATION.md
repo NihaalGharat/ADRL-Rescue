@@ -1387,13 +1387,13 @@ Fields:
 
 ```
 Fields:
-├── rayCount: int = 13
-├── rayMaxDistance: float = 10.0f
+├── rayCount: int = 12
+├── rayMaxDistance: float = 50.0f
 ├── raySpreadAngle: float = 180.0f
-├── thermalRange: float = 15.0f
+├── thermalRange: float = 30.0f
 ├── thermalFOV: float = 120.0f
 ├── thermalSensitivity: float = 0.7f
-├── visionRange: float = 20.0f
+├── visionRange: float = 40.0f
 ├── visionFOV: float = 90.0f
 ├── collisionRadius: float = 0.5f
 └── sensorUpdateFrequency: int = 10

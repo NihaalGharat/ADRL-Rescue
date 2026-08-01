@@ -27,18 +27,18 @@ graph TD
     end
     
     subgraph "Drone Processing"
-        OP[Observation Processor]
-        MEM[Memory System]
+        OP[SensorFusionProvider]
+        AG[DroneAgent]
     end
     
     subgraph "AI System"
-        NN[Neural Network]
+        NN[Neural Network - PPO]
         ACT[Action Output]
     end
     
     subgraph "Physics"
-        FC[Flight Controller]
-        RB[Rigidbody]
+        AR[DroneActionResolver]
+        CT[DroneController]
     end
     
     ENV --> RS
@@ -48,15 +48,13 @@ graph TD
     
     RS --> OP
     TS --> OP
-    VS --> OP
-    CS --> OP
     
-    OP --> MEM
-    MEM --> NN
+    OP --> AG
+    AG --> NN
     NN --> ACT
-    ACT --> FC
-    FC --> RB
-    RB --> ENV
+    ACT --> AR
+    AR --> CT
+    CT --> ENV
 ```
 
 ---
@@ -77,10 +75,10 @@ Environment State
 
 ```
 Raw Sensor Data
-├── Ray Sensors: [13 float distances]
-├── Thermal Sensor: [1 float strength]
-├── Vision Sensor: [1 float detection]
-├── Collision Sensor: [bool impact]
+├── Ray Sensors: [24 float values - 12 proximity + 12 victim flags]
+├── Thermal Sensor: [2 float values - presence + proximity]
+├── Vision Sensor: [1 float detection - planned]
+├── Collision Sensor: [bool impact - planned]
 └── Physics: [position, velocity, rotation]
 ```
 
@@ -119,9 +117,9 @@ Neural Network
 ### Step 6: Physics Execution
 
 ```
-Flight Controller
-├── Receive action vector
-├── Apply forces to rigidbody
+DroneController
+├── Receive DroneCommand (from DroneActionResolver)
+├── Apply locomotion forces
 ├── Apply rotation
 ├── Enforce limits
 └── Update transform

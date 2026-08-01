@@ -259,7 +259,7 @@ graph TD
 │  ✅  Procedural terrain generation                      │
 │  ✅  Four disaster environments                         │
 │  ✅  Modular drone with 5 subsystems                    │
-│  ✅  Ray sensors (13 rays)                              │
+│  ✅  Ray sensors (12 rays)                              │
 │  ✅  Thermal sensor                                     │
 │  ✅  Vision sensor                                      │
 │  ✅  Collision detection                                │

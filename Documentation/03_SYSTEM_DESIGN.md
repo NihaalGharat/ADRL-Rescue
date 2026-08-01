@@ -150,10 +150,10 @@ graph LR
 
 | Sensor | Type | Range | Purpose |
 |--------|------|-------|---------|
-| Ray Sensor | 3D Array | 10m | Obstacle detection |
-| Thermal Sensor | Heat Map | 15m | Victim detection |
-| Vision Sensor | Cone | 20m | Victim confirmation |
-| Collision Sensor | Trigger | 0.5m | Impact detection |
+| Ray Sensor | 12 rays | 50m | Obstacle detection |
+| Thermal Sensor | Heat Map | 30m | Victim detection |
+| Vision Sensor | Cone | 40m | Victim confirmation (planned) |
+| Collision Sensor | Trigger | 0.5m | Impact detection (planned) |
 
 ---
 

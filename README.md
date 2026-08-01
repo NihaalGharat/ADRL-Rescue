@@ -26,7 +26,7 @@ The drone learns its behavior entirely through **Reinforcement Learning (PPO)** 
 
 ADRL-Rescue is currently in active development.
 
-Version v0.8.0 implements the complete drone runtime framework (spawning, lifecycle, persistence, object pooling) plus the Phase 7 RL foundation: the ML-free sensor layer, ML-Agents agent, action resolver, reward evaluator, runtime orchestration, and an automated batch smoke test. Version v0.8.1 delivers the verified, event-driven reward system (`RewardEvaluator`, `RewardBreakdown`, `IRewardSink`) with 41/41 passing tests.
+Version v0.8.0 implements the complete drone runtime framework (spawning, lifecycle, persistence, object pooling) plus the Phase 7 RL foundation: the ML-free sensor layer, ML-Agents agent, action resolver, reward evaluator, runtime orchestration, and an automated batch smoke test. Version v0.8.1 delivers the verified, event-driven reward system (`RewardEvaluator`, `RewardBreakdown`, `IRewardSink`) with 42/42 passing EditMode tests.
 
 | Milestone | Status |
 |:----------|:-------|
@@ -132,7 +132,7 @@ ADRL-Rescue/
 ├── 📂 Documentation/         # Project documentation
 │   ├── 00_PROJECT_CHARTER.md
 │   ├── 01_PROJECT_VISION.md
-│   ├── ... (20 documentation files)
+│   ├── ... (23 documentation files)
 │   └── README.md             # Documentation index
 │
 ├── 📂 Assets/                # Static assets
@@ -216,11 +216,8 @@ ADRL-Rescue/
    - ML-Agents **2.0.2** is installed via `Packages/manifest.json` (with Barracuda 3.0.0).
    - No manual package installation is required.
 
-4. **Install Python Dependencies**
-   ```bash
-   cd Python
-   pip install -r requirements.txt
-   ```
+4. **Python (Training Pipeline — pending)**
+   No Python setup is required at this time. The `Python/` directory currently contains placeholder folders only (`configs/`, `scripts/`, `results/`, `logs/`, `models/`); the training scripts and any `requirements.txt` will be added with the Training Pipeline phase (see [Development Roadmap](Documentation/04_DEVELOPMENT_ROADMAP.md)).
 
 ---
 

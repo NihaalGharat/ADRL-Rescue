@@ -1,8 +1,8 @@
 # ADRL-Rescue Namespace Guide
 
-**Version:** 1.6  
-**Phase:** 5.5 — Scenario & Mission Profile Framework  
-**Date:** 23/07/2026
+**Version:** 1.7  
+**Phase:** 7.3 — Reward System & Validation  
+**Date:** 02/08/2026
 
 ---
 
@@ -25,20 +25,17 @@ ADRL.Core
 └── ADRL.Core.Utilities
 
 ADRL.Drone
-├── ADRL.Drone.Behaviours
 ├── ADRL.Drone.Components
 ├── ADRL.Drone.Controllers
+├── ADRL.Drone.Core
 ├── ADRL.Drone.Events
 ├── ADRL.Drone.Interfaces
-├── ADRL.Drone.Navigation
-└── ADRL.Drone.Physics
+└── ADRL.Drone.Utilities
 
 ADRL.AI
 ├── ADRL.AI.Agents
 ├── ADRL.AI.DecisionMaking
-├── ADRL.AI.Policies
-├── ADRL.AI.Rewards
-└── ADRL.AI.Training
+└── ADRL.AI.Rewards
 
 ADRL.Environment
 ├── ADRL.Environment.Core
@@ -58,16 +55,23 @@ ADRL.Environment
 ADRL.Sensors
 ├── ADRL.Sensors.Detection
 ├── ADRL.Sensors.Fusion
-├── ADRL.Sensors.Mapping
-├── ADRL.Sensors.Raycasting
-└── ADRL.Sensors.Vision
+├── ADRL.Sensors.Interfaces
+└── ADRL.Sensors.Raycasting
 
 ADRL.Training
+└── ADRL.Training.Runtime
 
 ADRL.UI
 
 ADRL.Editor
+├── ADRL.Editor.Bootstrap
 └── ADRL.Editor.Validation
+
+ADRL.Tests.Editor
+├── ADRL.Tests.Editor.Configuration
+├── ADRL.Tests.Editor.Performance
+├── ADRL.Tests.Editor.Rewards
+└── ADRL.Tests.Editor.Simulation
 ```
 
 ---
@@ -96,6 +100,7 @@ Each Assembly Definition specifies a `rootNamespace`. All scripts within that as
 | ADRL.Training | `ADRL.Training` |
 | ADRL.UI | `ADRL.UI` |
 | ADRL.Editor | `ADRL.Editor` |
+| ADRL.Tests.Editor | `ADRL.Tests.Editor` |
 
 ### Rule 3: No Cross-Assembly Namespace Usage
 
@@ -106,7 +111,7 @@ Namespaces from one assembly should not be used directly in another assembly. Us
 // In ADRL.Drone
 namespace ADRL.Drone.Interfaces
 {
-    public interface IDroneController { }
+    public interface IDroneSubsystem { }
 }
 
 // In ADRL.AI
@@ -116,7 +121,7 @@ namespace ADRL.AI.Agents
     
     public class DroneAgent : MonoBehaviour
     {
-        private IDroneController _controller;
+        private IDroneSubsystem _subsystem;
     }
 }
 ```
@@ -143,7 +148,7 @@ Each C# file should contain exactly one namespace.
 ```csharp
 namespace ADRL.Core.Events
 {
-    public class GameEvents
+    public class GameEvent
     {
     }
 }
@@ -153,7 +158,7 @@ namespace ADRL.Core.Events
 ```csharp
 namespace ADRL.Core.Events
 {
-    public class GameEvents { }
+    public class GameEvent { }
 }
 
 namespace ADRL.Drone.Controllers
@@ -168,9 +173,9 @@ Use block-scoped namespace declarations (not file-scoped) for consistency.
 
 **Correct:**
 ```csharp
-namespace ADRL.Drone.Physics
+namespace ADRL.Drone.Core
 {
-    public class DronePhysics
+    public class DroneSubsystem
     {
     }
 }
@@ -178,9 +183,9 @@ namespace ADRL.Drone.Physics
 
 **Acceptable (C# 10+):**
 ```csharp
-namespace ADRL.Drone.Physics;
+namespace ADRL.Drone.Core;
 
-public class DronePhysics
+public class DroneSubsystem
 {
 }
 ```
@@ -192,16 +197,15 @@ public class DronePhysics
 ```
 ADRL.Core (no dependencies)
     ↑
-    ├── ADRL.Drone
-    ├── ADRL.Environment
-    ├── ADRL.Sensors
-    └── ADRL.UI
+    ├── ADRL.Drone (depends on Core)
+    ├── ADRL.Environment (depends on Core, Sensors)
+    ├── ADRL.Sensors (depends on Core)
+    └── ADRL.UI (depends on Core; empty - reserved)
     ↑
-    ├── ADRL.AI (depends on Core, Drone)
-    ↑
-    └── ADRL.Training (depends on Core, Drone, AI, Environment, Sensors)
-    ↑
-    └── ADRL.Editor (depends on all, Editor-only)
+    ├── ADRL.AI (depends on Core, Drone, Sensors, Unity.ML-Agents)
+    ├── ADRL.Training (depends on Core, Drone, AI, Environment, Sensors, Unity.ML-Agents)
+    ├── ADRL.Editor (depends on all runtime assemblies, Editor-only)
+    └── ADRL.Tests.Editor (depends on ADRL.AI, ADRL.Core, Unity.TestFramework)
 ```
 
 ---
@@ -223,7 +227,7 @@ using ADRL.Sensors.Detection;
 For clarity, use fully qualified names when there's ambiguity:
 
 ```csharp
-public class DroneController : ADRL.Drone.Interfaces.IDroneController
+public class DroneController : ADRL.Drone.Interfaces.IDroneSubsystem
 {
 }
 ```
@@ -236,17 +240,17 @@ public class DroneController : ADRL.Drone.Interfaces.IDroneController
 ```csharp
 namespace ADRL.Core.Configuration
 {
-    public class GameConfig { }
+    public class RewardConfig { }
 }
 
 namespace ADRL.Core.Services
 {
-    public class GameManager { }
+    public class ServiceLocator { }
 }
 
 namespace ADRL.Core.Events
 {
-    public class GameEvents { }
+    public class GameEvent { }
 }
 ```
 
@@ -257,14 +261,14 @@ namespace ADRL.Drone.Controllers
     public class DroneController { }
 }
 
-namespace ADRL.Drone.Physics
+namespace ADRL.Drone.Core
 {
-    public class DronePhysics { }
+    public class DroneSubsystem { }
 }
 
-namespace ADRL.Drone.Navigation
+namespace ADRL.Drone.Utilities
 {
-    public class DroneNavigator { }
+    public static class DroneFleetValidator { }
 }
 ```
 
@@ -275,9 +279,14 @@ namespace ADRL.AI.Agents
     public class DroneAgent { }
 }
 
-namespace ADRL.AI.Policies
+namespace ADRL.AI.DecisionMaking
 {
-    public class PPOPolicy { }
+    public class DroneActionResolver { }
+}
+
+namespace ADRL.AI.Rewards
+{
+    public class RewardEvaluator { }
 }
 ```
 
@@ -359,12 +368,17 @@ namespace ADRL.Environment.Scenarios
 ```csharp
 namespace ADRL.Sensors.Raycasting
 {
-    public class RaySensor { }
+    public class DroneRaySensor { }
 }
 
-namespace ADRL.Sensors.Vision
+namespace ADRL.Sensors.Detection
 {
-    public class CameraSensor { }
+    public class DroneThermalSensor { }
+}
+
+namespace ADRL.Sensors.Fusion
+{
+    public class SensorFusionProvider { }
 }
 ```
 
@@ -380,10 +394,11 @@ Define interfaces in the assembly that owns the abstraction:
 // In ADRL.Drone.Interfaces
 namespace ADRL.Drone.Interfaces
 {
-    public interface IDroneController
+    public interface IDroneSubsystem
     {
-        void TakeOff();
-        void Land();
+        bool Health { get; }
+        void Boot(EventBus eventBus);
+        void Shutdown(EventBus eventBus);
     }
 }
 
@@ -394,7 +409,7 @@ namespace ADRL.AI.Agents
     
     public class DroneAgent : MonoBehaviour
     {
-        private IDroneController _controller;
+        private IDroneSubsystem _subsystem;
     }
 }
 ```

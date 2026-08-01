@@ -43,9 +43,9 @@ Test individual components in isolation.
 |-----------|------|----------|
 | RewardEvaluator | UpdateStep continuous rewards | Scaled, clipped, pushed to sink |
 | RewardEvaluator | Collision event terminal reward | Returns -5.0 |
-| ObservationProcessor | Normalize value in range | Returns [0, 1] |
-| DroneMemory | Record new position | Position added |
-| SensorManager | Initialize sensors | All sensors active |
+| DroneRaySensor | Raycast proximity reading | Clamped distance in [0, 1] |
+| DroneThermalSensor | Victim presence + proximity | Two-value reading |
+| SensorFusionProvider | Concatenate provider readings | Combined 26-dim vector |
 
 **Framework:** NUnit (Unity Test Framework)
 
@@ -54,15 +54,13 @@ Test individual components in isolation.
 public void VictimFound_Event_GrantsReward()
 {
     // Arrange
-    var eventBus = new EventBus();
-    var sink = new TestRewardSink();
-    var evaluator = new RewardEvaluator(config, sink, eventBus, droneId: 0);
+    using var harness = new TestHarness(droneId: 0);
     
     // Act
-    eventBus.Publish(new VictimFoundEvent());
+    harness.EventBus.Publish(new VictimFoundEvent(victimId: 1));
     
     // Assert
-    Assert.AreEqual(10.0f, sink.TotalReward, 0.001f);
+    Assert.AreEqual(10.0f, harness.Evaluator.EpisodeReward, 1e-6f);
 }
 ```
 
@@ -73,9 +71,9 @@ Test how components work together.
 **Examples:**
 | Test | Components | Expected |
 |------|-----------|----------|
-| Sensor → Observation | RaySensor + ObservationProcessor | Valid observation vector |
-| Memory → AI | DroneMemory + DroneAgent | Memory influences decisions |
-| Action → Physics | FlightController + Rigidbody | Drone moves correctly |
+| Sensor → Fusion | DroneRaySensor + DroneThermalSensor + SensorFusionProvider | Valid fused observation vector |
+| Fusion → Agent | SensorFusionProvider + DroneAgent | 28-dim observation collected |
+| Action → Locomotion | DroneActionResolver + DroneController | Drone moves correctly |
 
 ### 3. Manual Testing
 

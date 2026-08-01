@@ -140,7 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Validation
 
-- 8 EditMode test fixtures restructured: RewardEvaluatorTests (14), EventRewardPipelineTests (7), RewardDiagnosticsTests (6), RewardConfigConsistencyTests (4), EpisodeLifecycleTests (5), PerformanceValidationTests (3), DeterminismTests (2) — **41/41 passing**
+- 7 EditMode test fixtures restructured: RewardEvaluatorTests (14), EventRewardPipelineTests (8), RewardDiagnosticsTests (6), RewardConfigConsistencyTests (4), EpisodeLifecycleTests (5), PerformanceValidationTests (3), DeterminismTests (2) — **42/42 passing**
 - Smoke test extended to assert `RewardBreakdown` sum invariant; batch run PASSED (moved 1.20 m, cumulative reward 0.148, evaluator active, sum invariant true)
 
 #### Documentation

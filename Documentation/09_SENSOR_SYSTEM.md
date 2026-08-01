@@ -12,21 +12,20 @@ The Sensor System provides the drone with perception capabilities. The drone nev
 
 ```mermaid
 graph TD
-    subgraph "Sensor Manager"
-        RS[Ray Sensors]
-        TS[Thermal Sensor]
-        VS[Vision Sensor]
-        CS[Collision Sensor]
+    subgraph "Sensors"
+        RS[DroneRaySensor]
+        TS[DroneThermalSensor]
+        VS[Vision Sensor - planned]
+        CS[Collision Sensor - planned]
     end
-    
-    RS --> OP[Observation Processor]
-    TS --> OP
-    VS --> OP
-    CS --> OP
-    
-    OP --> M[Memory System]
-    M --> AI[Decision Engine]
+
+    RS --> SF[SensorFusionProvider]
+    TS --> SF
+
+    SF --> AG[DroneAgent]
 ```
+
+> The implemented sensor pipeline feeds `DroneRaySensor` and `DroneThermalSensor` readings into `SensorFusionProvider`, which concatenates them into the 28-value observation vector consumed by `DroneAgent`. Vision and Collision sensors remain planned (see [00_PROJECT_CHARTER](00_PROJECT_CHARTER.md)).
 
 ---
 
@@ -39,41 +38,40 @@ graph TD
 **Configuration:**
 ```yaml
 raySensor:
-  numRays: 13
-  maxDistance: 10.0
+  numRays: 12
+  maxDistance: 50.0
   spreadAngle: 180.0
   layerMask: Obstacles
 ```
 
 **Ray Layout:**
 ```
-        Ray 0 (Left)
+        Ray 0 (90° Left)
          ╲
           ╲
            ╲
-    Ray 3 ── Ray 6 (Center) ── Ray 9
+    Ray 3 ── Ray 5/6 (Forward) ── Ray 8
            ╱
           ╱
          ╱
-        Ray 12 (Right)
+        Ray 11 (90° Right)
 ```
 
 **Data Output:**
 | Ray | Direction | Description |
 |-----|-----------|-------------|
 | 0 | 90° Left | Far left |
-| 1 | 75° Left | Left |
-| 2 | 60° Left | Slightly left |
-| 3 | 45° Left | Forward-left |
-| 4 | 30° Left | Near forward-left |
-| 5 | 15° Left | Forward |
-| 6 | 0° Center | Dead ahead |
-| 7 | 15° Right | Forward |
-| 8 | 30° Right | Near forward-right |
-| 9 | 45° Right | Forward-right |
-| 10 | 60° Right | Slightly right |
-| 11 | 75° Right | Right |
-| 12 | 90° Right | Far right |
+| 1 | 74° Left | Left |
+| 2 | 57° Left | Slightly left |
+| 3 | 41° Left | Forward-left |
+| 4 | 25° Left | Near forward-left |
+| 5 | 8° Left | Near forward |
+| 6 | 8° Right | Near forward |
+| 7 | 25° Right | Near forward-right |
+| 8 | 41° Right | Forward-right |
+| 9 | 57° Right | Slightly right |
+| 10 | 74° Right | Right |
+| 11 | 90° Right | Far right |
 
 ---
 
@@ -84,7 +82,7 @@ raySensor:
 **Configuration:**
 ```yaml
 thermalSensor:
-  range: 15.0
+  range: 30.0
   fieldOfView: 120.0
   sensitivity: 0.7
   updateFrequency: 10
@@ -111,7 +109,7 @@ return 0.0
 **Configuration:**
 ```yaml
 visionSensor:
-  range: 20.0
+  range: 40.0
   fieldOfView: 90.0
   updateFrequency: 10
 ```

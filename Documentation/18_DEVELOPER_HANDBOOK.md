@@ -1290,7 +1290,7 @@ Rewards are computed by `ADRL.AI.Rewards.RewardEvaluator` (one instance per dron
 
 4. **Test reward**
    - Add an EditMode test mirroring `RewardEvaluatorTests`/`EventRewardPipelineTests`.
-   - Run the full suite (EditMode must stay 41/41 passing) and the batch smoke test.
+   - Run the full suite (EditMode must stay 42/42 passing) and the batch smoke test.
 
 5. **Update documentation**
    - Update `10_REWARD_SYSTEM.md` reward tables and breakdown invariant.
