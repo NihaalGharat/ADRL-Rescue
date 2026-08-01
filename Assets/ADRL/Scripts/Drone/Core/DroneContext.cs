@@ -6,6 +6,11 @@ namespace ADRL.Drone.Core
     {
         public DroneSystemState FleetState { get; set; } = DroneSystemState.Uninitialized;
 
+        /// <summary>
+        /// Fleet persistence metadata captured at the time a fleet snapshot is
+        /// taken. This is NOT the simulation episode authority: the canonical
+        /// episode number is owned by SimulationManager (ADRL.Core.Simulation).
+        /// </summary>
         public int EpisodeNumber { get; set; }
 
         public Transform DroneRoot { get; set; }

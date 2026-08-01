@@ -10,10 +10,6 @@ namespace ADRL.Environment.Core
 
         public EnvironmentState RuntimeState { get; set; }
 
-        public float EpisodeElapsedTime { get; set; }
-
-        public int CurrentEpisode { get; set; }
-
         public TerrainData GeneratedTerrain { get; set; }
 
         public Vector2 TerrainSize { get; set; }
@@ -35,8 +31,6 @@ namespace ADRL.Environment.Core
             TerrainSize = Vector2.zero;
             ActiveSeed = 0;
             RuntimeState = EnvironmentState.Uninitialized;
-            EpisodeElapsedTime = 0f;
-            CurrentEpisode = 0;
             RootTransform = null;
             RuntimeRoot = null;
             SystemsRoot = null;

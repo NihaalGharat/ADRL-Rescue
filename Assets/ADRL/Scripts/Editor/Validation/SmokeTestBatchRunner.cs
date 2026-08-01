@@ -1,5 +1,6 @@
 namespace ADRL.Editor.Validation
 {
+    using ADRL.AI.Rewards;
     using ADRL.Training.Runtime;
     using UnityEditor;
     using UnityEditor.SceneManagement;
@@ -77,6 +78,26 @@ namespace ADRL.Editor.Validation
                 "[ADRL_SMOKE_TEST] Activated=" + RuntimeOrchestrator.IsActivated +
                 " SmokeTestPassed=" + RuntimeOrchestrator.SmokeTestPassed);
 
+            // Reward diagnostics (M5, Task 8). Observational only: it never alters
+            // the pass/fail exit code, so existing smoke behaviour is preserved.
+            // The breakdown is captured from the smoke drone and surfaces reward
+            // regressions (e.g. reward == ~0.148) in CI output.
+            if (RuntimeOrchestrator.TryGetRewardDiagnostics(out var breakdown))
+                Debug.LogFormat(
+                    "[ADRL_SMOKE_TEST] RewardDiagnostics | total={0:F4} | time={1:F4} | novelty={2:F4} | " +
+                    "potential={3:F4} | stuck={4:F4} | oscillation={5:F4} | energy={6:F4} | outOfBounds={7:F4} | " +
+                    "finite={8} | sumInvariant={9}",
+                    breakdown.TotalReward,
+                    breakdown.TimePenaltyReward,
+                    breakdown.NoveltyReward,
+                    breakdown.PotentialReward,
+                    breakdown.StuckPenaltyReward,
+                    breakdown.OscillationPenaltyReward,
+                    breakdown.EnergyPenaltyReward,
+                    breakdown.OutOfBoundsPenaltyReward,
+                    IsBreakdownFinite(breakdown),
+                    BreakdownSumApproximatesTotal(breakdown));
+
             _pendingExitCode = passed ? 0 : 1;
             EditorApplication.isPlaying = false;
             EditorApplication.update += ExitWhenIdle;
@@ -94,6 +115,29 @@ namespace ADRL.Editor.Validation
 
             EditorApplication.update -= ExitWhenIdle;
             EditorApplication.Exit(_pendingExitCode);
+        }
+
+        private static bool IsBreakdownFinite(RewardBreakdown breakdown)
+        {
+            var sum = breakdown.TimePenaltyReward + breakdown.NoveltyReward + breakdown.PotentialReward +
+                      breakdown.StuckPenaltyReward + breakdown.OscillationPenaltyReward +
+                      breakdown.CollisionPenaltyReward + breakdown.EnergyPenaltyReward +
+                      breakdown.OutOfBoundsPenaltyReward + breakdown.VictimFoundReward +
+                      breakdown.VictimRescuedReward + breakdown.SuccessReward;
+
+            return !float.IsNaN(sum) && !float.IsInfinity(sum)
+                && !float.IsNaN(breakdown.TotalReward) && !float.IsInfinity(breakdown.TotalReward);
+        }
+
+        private static bool BreakdownSumApproximatesTotal(RewardBreakdown breakdown)
+        {
+            var sum = breakdown.TimePenaltyReward + breakdown.NoveltyReward + breakdown.PotentialReward +
+                      breakdown.StuckPenaltyReward + breakdown.OscillationPenaltyReward +
+                      breakdown.CollisionPenaltyReward + breakdown.EnergyPenaltyReward +
+                      breakdown.OutOfBoundsPenaltyReward + breakdown.VictimFoundReward +
+                      breakdown.VictimRescuedReward + breakdown.SuccessReward;
+
+            return Mathf.Abs(sum - breakdown.TotalReward) <= 1e-4f;
         }
     }
 }

@@ -36,7 +36,7 @@ namespace ADRL.Environment.Core
             };
 
             if (worldSettings != null && worldSettings.EnableDebugLogs)
-                Debug.Log($"[EnvironmentBootstrap] Boot complete\nEpisode: {_context.CurrentEpisode}\nSeed: {_context.ActiveSeed}\nSeed Mode: {worldSettings.SeedMode}");
+                Debug.Log($"[EnvironmentBootstrap] Boot complete\nSeed: {_context.ActiveSeed}\nSeed Mode: {worldSettings.SeedMode}");
 
             _environmentManager.Initialize(eventBus);
 
