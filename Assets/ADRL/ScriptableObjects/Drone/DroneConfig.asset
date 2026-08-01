@@ -21,3 +21,4 @@ MonoBehaviour:
   _energyDrainRate: 1
   _takeoffHeight: 5
   _spawnOffset: {x: 0, y: 3, z: 0}
+  _outOfBoundsRadius: 120

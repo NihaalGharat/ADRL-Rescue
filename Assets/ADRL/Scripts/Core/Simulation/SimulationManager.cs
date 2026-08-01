@@ -12,6 +12,7 @@ namespace ADRL.Core.Simulation
         private EventBus _eventBus;
         private float _elapsedTime;
         private int _currentEpisode;
+        private bool _episodeFinalized;
 
         public SimulationState CurrentState => _currentState;
 
@@ -40,16 +41,12 @@ namespace ADRL.Core.Simulation
                 return;
 
             _elapsedTime += Time.deltaTime;
-
-            if (_config != null && _elapsedTime >= _config.MaxEpisodeLength)
-            {
-                CompleteEpisode();
-            }
         }
 
         public void Initialize(EventBus eventBus)
         {
             _eventBus = eventBus;
+            _eventBus?.Subscribe<AgentEpisodeEndedEvent>(OnAgentEpisodeEnded);
             SetState(SimulationState.Initializing);
             SetState(SimulationState.Ready);
 
@@ -67,6 +64,7 @@ namespace ADRL.Core.Simulation
 
             _currentEpisode++;
             _elapsedTime = 0f;
+            _episodeFinalized = false;
             SetState(SimulationState.Running);
             _eventBus?.Publish(new SimulationStartedEvent());
             _eventBus?.Publish(new EpisodeStartedEvent(_currentEpisode));
@@ -113,15 +111,32 @@ namespace ADRL.Core.Simulation
         public void ResetSimulation()
         {
             _elapsedTime = 0f;
+            _episodeFinalized = false;
             SetState(SimulationState.Ready);
             _eventBus?.Publish(new SimulationResetEvent());
         }
 
-        private void CompleteEpisode()
+        /// <summary>
+        /// Finalizes the current simulation episode with the reward data reported
+        /// by the drone agent, so the completed episode carries real totals. Events
+        /// reported outside a running episode (e.g. stale or post-completion) are
+        /// ignored, and only the first report per episode is honoured.
+        /// </summary>
+        private void OnAgentEpisodeEnded(AgentEpisodeEndedEvent evt)
         {
-            _eventBus?.Publish(new EpisodeCompletedEvent(_currentEpisode, 0f, Mathf.FloorToInt(_elapsedTime)));
+            if (_currentState != SimulationState.Running || _episodeFinalized)
+                return;
+
+            _episodeFinalized = true;
+            _eventBus?.Publish(new EpisodeCompletedEvent(
+                _currentEpisode, evt.TotalReward, evt.StepsCompleted));
             SetState(SimulationState.Completed);
             _eventBus?.Publish(new SimulationStoppedEvent());
+        }
+
+        private void OnDestroy()
+        {
+            _eventBus?.Unsubscribe<AgentEpisodeEndedEvent>(OnAgentEpisodeEnded);
         }
 
         private void SetState(SimulationState newState)

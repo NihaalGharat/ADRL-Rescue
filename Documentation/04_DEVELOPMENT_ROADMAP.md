@@ -31,23 +31,31 @@ gantt
     Scenario Framework      :done, p2f, after p2e, 3d
     
     section Environment (v0.3.0)
-    Terrain Generation      :p3a, after p2f, 10d
-    Disaster Types          :p3b, after p3a, 10d
-    Victim System           :p3c, after p3b, 5d
-    Obstacle System         :p3d, after p3c, 5d
+    Terrain Generation      :done, p3a, after p2f, 10d
+    Disaster Types          :done, p3b, after p3a, 10d
+    Victim System           :done, p3c, after p3b, 5d
+    Obstacle System         :done, p3d, after p3c, 5d
     
     section Sensors & AI (v0.4.0)
-    Sensor Implementations  :p4a, after p3d, 14d
-    ML-Agents Integration   :p4b, after p4a, 14d
-    Behavior Parameters     :p4c, after p4b, 7d
+    Sensor Implementations  :done, p4a, after p3d, 14d
+    ML-Agents Integration   :done, p4b, after p4a, 14d
+    Behavior Parameters     :done, p4c, after p4b, 7d
     
     section Training (v0.5.0)
-    Reward System           :p5a, after p4c, 10d
+    Reward System           :active, p5a, after p4c, 10d
     PPO Training Pipeline   :p5b, after p5a, 21d
     Model Evaluation        :p5c, after p5b, 7d
     
+    section Infrastructure & RL (v0.7.0 - v0.8.0)
+    Runtime Framework       :done, p7a, after p4c, 14d
+    RL Foundation           :done, p7b, after p7a, 10d
+    
+    section Reward System (Phase 7.3)
+    Reward Evaluator        :active, p73, after p7b, 5d
+    Reward Tests & Docs     :active, p74, after p73, 5d
+    
     section Polish (v0.6.0)
-    UI System               :p6a, after p5c, 7d
+    UI System               :p6a, after p74, 7d
     Performance Tuning      :p6b, after p6a, 7d
     Final Documentation     :p6c, after p6b, 7d
 ```
@@ -104,7 +112,7 @@ gantt
 
 ---
 
-## Phase 3: Environment (v0.3.0) 🔲 Pending
+## Phase 3: Environment (v0.3.0) ✅ Complete
 
 **Goal:** Extend procedural generation with terrain, disaster types, and advanced environment features.
 
@@ -112,10 +120,10 @@ gantt
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 3.1 | Terrain generation system | 🔲 Pending |
-| 3.2 | Disaster type definitions and behaviors | 🔲 Pending |
-| 3.3 | Victim system expansion | 🔲 Pending |
-| 3.4 | Obstacle system expansion | 🔲 Pending |
+| 3.1 | Terrain generation system | ✅ Complete |
+| 3.2 | Disaster type definitions and behaviors | ✅ Complete |
+| 3.3 | Victim system expansion | ✅ Complete |
+| 3.4 | Obstacle system expansion | ✅ Complete |
 | 3.5 | Environment visual polish | 🔲 Pending |
 
 ### Milestone
@@ -125,7 +133,7 @@ gantt
 
 ---
 
-## Phase 4: Sensors & AI (v0.4.0) 🔲 Pending
+## Phase 4: Sensors & AI (v0.4.0) ✅ Complete
 
 **Goal:** Implement sensor systems and integrate ML-Agents for AI-driven drone control.
 
@@ -133,15 +141,15 @@ gantt
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 4.1 | Ray sensor implementation | 🔲 Pending |
-| 4.2 | Thermal sensor implementation | 🔲 Pending |
+| 4.1 | Ray sensor implementation | ✅ Complete |
+| 4.2 | Thermal sensor implementation | ✅ Complete |
 | 4.3 | Vision sensor implementation | 🔲 Pending |
-| 4.4 | Sensor fusion system | 🔲 Pending |
-| 4.5 | ML-Agents agent setup | 🔲 Pending |
-| 4.6 | Observation collection | 🔲 Pending |
-| 4.7 | Action space definition | 🔲 Pending |
-| 4.8 | Behavior parameter configuration | 🔲 Pending |
-| 4.9 | Heuristic mode for testing | 🔲 Pending |
+| 4.4 | Sensor fusion system | ✅ Complete |
+| 4.5 | ML-Agents agent setup | ✅ Complete |
+| 4.6 | Observation collection | ✅ Complete |
+| 4.7 | Action space definition | ✅ Complete |
+| 4.8 | Behavior parameter configuration | ✅ Complete |
+| 4.9 | Heuristic mode for testing | ✅ Complete |
 
 ### Milestone
 - Drone senses environment through multiple sensor types
@@ -150,7 +158,7 @@ gantt
 
 ---
 
-## Phase 5: Training (v0.5.0) 🔲 Pending
+## Phase 5: Training (v0.5.0) ⏳ In Progress
 
 **Goal:** Implement reward system and train the PPO model.
 
@@ -158,7 +166,7 @@ gantt
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 5.1 | Reward function implementation | 🔲 Pending |
+| 5.1 | Reward function implementation | ✅ Complete |
 | 5.2 | TensorBoard integration | 🔲 Pending |
 | 5.3 | Training configuration | 🔲 Pending |
 | 5.4 | Initial training run | 🔲 Pending |
@@ -185,10 +193,10 @@ gantt
 |------|-------------|--------|
 | 6.1 | HUD implementation | 🔲 Pending |
 | 6.2 | Training progress display | 🔲 Pending |
-| 6.3 | Debug overlay | 🔲 Pending |
-| 6.4 | Performance optimization | 🔲 Pending |
+| 6.3 | Debug overlay | ✅ Complete |
+| 6.4 | Performance optimization | ⏳ In Progress |
 | 6.5 | Memory optimization | 🔲 Pending |
-| 6.6 | Final documentation | 🔲 Pending |
+| 6.6 | Final documentation | ⏳ In Progress |
 | 6.7 | Screenshot/video capture | 🔲 Pending |
 | 6.8 | GitHub release preparation | 🔲 Pending |
 
@@ -200,6 +208,47 @@ gantt
 
 ---
 
+## Phase 7: Infrastructure, Environment & RL Foundation (v0.7.0 - v0.8.0) ✅ Complete
+
+**Goal:** Complete runtime infrastructure and activate the RL foundation (sensors, agent, rewards).
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 7.1 | Runtime framework — object pooling, spawn pipeline, diagnostics, runtime integration | ✅ Complete |
+| 7.2 | RL foundation — sensors, AI agent, observation collection, runtime activation | ✅ Complete |
+
+### Milestone
+- Deterministic spawn pipeline and runtime object pooling integrated
+- Live diagnostics and runtime persistence/recovery
+- DroneAgent with 28-float observation vector (24 ray + 2 thermal + energy + health) and 4 continuous actions
+- Sensor layer (DroneRaySensor, DroneThermalSensor, SensorFusionProvider) activated at runtime
+- Batch smoke test passes in under 20 seconds (zero compile errors, exit code 0)
+
+---
+
+## Phase 7.3: Reward System (In Progress)
+
+**Goal:** Replace the placeholder reward design with a verified, event-driven reward evaluator.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 7.3.1 | `RewardEvaluator` — per-step continuous + event-driven terminal rewards | ✅ Complete |
+| 7.3.2 | `RewardBreakdown` — per-category diagnostics and event counters | ✅ Complete |
+| 7.3.3 | `IRewardSink` decoupling from ML-Agents | ✅ Complete |
+| 7.3.4 | Reward evaluation tests (41/41 passing) | ✅ Complete |
+| 7.3.5 | Documentation synchronization | ⏳ In Progress |
+
+### Milestone
+- Reward mathematics verified against implementation (time, novelty, shaping, stuck/oscillation, terminal events)
+- Sum invariant validated by smoke test
+- Documentation aligned with implementation as single source of truth
+
+---
+
 ## Version Milestones
 
 | Version | Phase | Features |
@@ -207,9 +256,11 @@ gantt
 | v0.1.0 | Foundation | Repository architecture and documentation |
 | v0.2.0 | Unity Foundation | Core framework, resource management, drone framework, environment framework, procedural generation, scenario systems |
 | v0.3.0 | Environment | Terrain generation, disaster types, expanded procedural generation |
-| v0.4.0 | Sensors & AI | Sensor implementations, ML-Agents integration, agent setup |
-| v0.5.0 | Training | Reward system, PPO training pipeline, model evaluation |
-| v0.6.0 | Polish | UI, performance optimization, final documentation |
+| v0.4.0 | Drone Runtime | Drone framework, runtime lifecycle, fleet management |
+| v0.5.0 | Runtime Infrastructure | Subsystem wiring, persistence, recovery, validation |
+| v0.6.0 | Runtime Completion | Diagnostics, spawn pipeline, object pooling |
+| v0.7.0 | Infrastructure & Environment | Drone entity foundation, spawn pipeline, runtime integration |
+| v0.8.0 | RL Foundation | Sensors, AI agent, runtime activation (Phases 7.1/7.2) |
 | v1.0.0 | Release | Full stable release |
 
 ---

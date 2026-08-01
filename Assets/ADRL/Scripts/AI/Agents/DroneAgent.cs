@@ -2,7 +2,9 @@ namespace ADRL.AI.Agents
 {
     using ADRL.AI.DecisionMaking;
     using ADRL.AI.Rewards;
+    using ADRL.Core.Bootstrap;
     using ADRL.Core.Configuration;
+    using ADRL.Core.Events;
     using ADRL.Core.Resources;
     using ADRL.Drone.Controllers;
     using ADRL.Sensors.Detection;
@@ -49,15 +51,12 @@ namespace ADRL.AI.Agents
         [Tooltip("When null the DroneConfig registered during bootstrap is used.")]
         private DroneConfig _droneConfig;
 
-        [SerializeField]
-        [Tooltip("Horizontal distance from the origin at which the agent is considered out of bounds.")]
-        private float _outOfBoundsRadius = 120f;
-
         private DroneController _controller;
         private SensorFusionProvider _fusion;
         private DroneActionResolver _resolver;
         private RewardEvaluator _evaluator;
         private BehaviorParameters _behaviorParameters;
+        private EventBus _eventBus;
         private Vector3 _scriptedHeuristic;
         private bool _useScriptedHeuristic;
 
@@ -92,6 +91,7 @@ namespace ADRL.AI.Agents
         {
             _controller = GetComponent<DroneController>();
             _behaviorParameters = GetComponent<BehaviorParameters>();
+            _eventBus = GameBootstrap.EventBus;
             ConfigureBrain();
 
             var requester = GetComponent<DecisionRequester>();
@@ -115,6 +115,15 @@ namespace ADRL.AI.Agents
                 ActionSpec.MakeContinuous(DroneActionResolver.ActionCount);
             _behaviorParameters.BrainParameters.VectorObservationSize =
                 PredictedObservationDimension;
+
+            // The maximum episode length is owned by SimulationConfig; applying it
+            // to the agent's MaxStep lets ML-Agents terminate the episode
+            // deterministically when the configured budget is exhausted.
+            var maxSteps = 3000;
+            if (ResourceLocator.IsInitialized && ResourceLocator.Configs.TryGet(out SimulationConfig simulationConfig))
+                maxSteps = simulationConfig.MaxEpisodeLength;
+
+            MaxStep = maxSteps;
         }
 
         public override void Initialize()
@@ -134,14 +143,27 @@ namespace ADRL.AI.Agents
             _fusion.Add(new DroneThermalSensor(_sensorConfig));
 
             _resolver = new DroneActionResolver();
-            _evaluator = _rewardConfig != null
-                ? new RewardEvaluator(_rewardConfig, this)
+            _evaluator = _rewardConfig != null && _eventBus != null && _controller != null
+                ? new RewardEvaluator(
+                    _rewardConfig,
+                    new AgentRewardSink(this),
+                    _eventBus,
+                    _controller.DroneId)
                 : null;
 
             Debug.Assert(
                 _fusion.DimensionCount + 2 == PredictedObservationDimension,
                 "[DroneAgent] Fusion dimension does not match the configured observation size.",
                 this);
+        }
+
+        /// <summary>
+        /// Releases the reward evaluator's event subscriptions when the agent is
+        /// destroyed so it never reacts to terminal reward events after teardown.
+        /// </summary>
+        private void OnDestroy()
+        {
+            _evaluator?.Dispose();
         }
 
         public override void OnEpisodeBegin()
@@ -208,15 +230,52 @@ namespace ADRL.AI.Agents
 
             if (_controller.Energy != null && _controller.Energy.IsDepleted)
             {
-                _evaluator?.NotifyEnergyDepleted();
+                _eventBus?.Publish(new DroneEnergyDepletedEvent(_controller.DroneId));
+                ReportEpisodeEnded();
                 EndEpisode();
                 return;
             }
 
             if (IsOutOfBounds(_controller.transform.position))
             {
-                _evaluator?.NotifyOutOfBounds();
+                _eventBus?.Publish(new DroneOutOfBoundsEvent(_controller.DroneId));
+                ReportEpisodeEnded();
                 EndEpisode();
+                return;
+            }
+
+            // ML-Agents ends the episode on this step once the configured step
+            // budget is reached; report before the agent resets so the simulation
+            // layer can finalize the episode.
+            if (MaxStep > 0 && StepCount >= MaxStep)
+            {
+                ReportEpisodeEnded();
+            }
+        }
+
+        /// <summary>
+        /// Reports the finished episode's real reward and step count to the
+        /// simulation layer so it can publish an accurate EpisodeCompletedEvent.
+        /// ML-Agents 2.0.2 exposes no episode-end callback, so the report is made
+        /// at every terminal point (energy, out-of-bounds, step budget) before the
+        /// agent resets.
+        /// </summary>
+        private void ReportEpisodeEnded()
+        {
+            _eventBus?.Publish(new AgentEpisodeEndedEvent(
+                _controller != null ? _controller.DroneId : 0,
+                _evaluator != null ? _evaluator.EpisodeReward : 0f,
+                StepCount));
+
+            if (_evaluator != null)
+            {
+                var bd = _evaluator.CurrentBreakdown;
+                var terminal = bd.EnergyPenaltyReward + bd.OutOfBoundsPenaltyReward;
+                Debug.Log($"[DroneAgent] Episode Finished | drone={(_controller != null ? _controller.DroneId : 0)} | " +
+                          $"total={bd.TotalReward:F4} | time={bd.TimePenaltyReward:F4} | " +
+                          $"novelty={bd.NoveltyReward:F4} | potential={bd.PotentialReward:F4} | " +
+                          $"stuck={bd.StuckPenaltyReward:F4} | oscillation={bd.OscillationPenaltyReward:F4} | " +
+                          $"terminal={terminal:F4} | steps={StepCount}");
             }
         }
 
@@ -277,7 +336,8 @@ namespace ADRL.AI.Agents
 
         public bool IsOutOfBounds(Vector3 position)
         {
-            return new Vector2(position.x, position.z).magnitude > _outOfBoundsRadius;
+            var radius = _droneConfig != null ? _droneConfig.OutOfBoundsRadius : 120f;
+            return new Vector2(position.x, position.z).magnitude > radius;
         }
 
         private void ApplyCommand(DroneCommand command)

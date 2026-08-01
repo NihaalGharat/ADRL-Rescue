@@ -175,7 +175,7 @@ Assets/ADRL/Scripts/
 | Drone | PascalCase | `FlightController.cs` |
 | Environment | PascalCase | `ProceduralGenerator.cs` |
 | Sensors | PascalCase | `RaySensor.cs` |
-| Training | PascalCase | `RewardSystem.cs` |
+| Training | PascalCase | `RewardEvaluator.cs` |
 
 ---
 
@@ -224,20 +224,21 @@ Debug.LogError("Failed to load model");
 
 ```csharp
 [TestFixture]
-public class RewardSystemTests
+public class RewardEvaluatorTests
 {
     [Test]
-    public void CalculateReward_VictimFound_ReturnsPositive()
+    public void VictimFound_Event_GrantsReward()
     {
         // Arrange
-        var rewardSystem = new RewardSystem();
-        var state = new DroneState { VictimDetected = true };
+        var eventBus = new EventBus();
+        var sink = new TestRewardSink();
+        var evaluator = new RewardEvaluator(config, sink, eventBus, droneId: 0);
         
         // Act
-        float reward = rewardSystem.CalculateReward(state);
+        eventBus.Publish(new VictimFoundEvent());
         
         // Assert
-        Assert.AreEqual(10.0f, reward);
+        Assert.AreEqual(10.0f, sink.TotalReward);
     }
 }
 ```

@@ -23,12 +23,33 @@ namespace ADRL.Core.Events
 
             if (_handlers.TryGetValue(eventType, out var existing))
             {
+                if (ContainsHandler(existing, handler))
+                    return;
+
                 _handlers[eventType] = Delegate.Combine(existing, handler);
             }
             else
             {
                 _handlers[eventType] = handler;
             }
+        }
+
+        /// <summary>
+        /// True when the handler is already part of the multicast delegate, so a
+        /// subscriber can never register the same handler twice for one event.
+        /// </summary>
+        private static bool ContainsHandler(Delegate invocationList, Delegate candidate)
+        {
+            foreach (var invocation in invocationList.GetInvocationList())
+            {
+                if (invocation.Target == candidate.Target &&
+                    invocation.Method == candidate.Method)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public void Unsubscribe<T>(Action<T> handler) where T : IEvent

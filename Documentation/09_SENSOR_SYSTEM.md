@@ -156,14 +156,12 @@ All sensor data is combined into a single observation vector:
 
 ```mermaid
 graph LR
-    RS[Ray Sensors<br/>26 values] --> OF[Observation<br/>Fusion]
-    TS[Thermal Sensor<br/>1 value] --> OF
-    VS[Vision Sensor<br/>1 value] --> OF
-    CS[Collision Sensor<br/>Events] --> OF
-    POS[Position<br/>3 values] --> OF
-    VEL[Velocity<br/>3 values] --> OF
+    RS[Ray Sensors<br/>24 values] --> OF[Observation<br/>Fusion]
+    TS[Thermal Sensor<br/>2 values] --> OF
+    EGY[Energy<br/>1 value] --> OF
+    HLT[Health<br/>1 value] --> OF
     
-    OF --> OV[Observation<br/>Vector<br/>44 values]
+    OF --> OV[Observation<br/>Vector<br/>28 values]
 ```
 
 ---
@@ -172,31 +170,25 @@ graph LR
 
 | Index | Count | Source | Description |
 |-------|-------|--------|-------------|
-| 0-2 | 3 | Position | World position (x, y, z) |
-| 3-5 | 3 | Velocity | Current velocity (x, y, z) |
-| 6-8 | 3 | Transform | Forward direction |
-| 9-11 | 3 | Transform | Up direction |
-| 12-24 | 13 | Ray Sensors | Distance to obstacles |
-| 25-37 | 13 | Ray Sensors | Hit type encoding |
-| 38 | 1 | Thermal | Heat signature strength |
-| 39 | 1 | Vision | Victim in view |
-| 40 | 1 | Physics | Current speed |
-| 41-43 | 3 | Memory | Direction to nearest victim |
+| 0-11 | 12 | Ray Sensors | Proximity reading per ray |
+| 12-23 | 12 | Ray Sensors | Victim flag per ray |
+| 24-25 | 2 | Thermal | Victim presence + proximity |
+| 26 | 1 | Energy | Normalized battery level |
+| 27 | 1 | Health | Normalized drone health |
 
 ---
 
 ## Normalization
 
-All observations are normalized to [-1, 1] or [0, 1] range:
+All observations are normalized to [0, 1] range:
 
 | Observation | Raw Range | Normalized Range | Method |
 |-------------|-----------|------------------|--------|
-| Position | [-50, 50] | [-1, 1] | Linear |
-| Velocity | [-10, 10] | [-1, 1] | Linear |
-| Ray Distance | [0, 10] | [0, 1] | Linear |
+| Ray Proximity | [0, 1] | [0, 1] | As-is |
+| Ray Victim Flag | [0, 1] | [0, 1] | As-is |
 | Thermal | [0, 1] | [0, 1] | As-is |
-| Vision | [0, 1] | [0, 1] | As-is |
-| Speed | [0, 10] | [0, 1] | Linear |
+| Energy | [0, 1] | [0, 1] | As-is |
+| Health | [0, 1] | [0, 1] | As-is |
 
 ---
 

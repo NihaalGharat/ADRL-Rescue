@@ -1,0 +1,20 @@
+{
+  "name": "ADRL.Tests.Editor",
+  "rootNamespace": "ADRL.Tests.Editor",
+  "references": [
+    "ADRL.AI",
+    "ADRL.Core",
+    "Unity.TestFramework"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

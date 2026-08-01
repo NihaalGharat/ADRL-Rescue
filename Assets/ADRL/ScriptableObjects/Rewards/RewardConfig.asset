@@ -16,7 +16,21 @@ MonoBehaviour:
   _victimRescuedReward: 20
   _collisionPenalty: -5
   _timePenalty: -0.01
-  _explorationBonus: 0.1
   _successBonus: 50
   _outOfBoundsPenalty: -10
   _energyDepletedPenalty: -15
+  _noveltyBonus: 0.05
+  _noveltyCellSize: 2
+  _shapingEnabled: 1
+  _shapingGamma: 0.99
+  _shapingScale: 0.1
+  _rewardScale: 1
+  _minStepReward: -0.1
+  _maxStepReward: 0.1
+  _stuckPenalty: -0.5
+  _stuckDetectionWindow: 2
+  _stuckDistanceThreshold: 0.1
+  _oscillationPenalty: -0.5
+  _oscillationDetectionWindow: 2
+  _oscillationThreshold: 3
+  _damagePenalty: -2

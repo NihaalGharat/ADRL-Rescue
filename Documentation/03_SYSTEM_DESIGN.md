@@ -111,7 +111,7 @@ graph TD
 │ - observationProcessor: Observation │
 │ - memorySystem: DroneMemory         │
 │ - flightController: FlightController│
-│ - rewardSystem: RewardSystem        │
+│ - rewardEvaluator: RewardEvaluator  │
 ├─────────────────────────────────────┤
 │ + CollectObservations()             │
 │ + OnActionReceived()                │
@@ -215,14 +215,17 @@ summary_freq: 10000
 
 | Event | Reward | Description |
 |-------|--------|-------------|
-| Victim found | +10.0 | Successfully detected a victim |
-| Victim rescued | +25.0 | Completed rescue operation |
-| New area explored | +0.5 | Discovered previously unvisited area |
-| Efficient movement | +0.1 | Moving toward unexplored areas |
-| Collision | -5.0 | Hit an obstacle |
-| Out of bounds | -10.0 | Left the environment |
-| Time penalty | -0.01 | Per step penalty |
-| Stuck penalty | -2.0 | Not moving for multiple steps |
+| Victim found | +10.0 | Terminal reward on victim detection |
+| Victim rescued | +20.0 | Terminal reward on completed rescue |
+| Mission success | +50.0 | Terminal reward on mission completion |
+| Novelty (new cell) | +0.05 | Reward per newly visited cell (cell size 2 m) |
+| Potential shaping | `F = γ·Φ(s′) − Φ(s)` | Smooths exploration signal (γ 0.99, scale 0.1) |
+| Collision | -5.0 | Terminal penalty on obstacle impact |
+| Out of bounds | -10.0 | Terminal penalty on leaving the environment |
+| Energy depleted | -15.0 | Terminal penalty on battery exhaustion |
+| Time penalty | -0.01/s | Per-second time cost |
+| Stuck penalty | -0.5 | Displacement < 0.1 m over a 2 s window |
+| Oscillation penalty | -0.5 | ≥ 3 direction reversals over a 2 s window |
 
 ---
 

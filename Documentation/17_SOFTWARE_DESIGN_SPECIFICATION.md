@@ -157,7 +157,7 @@ graph TD
     DOMAIN --> EnvironmentManager
     DOMAIN --> SensorManager
     
-    INFRA --> RewardSystem
+    INFRA --> RewardEvaluator
     INFRA --> SaveSystem
     
     PRESENTATION --> UIManager
@@ -181,12 +181,12 @@ The script specifications in Section 5 follow that structure.
 | # | Script | Folder | Priority | Dependencies | Status |
 |:--|:-------|:-------|:---------|:-------------|:-------|
 | 1 | GameManager.cs | Core | 🔴 Critical | EpisodeManager, EnvironmentManager, DroneManager | 🔲 Planned |
-| 2 | EpisodeManager.cs | Core | 🔴 Critical | GameManager, RewardSystem | 🔲 Planned |
+| 2 | EpisodeManager.cs | Core | 🔴 Critical | GameManager, RewardEvaluator | 🔲 Planned |
 | 3 | ConfigurationManager.cs | Core | 🔴 Critical | ScriptableObjects | 🔲 Planned |
 | 4 | SaveSystem.cs | Core | 🟡 High | None | 🔲 Planned |
-| 5 | DroneAgent.cs | AI | 🔴 Critical | FlightController, SensorManager, RewardSystem, DroneMemory | 🔲 Planned |
+| 5 | DroneAgent.cs | AI | 🔴 Critical | FlightController, SensorManager, RewardEvaluator, DroneMemory | ✅ Implemented |
 | 6 | ObservationProcessor.cs | AI | 🔴 Critical | SensorManager, DroneMemory | 🔲 Planned |
-| 7 | RewardSystem.cs | AI | 🔴 Critical | DroneAgent, EpisodeManager | 🔲 Planned |
+| 7 | RewardEvaluator.cs | AI/Rewards | 🔴 Critical | IRewardSink, RewardConfig, EventBus | ✅ Implemented |
 | 8 | TrainingManager.cs | AI | 🔴 Critical | DroneAgent, ConfigurationManager | 🔲 Planned |
 | 9 | DroneMemory.cs | AI/Memory | 🔴 Critical | None | 🔲 Planned |
 | 10 | FlightController.cs | Drone | 🔴 Critical | Rigidbody | 🔲 Planned |
@@ -208,7 +208,7 @@ The script specifications in Section 5 follow that structure.
 | 26 | DebugOverlay.cs | UI | 🟢 Medium | SensorManager, DroneMemory | 🔲 Planned |
 | 27 | PerformanceMonitor.cs | Managers | 🟢 Medium | None | 🔲 Planned |
 | 28 | GameEvents.cs | Events | 🔴 Critical | None | 🔲 Planned |
-| 29 | RewardConfig.cs | Data | 🔴 Critical | None | 🔲 Planned |
+| 29 | RewardConfig.cs | Core/Configuration | 🔴 Critical | None | ✅ Implemented |
 | 30 | TrainingConfig.cs | Data | 🔴 Critical | None | 🔲 Planned |
 | 31 | EnvironmentConfig.cs | Data | 🔴 Critical | None | 🔲 Planned |
 | 32 | DroneConfig.cs | Data | 🔴 Critical | None | 🔲 Planned |
@@ -288,7 +288,7 @@ CleanupSystems()
 - GameManager
 - EnvironmentManager
 - DroneManager
-- RewardSystem
+- RewardEvaluator
 
 **Public Methods:**
 ```
@@ -377,7 +377,7 @@ ValidateConfig(config)
 - ObservationProcessor
 - FlightController
 - DroneMemory
-- RewardSystem
+- RewardEvaluator
 - EpisodeManager
 
 **Public Methods:**
@@ -395,8 +395,8 @@ OnEpisodeEnd()
 GatherSensorData()
 ProcessObservations()
 ApplyActions(float[] actions)
-CalculateAndAssignReward()
 ```
+**Rewards:** Delegated to `RewardEvaluator` (per-drone instance) — the agent is not responsible for reward math. The evaluator receives `DroneCommand` in `UpdateStep` and terminal events via the `EventBus`.
 
 **Events:**
 - `OnVictimFound`
@@ -575,41 +575,55 @@ CalculateTargetDirection()
 
 ---
 
-## RewardSystem.cs
+## RewardEvaluator.cs
 
-**Folder:** `AI/`
-**Purpose:** Calculates and assigns rewards to the agent.
+**Folder:** `AI/Rewards/`
+**Purpose:** Computes and applies reward increments for a single drone, decoupled from any concrete ML-Agents agent through `IRewardSink`.
 
 **Responsibilities:**
-- Calculate rewards for each step
-- Track reward components
-- Apply reward shaping
-- Provide reward breakdown for logging
-- Reset between episodes
+- Apply per-step continuous rewards in `UpdateStep` (time penalty, novelty-per-cell, potential shaping, stuck/oscillation detection)
+- Grant terminal rewards via `EventBus` subscriptions filtered by drone id
+- Scale continuous rewards by `RewardScale` and clip at `MinStepReward`; grant terminal rewards verbatim
+- Provide per-category reward breakdown and event counters
+- Reset between episodes (snapshots `LastEpisodeBreakdown`)
 
 **Dependencies:**
 - RewardConfig
-- DroneAgent
-- EpisodeManager
+- IRewardSink (AgentRewardSink)
+- EventBus
+- DroneCommand
 
 **Public Methods:**
 ```
-CalculateReward(DroneState state) → float
-GetRewardBreakdown() → RewardBreakdown
-Reset()
-GetTotalReward() → float
+RewardEvaluator(RewardConfig config, IRewardSink sink, EventBus eventBus, int droneId)
+UpdateStep(float deltaTime, Vector3 position, DroneCommand command)
+Reset(Vector3 startPosition)
+Dispose()
+GetBreakdown() → RewardBreakdown   // via CurrentBreakdown
+```
+
+**Public Properties:**
+```
+EpisodeReward → float
+CumulativeReward → float
+CurrentBreakdown → RewardBreakdown
+LastEpisodeBreakdown → RewardBreakdown
 ```
 
 **Private Methods:**
 ```
-CalculateTaskReward(DroneState state)
-CalculateExplorationReward(DroneState state)
-CalculateSafetyReward(DroneState state)
-CalculateEfficiencyReward(DroneState state)
+OnEnergyDepleted(DroneEnergyDepletedEvent e)
+OnOutOfBounds(DroneOutOfBoundsEvent e)
+OnVictimFound(VictimFoundEvent e)
+OnVictimRescued(VictimRescuedEvent e)
+OnCollision(CollisionEvent e)
+GrantContinuous(float rawReward) → float
+GrantTerminal(float amount) → float
+CellOf(Vector3 position) → Vector2Int
+BuildBreakdown() → RewardBreakdown
 ```
 
-**Events:**
-- `OnRewardCalculated(float reward, string reason)`
+**Terminal Event Rewards:** EnergyDepleted −15.0 | OutOfBounds −10.0 | VictimFound +10.0 | VictimRescued +20.0 | Collision −5.0 | Success +50.0
 
 **Future Extensions:**
 - Curriculum-based rewards
@@ -1177,7 +1191,7 @@ UpdateRewardDisplay()
 **Dependencies:**
 - SensorManager
 - DroneMemory
-- RewardSystem
+- RewardEvaluator (via RewardBreakdown)
 - PerformanceMonitor
 
 **Public Methods:**
@@ -1276,22 +1290,33 @@ Static event definitions
 
 ### RewardConfig.cs
 
-**Folder:** `Data/`
-**Purpose:** Configuration for reward system.
+**Folder:** `Core/Configuration/`
+**Purpose:** Configuration for the reward system (ScriptableObject, `[CreateAssetMenu]`, values clamped in `OnValidate`).
 
 ```
-Fields:
+Fields (defaults):
 ├── victimFoundReward: float = 10.0f
-├── victimRescuedReward: float = 25.0f
-├── newAreaReward: float = 0.5f
-├── forwardProgressReward: float = 0.1f
-├── sensorDetectionReward: float = 1.0f
+├── victimRescuedReward: float = 20.0f
 ├── collisionPenalty: float = -5.0f
-├── outOfBoundsPenalty: float = -10.0f
 ├── timePenalty: float = -0.01f
-├── stuckPenalty: float = -2.0f
-├── repeatedPathPenalty: float = -0.5f
-└── fallingPenalty: float = -3.0f
+├── successBonus: float = 50.0f
+├── outOfBoundsPenalty: float = -10.0f
+├── energyDepletedPenalty: float = -15.0f
+├── noveltyBonus: float = 0.05f
+├── noveltyCellSize: float = 2.0f
+├── shapingEnabled: bool = true
+├── shapingGamma: float = 0.99f
+├── shapingScale: float = 0.1f
+├── rewardScale: float = 1.0f
+├── minStepReward: float = -0.1f
+├── maxStepReward: float = 0.1f
+├── stuckPenalty: float = -0.5f
+├── stuckDetectionWindow: float = 2.0f
+├── stuckDistanceThreshold: float = 0.1f
+├── oscillationPenalty: float = -0.5f
+├── oscillationDetectionWindow: float = 2.0f
+├── oscillationThreshold: float = 3.0f
+└── damagePenalty: float = -2.0f
 ```
 
 ### TrainingConfig.cs
@@ -1392,7 +1417,7 @@ graph TD
     IManager --> EnvironmentManager
     
     IResettable[IResettable] --> DroneMemory
-    IResettable --> RewardSystem
+    IResettable --> RewardEvaluator
     IResettable --> SpawnGenerator
     
     IDetectable[IDetectable] --> Victim
@@ -1488,7 +1513,7 @@ graph TD
     EM[EpisodeManager] -->|fires| EB
     DM[DroneManager] -->|fires| EB
     ENV[EnvironmentManager] -->|fires| EB
-    RS[RewardSystem] -->|fires| EB
+    RS[RewardEvaluator] -->|subscribes| EB
     
     EB -->|notifies| UIM[UIManager]
     EB -->|notifies| TM[TrainingManager]
@@ -1518,11 +1543,11 @@ graph TD
 
 | Event | Parameters | Fired By | Handled By |
 |:------|:-----------|:---------|:-----------|
-| `OnVictimFound` | `Vector3 position` | DroneAgent | UIManager, RewardSystem |
-| `OnVictimRescued` | `Victim victim` | DroneAgent | UIManager, RewardSystem |
-| `OnDroneCollision` | `CollisionData data` | CollisionSensor | RewardSystem, UIManager |
-| `OnDroneOutOfBounds` | — | DroneAgent | RewardSystem, EpisodeManager |
-| `OnNewAreaExplored` | `Vector3 position` | DroneMemory | RewardSystem |
+| `VictimFoundEvent` | — | DroneAgent | RewardEvaluator, UIManager |
+| `VictimRescuedEvent` | — | DroneAgent | RewardEvaluator, UIManager |
+| `CollisionEvent` | — | CollisionSensor | RewardEvaluator, UIManager |
+| `DroneOutOfBoundsEvent` | — | DroneAgent | RewardEvaluator, EpisodeManager |
+| `DroneEnergyDepletedEvent` | — | DroneEnergy | RewardEvaluator |
 
 ### Environment Events
 
@@ -1539,7 +1564,6 @@ graph TD
 | `OnTrainingStarted` | — | TrainingManager | UIManager |
 | `OnTrainingStopped` | — | TrainingManager | UIManager |
 | `OnModelExported` | `string path` | TrainingManager | UIManager |
-| `OnRewardCalculated` | `float reward, string reason` | RewardSystem | DebugOverlay |
 
 ---
 
@@ -1574,7 +1598,7 @@ struct DroneState
     bool victimRescued;
     bool isNewPosition;
     bool isStuck;
-    bool repeatedPath;
+    bool isOscillating;
     Vector3 nearestVictimDirection;
 }
 ```
@@ -1691,7 +1715,7 @@ The AI system architecture is defined in [06_AI_SYSTEM.md](06_AI_SYSTEM.md). Rew
 
 ## 10.2 Implementation Dimensions
 
-- **Observation vector:** 44 values (Ray sensor: 13, Thermal: 1, Vision: 1, Position/Velocity: 6, plus collision and exploration state)
+- **Observation vector:** 28 values (Ray sensor: 24 = 12 proximity + 12 victim flags, Thermal: 2, Energy: 1, Health: 1)
 - **Action vector:** 4 values (MoveX, MoveY, MoveZ, RotateY)
 - **Memory:** DroneMemory stores visited positions, obstacle locations, and victim detections
 
@@ -1699,10 +1723,10 @@ The AI system architecture is defined in [06_AI_SYSTEM.md](06_AI_SYSTEM.md). Rew
 
 The AI system involves the following scripts (see Section 5 for full specifications):
 
-- **DroneAgent** — ML-Agents bridge, collects observations, receives actions, assigns rewards
+- **DroneAgent** — ML-Agents bridge, collects observations, receives actions
 - **ObservationProcessor** — Normalizes sensor data into observation vector
 - **DroneMemory** — Stores exploration history for navigation guidance
-- **RewardSystem** — Calculates per-step reward signals from drone state
+- **RewardEvaluator** — Computes per-step continuous and event-driven terminal rewards, pushes increments through `IRewardSink`
 
 ---
 
@@ -1783,12 +1807,12 @@ The drone system involves the following scripts (see Section 5 for full specific
 | Script | Depends On | Depended By |
 |:-------|:-----------|:------------|
 | GameManager | EpisodeManager, EnvironmentManager, DroneManager, UIManager | — |
-| EpisodeManager | GameManager, RewardSystem | GameManager |
-| DroneAgent | SensorManager, ObservationProcessor, FlightController, DroneMemory, RewardSystem | EpisodeManager |
+| EpisodeManager | GameManager, RewardEvaluator | GameManager |
+| DroneAgent | SensorManager, ObservationProcessor, FlightController, DroneMemory, RewardEvaluator | EpisodeManager |
 | FlightController | Rigidbody, DroneConfig | DroneAgent, DroneManager |
 | SensorManager | ISensor implementations | DroneAgent, ObservationProcessor |
 | ObservationProcessor | SensorManager, DroneMemory | DroneAgent |
-| RewardSystem | RewardConfig, DroneAgent | DroneAgent, EpisodeManager |
+| RewardEvaluator | RewardConfig, IRewardSink, EventBus | DroneAgent |
 | EnvironmentManager | TerrainGenerator, DisasterGenerator, VictimGenerator, ObstacleGenerator | GameManager |
 | UIManager | EpisodeManager, TrainingManager, DroneAgent | GameManager |
 
@@ -1834,7 +1858,7 @@ graph TD
     B --> C[SpawnGenerator.GetSpawnPosition]
     C --> D[DroneManager.RespawnDrone]
     D --> E[DroneMemory.ClearMemory]
-    E --> F[RewardSystem.Reset]
+    E --> F[RewardEvaluator.Reset]
     F --> G[EpisodeManager.BeginTracking]
     G --> H[Episode Active]
 ```
@@ -1885,7 +1909,7 @@ graph LR
 ```csharp
 // Use Unity assertions for development checks
 Debug.Assert(sensorManager != null, "SensorManager not assigned");
-Debug.Assert(observation.Length == 44, "Invalid observation size");
+Debug.Assert(observation.Length == 28, "Invalid observation size");
 ```
 
 ## 15.4 Null Checks
@@ -2170,7 +2194,7 @@ The following test categories map to scripts specified in Section 5:
 
 ### AI System Tests
 - ObservationProcessor normalizes — validates values in expected range
-- RewardSystem calculates correctly — validates reward expectations
+- RewardEvaluator calculates correctly — validates reward expectations and breakdown invariant
 - DroneAgent collects observations — validates correct vector size
 
 ### Environment Tests
@@ -2207,7 +2231,7 @@ graph TD
 | **4. Drone Physics** | FlightController, DroneStabilizer, DroneManager | Need working drone before sensors |
 | **5. Sensors** | SensorManager, RaySensor, ThermalSensor, VisionSensor, CollisionSensor | Sensors feed into AI |
 | **6. Environment** | EnvironmentManager, TerrainGenerator, DisasterGenerator, ObstacleGenerator, VictimGenerator, SpawnGenerator | Need environment for testing |
-| **7. AI System** | DroneAgent, ObservationProcessor, DroneMemory, RewardSystem | Core intelligence |
+| **7. AI System** | DroneAgent, ObservationProcessor, DroneMemory, RewardEvaluator | Core intelligence |
 | **8. Training** | TrainingManager, ONNX export | Training pipeline |
 | **9. UI** | UIManager, HUDController, DebugOverlay | User interface |
 | **10. Optimization** | ObjectPool, PerformanceMonitor, DebugHelper | Polish and performance |

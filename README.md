@@ -6,7 +6,7 @@
 [![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-blue.svg)](https://unity.com/)
 [![ML-Agents](https://img.shields.io/badge/ML--Agents-2.0.2-green.svg)](https://github.com/Unity-Technologies/ml-agents)
 [![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/Version-v0.8.0-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
+[![Version](https://img.shields.io/badge/Version-v0.8.1-blue.svg)](https://github.com/NihaalGharat/ADRL-Rescue/releases)
 
 ---
 
@@ -22,11 +22,11 @@ The drone learns its behavior entirely through **Reinforcement Learning (PPO)** 
 
 ## Project Status
 
-🚧 **Version v0.8.0 — RL Foundation (Phase 7)**
+🚧 **Version v0.8.1 — RL Foundation Complete / Reward System (Phase 7.3)**
 
 ADRL-Rescue is currently in active development.
 
-Version v0.8.0 implements the complete drone runtime framework (spawning, lifecycle, persistence, object pooling) plus the Phase 7 RL foundation: the ML-free sensor layer, ML-Agents agent, action resolver, reward evaluator, runtime orchestration, and an automated batch smoke test.
+Version v0.8.0 implements the complete drone runtime framework (spawning, lifecycle, persistence, object pooling) plus the Phase 7 RL foundation: the ML-free sensor layer, ML-Agents agent, action resolver, reward evaluator, runtime orchestration, and an automated batch smoke test. Version v0.8.1 delivers the verified, event-driven reward system (`RewardEvaluator`, `RewardBreakdown`, `IRewardSink`) with 41/41 passing tests.
 
 | Milestone | Status |
 |:----------|:-------|
@@ -39,11 +39,12 @@ Version v0.8.0 implements the complete drone runtime framework (spawning, lifecy
 | Runtime Framework | ✅ Complete (Spawn, Lifecycle, Pooling, Diagnostics, Validation, Persistence) |
 | Sensor Implementation | ✅ Complete (Ray, Thermal, Fusion) |
 | ML-Agents / AI | ✅ Complete (Agent, Action Resolver, Reward Evaluator) |
+| Reward System | ✅ Complete (Event-driven evaluator, breakdown, config) |
 | Training Pipeline | 🔲 Pending |
 | UI / Polish | 🔲 Pending |
 | Stable Release | 🔲 Pending (v1.0.0) |
 
-**Documentation Status:** ✅ Frozen (v0.2.0 Baseline)
+**Documentation Status:** ✅ In Sync with verified implementation (Phase 7.3)
 
 ---
 
@@ -261,6 +262,7 @@ graph TD
 | Environment | v0.3.0 | Environment framework, terrain generation, procedural rules | ✅ Complete |
 | Runtime Framework | v0.4.0–v0.7.0 | Drone spawning, lifecycle, persistence, object pooling, diagnostics | ✅ Complete |
 | Sensors & AI | v0.8.0 | Sensor implementations, ML-Agents integration | ✅ Complete (Phase 7) |
+| Reward System | v0.8.1 | Event-driven reward evaluator, breakdown, config | ✅ Complete (Phase 7.3) |
 | Training | v0.9.0 | PPO training pipeline | 🔲 Pending |
 | Release | v1.0.0 | Full stable release | 🔲 Pending |
 

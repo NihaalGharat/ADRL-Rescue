@@ -1,6 +1,7 @@
 namespace ADRL.Training.Runtime
 {
     using ADRL.AI.Agents;
+    using ADRL.AI.Rewards;
     using ADRL.Drone.Controllers;
     using UnityEngine;
 
@@ -27,6 +28,19 @@ namespace ADRL.Training.Runtime
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
         public bool Passed { get; private set; }
+
+        /// <summary>
+        /// True when the smoke-test drone has a reward evaluator attached.
+        /// Read-only diagnostic accessor used by editor-time validation.
+        /// </summary>
+        public bool HasEvaluator => _agent != null && _agent.Evaluator != null;
+
+        /// <summary>
+        /// Live reward breakdown for the running episode, or a default
+        /// (zero) snapshot when no evaluator is present. Read-only; never
+        /// mutates runtime state.
+        /// </summary>
+        public RewardBreakdown CurrentBreakdown => _agent?.Evaluator?.CurrentBreakdown ?? default;
 
         public void Begin(DroneController controller, DroneAgent agent)
         {
@@ -106,6 +120,35 @@ namespace ADRL.Training.Runtime
             Debug.Log(
                 $"[DroneSmokeTest] PASSED={Passed} | moved={moved:F2}m | cumulativeReward={reward:F3} | " +
                 $"state={state} | obsDim={obsDim} | fusedProviders={fusionCount} | evaluator={evaluatorPresent}");
+
+            // Reward diagnostics (M5, Task 8). Observational only: it never alters
+            // the pass/fail exit code, so existing smoke behaviour is preserved.
+            // Surfaces reward regressions (e.g. reward == ~0.148) in CI output.
+            if (_agent?.Evaluator != null)
+            {
+                var bd = _agent.Evaluator.CurrentBreakdown;
+                var sum = bd.TimePenaltyReward + bd.NoveltyReward + bd.PotentialReward +
+                          bd.StuckPenaltyReward + bd.OscillationPenaltyReward +
+                          bd.EnergyPenaltyReward +
+                          bd.OutOfBoundsPenaltyReward + bd.VictimFoundReward +
+                          bd.VictimRescuedReward + bd.SuccessReward;
+
+                Debug.LogFormat(
+                    "[ADRL_SMOKE_TEST] RewardDiagnostics | total={0:F4} | time={1:F4} | novelty={2:F4} | " +
+                    "potential={3:F4} | stuck={4:F4} | oscillation={5:F4} | energy={6:F4} | outOfBounds={7:F4} | " +
+                    "finite={8} | sumInvariant={9}",
+                    bd.TotalReward,
+                    bd.TimePenaltyReward,
+                    bd.NoveltyReward,
+                    bd.PotentialReward,
+                    bd.StuckPenaltyReward,
+                    bd.OscillationPenaltyReward,
+                    bd.EnergyPenaltyReward,
+                    bd.OutOfBoundsPenaltyReward,
+                    !float.IsNaN(sum) && !float.IsInfinity(sum)
+                        && !float.IsNaN(bd.TotalReward) && !float.IsInfinity(bd.TotalReward),
+                    Mathf.Abs(sum - bd.TotalReward) <= 1e-4f);
+            }
 
 #if UNITY_EDITOR
             if (Application.isBatchMode)

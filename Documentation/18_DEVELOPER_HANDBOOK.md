@@ -908,46 +908,29 @@ public override void OnActionReceived(ActionBuffers actions)
 
 ```mermaid
 graph TD
-    A[Reward System] --> B[Positive Rewards]
+    A[RewardEvaluator] --> B[Positive Rewards]
     A --> C[Negative Rewards]
     A --> D[Time Penalties]
     
-    B --> B1[+1.0 Victim Found]
-    B --> B2[+0.5 Moving Toward Target]
-    B --> B3[+0.1 Staying Aloft]
+    B --> B1[+10.0 Victim Found]
+    B --> B2[+20.0 Victim Rescued]
+    B --> B3[+50.0 Mission Success]
+    B --> B4[+0.05 Novelty per Cell]
     
-    C --> C1[-1.0 Collision]
-    C --> C2[-0.5 Going Out of Bounds]
-    C --> C3[-0.2 Idle Too Long]
+    C --> C1[-5.0 Collision]
+    C --> C2[-10.0 Out of Bounds]
+    C --> C3[-15.0 Energy Depleted]
+    C --> C4[-0.5 Stuck]
+    C --> C5[-0.5 Oscillation]
     
-    D --> D1[-0.01 Per Step]
+    D --> D1[-0.01 Per Second]
 ```
 
 ### Reward Implementation
 
-```csharp
-private void CalculateReward()
-{
-    float reward = 0f;
-    
-    // Time penalty
-    reward -= 0.01f;
-    
-    // Height bonus
-    if (transform.position.y > _minHeight)
-        reward += 0.1f;
-    
-    // Collision penalty
-    if (_hasCollided)
-        reward -= 1.0f;
-    
-    // Victim found bonus
-    if (_victimFound)
-        reward += 1.0f;
-    
-    AddReward(reward);
-}
-```
+Rewards are computed by `RewardEvaluator` (see section 8.4). Continuous rewards
+accumulate per step in `UpdateStep` and are scaled + clipped before reaching the
+`IRewardSink`; terminal rewards arrive via `EventBus` events and are granted verbatim.
 
 ## 7.4 Episode Management
 
@@ -1283,52 +1266,35 @@ public class DomainRandomizer : MonoBehaviour
 
 ## 8.4 Add a New Reward
 
+Rewards are computed by `ADRL.AI.Rewards.RewardEvaluator` (one instance per drone) and delivered to the agent through `IRewardSink`. There are two paths:
+
+- **Continuous rewards** — applied every step in `UpdateStep(deltaTime, position, command)` (time penalty, novelty, shaping, stuck/oscillation). These are scaled by `RewardScale` and clipped at `MinStepReward`.
+- **Terminal rewards** — granted verbatim when a `VictimFoundEvent`, `VictimRescuedEvent`, `CollisionEvent`, `DroneOutOfBoundsEvent`, or `DroneEnergyDepletedEvent` fires on the `EventBus` (filtered by drone id).
+
 ### Step-by-Step Guide
 
-1. **Define reward in RewardConfig**
+1. **Add the value to RewardConfig**
    ```csharp
-   [CreateAssetMenu(fileName = "NewRewardConfig", menuName = "ADRL-Rescue/Reward Config")]
-   public class NewRewardConfig : ScriptableObject
-   {
-       public float rewardValue = 0.5f;
-       public string rewardName = "New Reward";
-   }
+   [SerializeField]
+   private float _myNewReward = 1.0f;
+   public float MyNewReward => _myNewReward;
    ```
+   Follow the existing clamping patterns in `OnValidate` (e.g. `ClampPenalty`/`ClampBonus`).
 
-2. **Implement reward logic**
-   ```csharp
-   public class RewardSystem : MonoBehaviour
-   {
-       [SerializeField] private NewRewardConfig _newRewardConfig;
-       
-       private void CalculateReward()
-       {
-           // Check condition
-           if (/* condition */)
-           {
-               AddReward(_newRewardConfig.rewardValue);
-           }
-       }
-   }
-   ```
+2. **Add a category to RewardBreakdown**
+   In `RewardBreakdown.cs`, add a `readonly float MyNewReward;` field (plus an event counter if applicable) and wire it through the constructor and `BuildBreakdown()` in `RewardEvaluator`. Keep the sum invariant documented in `10_REWARD_SYSTEM.md`.
 
-3. **Add reward to training config**
-   ```yaml
-   reward_signals:
-     extrinsic:
-       gamma: 0.99
-       strength: 1.0
-     # Add custom reward signal if needed
-   ```
+3. **Apply the reward**
+   - Continuous reward: accumulate in `UpdateStep` via `GrantContinuous(_config.MyNewReward)` (or `MyNewReward * dt` for a rate).
+   - Terminal reward: subscribe to the corresponding event in the constructor, filter by `e.DroneId != _droneId`, and call `GrantTerminal(_config.MyNewReward)`; unsubscribe in `Dispose()`.
 
 4. **Test reward**
-   - Run training
-   - Monitor TensorBoard
-   - Verify reward is being applied
+   - Add an EditMode test mirroring `RewardEvaluatorTests`/`EventRewardPipelineTests`.
+   - Run the full suite (EditMode must stay 41/41 passing) and the batch smoke test.
 
 5. **Update documentation**
-   - Update `10_REWARD_SYSTEM.md`
-   - Update training docs
+   - Update `10_REWARD_SYSTEM.md` reward tables and breakdown invariant.
+   - Update training docs.
 
 ## 8.5 Add a New Manager
 

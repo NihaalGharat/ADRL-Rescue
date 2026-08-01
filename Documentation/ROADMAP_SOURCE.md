@@ -109,7 +109,7 @@ Instead
 
 ✔ DroneAgent.cs
 
-✔ RewardSystem.cs
+✔ RewardEvaluator.cs
 
 ✔ ObservationSystem.cs
 

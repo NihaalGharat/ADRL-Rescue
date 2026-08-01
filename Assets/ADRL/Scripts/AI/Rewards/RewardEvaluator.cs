@@ -1,89 +1,309 @@
 namespace ADRL.AI.Rewards
 {
+    using System;
+    using System.Collections.Generic;
     using ADRL.AI.DecisionMaking;
     using ADRL.Core.Configuration;
-    using Unity.MLAgents;
+    using ADRL.Core.Events;
     using UnityEngine;
 
     /// <summary>
-    /// Computes and applies reward increments to an ML-Agents <see cref="Agent"/>
-    /// according to the configured <see cref="RewardConfig"/>. It also tracks the
-    /// distance an agent travels so exploration bonuses can be granted only for
-    /// genuine movement rather than for holding still.
+    /// Computes and applies reward increments for a single drone through an
+    /// <see cref="IRewardSink"/>, decoupled from any concrete ML-Agents agent.
+    /// The M3 reward mathematics (time penalty, novelty-per-cell, potential
+    /// shaping F = gamma*Phi(s') - Phi(s), stuck and oscillation detection) runs
+    /// in <see cref="UpdateStep"/>, while terminal rewards arrive event-driven
+    /// through the <see cref="EventBus"/>, filtered by drone id. Diagnostic
+    /// breakdowns are exposed via <see cref="CurrentBreakdown"/> and
+    /// <see cref="LastEpisodeBreakdown"/>.
     /// </summary>
-    public sealed class RewardEvaluator
+    public sealed class RewardEvaluator : IDisposable
     {
-        /// <summary>Accumulated travel distance that earns one exploration bonus.</summary>
-        private const float ExplorationStepDistance = 1f;
-
         private readonly RewardConfig _config;
-        private readonly Agent _agent;
-        private Vector3 _lastPosition;
-        private float _explorationAccumulator;
+        private readonly IRewardSink _sink;
+        private readonly EventBus _eventBus;
+        private readonly int _droneId;
+        private bool _disposed;
 
-        /// <summary>Current cumulative reward as reported by the agent.</summary>
-        public float CumulativeReward => _agent.GetCumulativeReward();
+        private readonly HashSet<Vector2Int> _visitedCells = new HashSet<Vector2Int>();
+        private int _noveltyCellsVisited;
 
-        /// <summary>Total reward accumulated during the current episode.</summary>
+        private Vector3 _lastStuckPosition;
+        private float _stuckTimer;
+        private Vector3 _previousPosition;
+        private float _lastMoveDirection;
+        private float _oscillationTimer;
+        private int _oscillationReversals;
+
+        private float _timePenaltyReward;
+        private float _noveltyReward;
+        private float _potentialReward;
+        private float _stuckPenaltyReward;
+        private float _oscillationPenaltyReward;
+        private float _collisionPenaltyReward;
+        private float _energyPenaltyReward;
+        private float _outOfBoundsPenaltyReward;
+        private float _victimFoundReward;
+        private float _victimRescuedReward;
+        private float _successReward;
+
+        private int _stuckEvents;
+        private int _oscillationEvents;
+        private int _collisionEvents;
+        private int _energyEvents;
+        private int _outOfBoundsEvents;
+        private int _victimFoundEvents;
+        private int _victimRescuedEvents;
+        private int _successEvents;
+
+        /// <summary>Total reward granted during the current episode.</summary>
         public float EpisodeReward { get; private set; }
 
-        public RewardEvaluator(RewardConfig config, Agent agent)
-        {
-            _config = config ?? throw new System.ArgumentNullException(nameof(config));
-            _agent = agent ?? throw new System.ArgumentNullException(nameof(agent));
-        }
+        /// <summary>Alias of <see cref="EpisodeReward"/> for the current episode total.</summary>
+        public float CumulativeReward => EpisodeReward;
 
-        public void Reset(Vector3 startPosition)
+        /// <summary>Live snapshot of the current episode's reward categories.</summary>
+        public RewardBreakdown CurrentBreakdown => BuildBreakdown();
+
+        /// <summary>Snapshot of the previous episode captured at <see cref="Reset"/>.</summary>
+        public RewardBreakdown LastEpisodeBreakdown { get; private set; }
+
+        public RewardEvaluator(RewardConfig config, IRewardSink sink, EventBus eventBus, int droneId)
         {
-            _lastPosition = startPosition;
-            _explorationAccumulator = 0f;
-            EpisodeReward = 0f;
+            _config = config ?? throw new ArgumentNullException(nameof(config));
+            _sink = sink ?? throw new ArgumentNullException(nameof(sink));
+            _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+            _droneId = droneId;
+
+            _eventBus.Subscribe<DroneEnergyDepletedEvent>(OnEnergyDepleted);
+            _eventBus.Subscribe<DroneOutOfBoundsEvent>(OnOutOfBounds);
+            _eventBus.Subscribe<VictimFoundEvent>(OnVictimFound);
+            _eventBus.Subscribe<VictimRescuedEvent>(OnVictimRescued);
+            _eventBus.Subscribe<CollisionEvent>(OnCollision);
         }
 
         /// <summary>
-        /// Applies the per-step time penalty and the exploration bonus based on
-        /// actual movement since the previous step.
+        /// Detaches every terminal-reward subscription so the evaluator never
+        /// reacts to events after teardown. Safe to call more than once.
+        /// </summary>
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+
+            _eventBus.Unsubscribe<DroneEnergyDepletedEvent>(OnEnergyDepleted);
+            _eventBus.Unsubscribe<DroneOutOfBoundsEvent>(OnOutOfBounds);
+            _eventBus.Unsubscribe<VictimFoundEvent>(OnVictimFound);
+            _eventBus.Unsubscribe<VictimRescuedEvent>(OnVictimRescued);
+            _eventBus.Unsubscribe<CollisionEvent>(OnCollision);
+        }
+
+        /// <summary>
+        /// Begins a new episode: snapshots the finished episode into
+        /// <see cref="LastEpisodeBreakdown"/> and clears all running state.
+        /// </summary>
+        public void Reset(Vector3 startPosition)
+        {
+            LastEpisodeBreakdown = BuildBreakdown();
+
+            EpisodeReward = 0f;
+            _visitedCells.Clear();
+            _noveltyCellsVisited = 0;
+
+            _timePenaltyReward = 0f;
+            _noveltyReward = 0f;
+            _potentialReward = 0f;
+            _stuckPenaltyReward = 0f;
+            _oscillationPenaltyReward = 0f;
+            _collisionPenaltyReward = 0f;
+            _energyPenaltyReward = 0f;
+            _outOfBoundsPenaltyReward = 0f;
+            _victimFoundReward = 0f;
+            _victimRescuedReward = 0f;
+            _successReward = 0f;
+
+            _stuckEvents = 0;
+            _oscillationEvents = 0;
+            _collisionEvents = 0;
+            _energyEvents = 0;
+            _outOfBoundsEvents = 0;
+            _victimFoundEvents = 0;
+            _victimRescuedEvents = 0;
+            _successEvents = 0;
+
+            _lastStuckPosition = startPosition;
+            _stuckTimer = 0f;
+            _previousPosition = startPosition;
+            _lastMoveDirection = 0f;
+            _oscillationTimer = 0f;
+            _oscillationReversals = 0;
+        }
+
+        /// <summary>
+        /// Applies one step of the M3 reward mathematics. Continuous rewards are
+        /// scaled by <see cref="RewardConfig.RewardScale"/> and clipped to
+        /// <see cref="RewardConfig.MinStepReward"/>, so a single large penalty
+        /// cannot overwhelm an episode.
         /// </summary>
         public void UpdateStep(float deltaTime, Vector3 position, DroneCommand command)
         {
-            AddReward(_config.TimePenalty * Mathf.Max(0f, deltaTime));
+            var dt = Mathf.Max(0f, deltaTime);
 
-            if (command.IsIdle)
+            _timePenaltyReward += GrantContinuous(_config.TimePenalty * dt);
+
+            _stuckTimer += dt;
+            if (_stuckTimer >= _config.StuckDetectionWindow)
             {
-                _lastPosition = position;
-                return;
+                _stuckTimer = 0f;
+                if (Vector3.Distance(position, _lastStuckPosition) < _config.StuckDistanceThreshold)
+                {
+                    _stuckEvents++;
+                    _stuckPenaltyReward += GrantContinuous(_config.StuckPenalty);
+                }
+
+                _lastStuckPosition = position;
             }
 
-            var travelled = Vector3.Distance(position, _lastPosition);
-            _explorationAccumulator += travelled;
-            _lastPosition = position;
-
-            if (_explorationAccumulator >= ExplorationStepDistance)
+            if (_visitedCells.Add(CellOf(position)))
             {
-                AddReward(_config.ExplorationBonus);
-                _explorationAccumulator = 0f;
+                var previousCount = _noveltyCellsVisited;
+                _noveltyCellsVisited++;
+                _noveltyReward += GrantContinuous(_config.NoveltyBonus);
+
+                if (_config.ShapingEnabled)
+                {
+                    var potential = _config.ShapingScale *
+                                    (_config.ShapingGamma * _noveltyCellsVisited - previousCount);
+                    _potentialReward += GrantContinuous(potential);
+                }
             }
+
+            if (!command.IsIdle)
+            {
+                _oscillationTimer += dt;
+                var dx = position.x - _previousPosition.x;
+                if (dx != 0f)
+                {
+                    var direction = Mathf.Sign(dx);
+                    if (_lastMoveDirection != 0f && direction != _lastMoveDirection)
+                        _oscillationReversals++;
+                    _lastMoveDirection = direction;
+                }
+
+                if (_oscillationTimer >= _config.OscillationDetectionWindow)
+                {
+                    _oscillationTimer = 0f;
+                    if (_oscillationReversals >= _config.OscillationThreshold)
+                    {
+                        _oscillationEvents++;
+                        _oscillationPenaltyReward += GrantContinuous(_config.OscillationPenalty);
+                    }
+
+                    _oscillationReversals = 0;
+                }
+            }
+
+            _previousPosition = position;
         }
 
-        public void NotifyVictimFound() => AddReward(_config.VictimFoundReward);
+        private void OnEnergyDepleted(DroneEnergyDepletedEvent e)
+        {
+            if (e.DroneId != _droneId)
+                return;
+            _energyEvents++;
+            _energyPenaltyReward += GrantTerminal(_config.EnergyDepletedPenalty);
+        }
 
-        public void NotifyVictimRescued() => AddReward(_config.VictimRescuedReward);
+        private void OnOutOfBounds(DroneOutOfBoundsEvent e)
+        {
+            if (e.DroneId != _droneId)
+                return;
+            _outOfBoundsEvents++;
+            _outOfBoundsPenaltyReward += GrantTerminal(_config.OutOfBoundsPenalty);
+        }
 
-        public void NotifyCollision() => AddReward(_config.CollisionPenalty);
+        private void OnVictimFound(VictimFoundEvent e)
+        {
+            _victimFoundEvents++;
+            _victimFoundReward += GrantTerminal(_config.VictimFoundReward);
+        }
 
-        public void NotifyOutOfBounds() => AddReward(_config.OutOfBoundsPenalty);
+        private void OnVictimRescued(VictimRescuedEvent e)
+        {
+            _victimRescuedEvents++;
+            _victimRescuedReward += GrantTerminal(_config.VictimRescuedReward);
+        }
 
-        public void NotifyEnergyDepleted() => AddReward(_config.EnergyDepletedPenalty);
+        private void OnCollision(CollisionEvent e)
+        {
+            if (e.DroneId != _droneId)
+                return;
+            _collisionEvents++;
+            _collisionPenaltyReward += GrantTerminal(_config.CollisionPenalty);
+        }
 
-        public void NotifySuccess() => AddReward(_config.SuccessBonus);
+        /// <summary>
+        /// Continuous reward path: scaled by RewardScale, then clipped to the
+        /// per-step lower bound before reaching the sink.
+        /// </summary>
+        private float GrantContinuous(float rawReward)
+        {
+            var amount = rawReward * _config.RewardScale;
+            if (amount < _config.MinStepReward)
+                amount = _config.MinStepReward;
 
-        private void AddReward(float amount)
+            _sink.AddReward(amount);
+            EpisodeReward += amount;
+            return amount;
+        }
+
+        /// <summary>
+        /// Terminal reward path: applied verbatim, bypassing scaling and
+        /// per-step clipping.
+        /// </summary>
+        private float GrantTerminal(float amount)
         {
             if (amount == 0f)
-                return;
+                return 0f;
 
-            _agent.AddReward(amount);
+            _sink.AddReward(amount);
             EpisodeReward += amount;
+            return amount;
+        }
+
+        private Vector2Int CellOf(Vector3 position)
+        {
+            var size = _config.NoveltyCellSize > 0f ? _config.NoveltyCellSize : 0.01f;
+            return new Vector2Int(
+                Mathf.FloorToInt(position.x / size),
+                Mathf.FloorToInt(position.z / size));
+        }
+
+        private RewardBreakdown BuildBreakdown()
+        {
+            return new RewardBreakdown(
+                EpisodeReward,
+                _timePenaltyReward,
+                _noveltyReward,
+                _potentialReward,
+                _stuckPenaltyReward,
+                _oscillationPenaltyReward,
+                _collisionPenaltyReward,
+                _energyPenaltyReward,
+                _outOfBoundsPenaltyReward,
+                _victimFoundReward,
+                _victimRescuedReward,
+                _successReward,
+                _noveltyCellsVisited,
+                _stuckEvents,
+                _oscillationEvents,
+                _collisionEvents,
+                _energyEvents,
+                _outOfBoundsEvents,
+                _victimFoundEvents,
+                _victimRescuedEvents,
+                _successEvents);
         }
     }
 }

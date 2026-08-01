@@ -54,6 +54,56 @@ namespace ADRL.Core.Events
         }
     }
 
+    /// <summary>
+    /// Raised by a drone agent whenever its ML-Agents episode ends, so the
+    /// simulation layer can finalize the episode with the real reward data that
+    /// the agent actually accumulated instead of a placeholder value.
+    /// </summary>
+    public readonly struct AgentEpisodeEndedEvent : IEvent
+    {
+        public int DroneId { get; }
+        public float TotalReward { get; }
+        public int StepsCompleted { get; }
+
+        public AgentEpisodeEndedEvent(int droneId, float totalReward, int stepsCompleted)
+        {
+            DroneId = droneId;
+            TotalReward = totalReward;
+            StepsCompleted = stepsCompleted;
+        }
+    }
+
+    /// <summary>
+    /// Raised when a drone's energy is fully depleted, so reward systems can
+    /// respond to the terminal condition event-driven instead of calling the
+    /// evaluator directly. Only the drone with the matching <see cref="DroneId"/>
+    /// should apply the corresponding penalty.
+    /// </summary>
+    public readonly struct DroneEnergyDepletedEvent : IEvent
+    {
+        public int DroneId { get; }
+
+        public DroneEnergyDepletedEvent(int droneId)
+        {
+            DroneId = droneId;
+        }
+    }
+
+    /// <summary>
+    /// Raised when a drone leaves the allowed area, so reward systems can
+    /// respond to the terminal condition event-driven. Only the drone with the
+    /// matching <see cref="DroneId"/> should apply the corresponding penalty.
+    /// </summary>
+    public readonly struct DroneOutOfBoundsEvent : IEvent
+    {
+        public int DroneId { get; }
+
+        public DroneOutOfBoundsEvent(int droneId)
+        {
+            DroneId = droneId;
+        }
+    }
+
     public readonly struct ConfigurationLoadedEvent : IEvent
     {
     }

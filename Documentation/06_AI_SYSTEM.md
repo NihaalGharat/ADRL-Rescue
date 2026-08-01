@@ -96,18 +96,13 @@ The agent receives observations from multiple sources:
 
 | Index | Observation | Range | Description |
 |-------|-------------|-------|-------------|
-| 0-2 | Position | [-50, 50] | Drone world position |
-| 3-5 | Velocity | [-10, 10] | Current velocity |
-| 6-8 | Forward | [-1, 1] | Forward direction vector |
-| 9-11 | Up | [-1, 1] | Up direction vector |
-| 12-24 | Ray Sensors | [0, 10] | 13 ray distances |
-| 25-37 | Ray Hits | [0, 1] | 13 ray hit types |
-| 38 | Thermal | [0, 1] | Thermal sensor strength |
-| 39 | Vision | [0, 1] | Vision sensor detection |
-| 40 | Speed | [0, 10] | Current speed |
-| 41-43 | Target Dir | [-1, 1] | Direction to nearest victim |
+| 0-11 | Ray Proximity | [0, 1] | 12 ray proximity readings |
+| 12-23 | Ray Victim Flag | [0, 1] | 12 ray victim-detection flags |
+| 24-25 | Thermal | [0, 1] | Victim presence + proximity |
+| 26 | Energy | [0, 1] | Normalized battery level |
+| 27 | Health | [0, 1] | Normalized drone health |
 
-**Total: 44 observations**
+**Total: 28 observations** (24 ray + 2 thermal + energy + health)
 
 ---
 
@@ -131,7 +126,7 @@ The agent outputs continuous actions:
 ### Architecture
 
 ```
-Input Layer (44 neurons)
+Input Layer (28 neurons)
     ↓
 Hidden Layer 1 (256 neurons, ReLU)
     ↓

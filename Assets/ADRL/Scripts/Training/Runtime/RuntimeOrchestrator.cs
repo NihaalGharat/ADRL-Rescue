@@ -1,5 +1,7 @@
 namespace ADRL.Training.Runtime
 {
+    using ADRL.AI.Agents;
+    using ADRL.AI.Rewards;
     using ADRL.Core.Bootstrap;
     using ADRL.Core.Events;
     using ADRL.Core.Resources;
@@ -32,6 +34,22 @@ namespace ADRL.Training.Runtime
         public static bool IsActivated => _activated;
 
         public static bool SmokeTestPassed => _smokeTest != null && _smokeTest.Passed;
+
+        /// <summary>
+        /// Exposes the smoke test's current reward breakdown for editor-time
+        /// validation (M5 Task 8). Read-only; never mutates runtime state.
+        /// </summary>
+        public static bool TryGetRewardDiagnostics(out RewardBreakdown breakdown)
+        {
+            if (_smokeTest != null && _smokeTest.HasEvaluator)
+            {
+                breakdown = _smokeTest.CurrentBreakdown;
+                return true;
+            }
+
+            breakdown = default;
+            return false;
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()

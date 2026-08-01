@@ -42,6 +42,10 @@ namespace ADRL.Core.Configuration
         [SerializeField]
         private Vector3 _spawnOffset = new Vector3(0f, 3f, 0f);
 
+        [SerializeField]
+        [Min(0f)]
+        private float _outOfBoundsRadius = 120f;
+
         public float MaxSpeed => _maxSpeed;
         public float Acceleration => _acceleration;
         public float RotationSpeed => _rotationSpeed;
@@ -51,5 +55,6 @@ namespace ADRL.Core.Configuration
         public float EnergyDrainRate => _energyDrainRate;
         public float TakeoffHeight => _takeoffHeight;
         public Vector3 SpawnOffset => _spawnOffset;
+        public float OutOfBoundsRadius => _outOfBoundsRadius;
     }
 }

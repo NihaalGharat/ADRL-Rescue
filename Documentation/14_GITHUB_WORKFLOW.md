@@ -79,7 +79,7 @@ git commit -m "docs: add architecture diagram"
 # Breaking change
 git commit -m "feat(api)!: change observation format
 
-BREAKING CHANGE: observation vector size changed from 32 to 44"
+BREAKING CHANGE: observation vector size changed from 24 to 28"
 ```
 
 ---

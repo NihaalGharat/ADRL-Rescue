@@ -41,7 +41,8 @@ Test individual components in isolation.
 **Examples:**
 | Component | Test | Expected |
 |-----------|------|----------|
-| RewardSystem | CalculateReward with collision | Returns -5.0 |
+| RewardEvaluator | UpdateStep continuous rewards | Scaled, clipped, pushed to sink |
+| RewardEvaluator | Collision event terminal reward | Returns -5.0 |
 | ObservationProcessor | Normalize value in range | Returns [0, 1] |
 | DroneMemory | Record new position | Position added |
 | SensorManager | Initialize sensors | All sensors active |
@@ -50,17 +51,18 @@ Test individual components in isolation.
 
 ```csharp
 [Test]
-public void RewardSystem_VictimFound_ReturnsPositiveReward()
+public void VictimFound_Event_GrantsReward()
 {
     // Arrange
-    var system = new RewardSystem();
-    var state = new DroneState { VictimDetected = true };
+    var eventBus = new EventBus();
+    var sink = new TestRewardSink();
+    var evaluator = new RewardEvaluator(config, sink, eventBus, droneId: 0);
     
     // Act
-    float reward = system.CalculateReward(state);
+    eventBus.Publish(new VictimFoundEvent());
     
     // Assert
-    Assert.AreEqual(10.0f, reward, 0.001f);
+    Assert.AreEqual(10.0f, sink.TotalReward, 0.001f);
 }
 ```
 
@@ -154,11 +156,15 @@ python -m pytest tests/test_reward.py
 | ID | Test Case | Expected Result |
 |----|-----------|-----------------|
 | R01 | Victim found | +10.0 reward |
-| R02 | Victim rescued | +25.0 reward |
+| R02 | Victim rescued | +20.0 reward |
 | R03 | Collision | -5.0 reward |
 | R04 | Out of bounds | -10.0 reward |
-| R05 | New area explored | +0.5 reward |
-| R06 | Time step | -0.01 reward |
+| R05 | New cell explored | +0.05 reward |
+| R06 | Time penalty | -0.01/s reward |
+| R07 | Energy depleted | -15.0 reward |
+| R08 | Mission success | +50.0 reward |
+| R09 | Stuck detection | -0.5 reward |
+| R10 | Oscillation detection | -0.5 reward |
 
 ### Environment System
 

@@ -91,7 +91,7 @@ Processed Observations
 ├── Normalize all values to [-1, 1] or [0, 1]
 ├── Combine into single vector
 ├── Handle missing data
-└── Output: float[44] observation vector
+└── Output: float[28] observation vector
 ```
 
 ### Step 4: Memory Update
@@ -109,7 +109,7 @@ Memory Update
 
 ```
 Neural Network
-├── Input: float[44] observations
+├── Input: float[28] observations
 ├── Hidden Layer 1: 256 neurons (ReLU)
 ├── Hidden Layer 2: 256 neurons (ReLU)
 ├── Output: float[4] actions
@@ -144,37 +144,22 @@ Reward Signal
 ### Observation Vector
 
 ```csharp
-float[] observations = new float[44]
+float[] observations = new float[28]
 {
-    // Position (3)
-    position.x, position.y, position.z,
-    
-    // Velocity (3)
-    velocity.x, velocity.y, velocity.z,
-    
-    // Forward Direction (3)
-    transform.forward.x, transform.forward.y, transform.forward.z,
-    
-    // Up Direction (3)
-    transform.up.x, transform.up.y, transform.up.z,
-    
-    // Ray Sensors - Distances (13)
-    ray0Dist, ray1Dist, ray2Dist, ... ray12Dist,
-    
-    // Ray Sensors - Hits (13)
-    ray0Hit, ray1Hit, ray2Hit, ... ray12Hit,
-    
-    // Thermal (1)
-    thermalStrength,
-    
-    // Vision (1)
-    visionDetection,
-    
-    // Speed (1)
-    currentSpeed,
-    
-    // Target Direction (3)
-    targetDir.x, targetDir.y, targetDir.z
+    // Ray Sensors - Proximity (12)
+    ray0Prox, ray1Prox, ray2Prox, ... ray11Prox,
+
+    // Ray Sensors - Victim Flag (12)
+    ray0Victim, ray1Victim, ray2Victim, ... ray11Victim,
+
+    // Thermal (2)
+    thermalPresence, thermalProximity,
+
+    // Energy (1)
+    currentEnergy,
+
+    // Health (1)
+    currentHealth
 };
 ```
 
@@ -192,22 +177,31 @@ float[] actions = new float[4]
 
 ### Reward Signal
 
+Continuous rewards are accumulated per step in `RewardEvaluator.UpdateStep`, then
+scaled and clipped before reaching the `IRewardSink`. Terminal rewards arrive via
+`EventBus` subscriptions (filtered by drone id) and are granted verbatim.
+
 ```csharp
+// Continuous path — per step (RewardEvaluator.UpdateStep)
 float reward = 0.0f;
 
-// Task rewards
-if (victimDetected) reward += 10.0f;
-if (victimRescued) reward += 25.0f;
+reward += _config.TimePenalty * dt;              // -0.01/s time cost
 
-// Exploration rewards
-if (newArea) reward += 0.5f;
+if (visitedCells.Add(CellOf(position)))          // novelty per new cell (2 m)
+    reward += _config.NoveltyBonus;              // +0.05 per cell
 
-// Safety penalties
-if (collision) reward -= 5.0f;
-if (outOfBounds) reward -= 10.0f;
+if (shapingEnabled)                              // potential shaping
+    reward += _config.ShapingScale * (_config.ShapingGamma * newCount - oldCount);
 
-// Efficiency penalties
-reward -= 0.01f; // Time penalty
+if (stuck) reward += _config.StuckPenalty;       // -0.5 over 2 s window
+if (oscillating) reward += _config.OscillationPenalty; // -0.5 over 2 s window
+
+reward = reward * _config.RewardScale;           // scale
+if (reward < _config.MinStepReward) reward = _config.MinStepReward; // clip
+
+// Terminal path — EventBus events (verbatim)
+// VictimFound +10.0 | VictimRescued +20.0 | Collision -5.0
+// OutOfBounds -10.0 | EnergyDepleted -15.0 | Success +50.0
 ```
 
 ---

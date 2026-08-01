@@ -66,8 +66,8 @@
 | **Tagline** | *The drone does not follow paths. It learns to find them.* |
 | **Repository** | [github.com/NihaalGharat/ADRL-Rescue](https://github.com/NihaalGharat/ADRL-Rescue) |
 | **Author** | Nihaal Gharat (Project Founder), Bhavya Damani (Co-Developer) |
-| **Current Version** | `0.2.0` |
-| **Project Status** | 🟡 Unity Foundation (v0.2.0) |
+| **Current Version** | `0.8.1` |
+| **Project Status** | 🟢 RL Foundation Complete — Reward System In Progress (Phase 7.3) |
 | **License** | MIT License |
 | **Intended Audience** | AI researchers, robotics students, Unity developers, RL practitioners |
 
@@ -398,7 +398,7 @@ For the complete environment architecture, disaster types, and generation rules,
 
 > **Core Rule:** The drone only knows what its sensors detect. It never has access to ground truth.
 
-The sensor system provides the drone with environmental perception through ray, thermal, vision, and collision sensors. Sensor data is fused into an observation vector for the AI system. Sensors are not yet implemented (pending v0.4.0).
+The sensor system provides the drone with environmental perception through ray, thermal, and collision sensors. Sensor data is fused into an observation vector for the AI system. Ray and thermal sensors plus sensor fusion are implemented (v0.8.0); vision/collision sensor classes are future work.
 
 For the complete sensor specifications, observation vector layout, and implementation details, see [09_SENSOR_SYSTEM.md](09_SENSOR_SYSTEM.md).
 
@@ -726,7 +726,7 @@ A feature is considered **done** when:
 
 # 26. Versioning Strategy
 
-**Current Version:** v0.2.0 (Unity Foundation)
+**Current Version:** v0.8.1 (RL Foundation Complete — Reward System In Progress)
 
 For the full version history, completed releases, and planned milestones, see [CHANGELOG.md](../CHANGELOG.md). CHANGELOG is the single source of truth for all releases.
 

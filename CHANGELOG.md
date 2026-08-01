@@ -122,6 +122,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 7.3 — Reward System (2026-08-02)
+
+#### Reward Evaluator (ADRL.AI.Rewards)
+
+- **RewardEvaluator** — Event-driven reward computation, one instance per drone, decoupled from ML-Agents through `IRewardSink`:
+  - Continuous path in `UpdateStep(float deltaTime, Vector3 position, DroneCommand command)`: per-second time penalty (`TimePenalty × dt`), novelty bonus per newly visited cell, potential-based shaping `F = ShapingScale × (ShapingGamma × Φ(s′) − Φ(s))`, stuck detection (2 s window, < 0.1 m displacement), and oscillation detection (2 s window, ≥ 3 reversals)
+  - Terminal path via `EventBus` subscriptions filtered by drone id: `DroneEnergyDepletedEvent` (−15), `DroneOutOfBoundsEvent` (−10), `VictimFoundEvent` (+10), `VictimRescuedEvent` (+20), `CollisionEvent` (−5)
+  - Continuous rewards scaled by `RewardScale` and floored at `MinStepReward`; terminal rewards applied verbatim via `GrantTerminal`
+  - Public API: `Reset(Vector3)`, `UpdateStep(...)`, `Dispose()`, `EpisodeReward`/`CumulativeReward`, `CurrentBreakdown`/`LastEpisodeBreakdown`; `Dispose()` detaches all subscriptions
+- **RewardBreakdown** — New `readonly struct` with per-category reward totals and event counters (TimePenalty, Novelty, Potential, Stuck, Oscillation, Collision, Energy, OutOfBounds, VictimFound, VictimRescued, Success); invariant `TotalReward` = sum of all categories
+- **IRewardSink** / **AgentRewardSink** — Reward delivery abstraction; `AgentRewardSink` forwards increments to an ML-Agents `Agent`
+
+#### Reward Configuration (ADRL.Core.Configuration)
+
+- **RewardConfig** defaults verified and documented: VictimFound +10, VictimRescued +20, Collision −5, Time −0.01/s, Success +50, OutOfBounds −10, EnergyDepleted −15, Novelty +0.05/cell (cell size 2 m), ShapingEnabled (γ 0.99, scale 0.1), RewardScale 1, MinStepReward −0.1, Stuck −0.5 (2 s window, 0.1 m), Oscillation −0.5 (2 s window, 3 reversals); `OnValidate` clamping for all penalties/bonuses/windows/thresholds
+
+#### Validation
+
+- 8 EditMode test fixtures restructured: RewardEvaluatorTests (14), EventRewardPipelineTests (7), RewardDiagnosticsTests (6), RewardConfigConsistencyTests (4), EpisodeLifecycleTests (5), PerformanceValidationTests (3), DeterminismTests (2) — **41/41 passing**
+- Smoke test extended to assert `RewardBreakdown` sum invariant; batch run PASSED (moved 1.20 m, cumulative reward 0.148, evaluator active, sum invariant true)
+
+#### Documentation
+
+- Synchronized reward documentation with the verified implementation: `10_REWARD_SYSTEM.md` rewritten to event-driven values; stale reward values removed from `03_SYSTEM_DESIGN.md`, `12_DATA_FLOW.md`, `15_TESTING_GUIDE.md`, `17_SOFTWARE_DESIGN_SPECIFICATION.md`; `18_DEVELOPER_HANDBOOK.md` §8.4 updated to `RewardEvaluator`/`IRewardSink`/`EventBus` pattern; roadmap/CHANGELOG/release tables updated
+
 ### Phase 7.2 — RL Foundation: Sensors, AI Agent & Runtime Activation (2026-08-01)
 
 #### ML-Agents Integration
@@ -628,11 +653,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 |---------|-------|-------------|
 | v0.1.0 | Foundation | Repository architecture and documentation |
 | v0.2.0 | Unity Foundation | Core framework, resource management, drone framework |
-| v0.3.0 | Environment | Environment framework, disaster types |
-| v0.4.0 | Sensors & AI | Sensor implementations, ML-Agents integration |
-| v0.5.0 | Training | Reward system, PPO training pipeline |
-| v0.6.0 | Polish | UI, performance, final documentation |
-| v0.7.0 | Runtime Framework | Object Pooling, Spawn Pipeline, Diagnostics, Runtime Integration |
+| v0.3.0 | Environment | Environment framework, terrain generation, disaster types |
+| v0.4.0 | Drone Runtime | Drone framework, runtime lifecycle, fleet management |
+| v0.5.0 | Runtime Infrastructure | Subsystem wiring, persistence, recovery, validation |
+| v0.6.0 | Runtime Completion | Diagnostics, spawn pipeline, object pooling |
+| v0.7.0 | Infrastructure & Environment | Drone entity foundation, spawn pipeline, runtime integration |
+| v0.8.0 | RL Foundation | Sensors, AI agent, runtime activation (Phases 7.1/7.2) |
+| v0.8.1 | Reward System | Reward evaluator, reward breakdown, reward config (Phase 7.3) |
 | v1.0.0 | Release | Full stable release |
 
 ---
