@@ -195,4 +195,21 @@ namespace ADRL.Core.Events
             ImpactForce = impactForce;
         }
     }
+
+    /// <summary>
+    /// Raised once when every registered victim has been rescued. Published by the
+    /// environment's mission tracker; the simulation manager is the only owner of
+    /// the episode lifecycle that reacts to it.
+    /// </summary>
+    public readonly struct MissionCompletedEvent : IEvent
+    {
+        public int RescuedCount { get; }
+        public int TotalVictimCount { get; }
+
+        public MissionCompletedEvent(int rescuedCount, int totalVictimCount)
+        {
+            RescuedCount = rescuedCount;
+            TotalVictimCount = totalVictimCount;
+        }
+    }
 }

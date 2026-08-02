@@ -1,5 +1,6 @@
 namespace ADRL.Environment.Victims
 {
+    using ADRL.Core.Events;
     using ADRL.Environment.Interfaces;
     using ADRL.Sensors.Interfaces;
     using UnityEngine;
@@ -11,6 +12,8 @@ namespace ADRL.Environment.Victims
 
         [SerializeField]
         private VictimState _state = VictimState.Waiting;
+
+        private EventBus _eventBus;
 
         public int Id => _victimId;
 
@@ -25,14 +28,32 @@ namespace ADRL.Environment.Victims
             _victimId = victimId;
         }
 
+        /// <summary>
+        /// Binds the event bus used to publish lifecycle events. Registration
+        /// happens before any drone can interact with the victim.
+        /// </summary>
+        public void Initialize(EventBus eventBus)
+        {
+            _eventBus = eventBus;
+            Initialize();
+        }
+
         public void MarkDetected()
         {
+            if (_state != VictimState.Waiting)
+                return;
+
             _state = VictimState.Detected;
+            _eventBus?.Publish(new VictimFoundEvent(_victimId));
         }
 
         public void MarkRescued()
         {
+            if (_state != VictimState.Detected)
+                return;
+
             _state = VictimState.Rescued;
+            _eventBus?.Publish(new VictimRescuedEvent(_victimId));
         }
 
         public void MarkLost()

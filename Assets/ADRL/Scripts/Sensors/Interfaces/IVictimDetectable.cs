@@ -15,5 +15,19 @@ namespace ADRL.Sensors.Interfaces
 
         /// <summary>World-space position used to compute proximity readings.</summary>
         Vector3 VictimPosition { get; }
+
+        /// <summary>
+        /// Advances the victim to the detected state. The implementer is the single
+        /// owner of its lifecycle and publishes the corresponding discovery event
+        /// exactly once per transition.
+        /// </summary>
+        void MarkDetected();
+
+        /// <summary>
+        /// Advances the victim to the rescued state. The implementer is the single
+        /// owner of its lifecycle and publishes the corresponding rescue event
+        /// exactly once per transition.
+        /// </summary>
+        void MarkRescued();
     }
 }

@@ -59,6 +59,7 @@ namespace ADRL.AI.Agents
         private EventBus _eventBus;
         private Vector3 _scriptedHeuristic;
         private bool _useScriptedHeuristic;
+        private bool _episodeTerminating;
 
         public SensorFusionProvider Fusion => _fusion;
         public RewardEvaluator Evaluator => _evaluator;
@@ -92,6 +93,7 @@ namespace ADRL.AI.Agents
             _controller = GetComponent<DroneController>();
             _behaviorParameters = GetComponent<BehaviorParameters>();
             _eventBus = GameBootstrap.EventBus;
+            _eventBus?.Subscribe<EpisodeCompletedEvent>(OnEpisodeCompleted);
             ConfigureBrain();
 
             var requester = GetComponent<DecisionRequester>();
@@ -163,12 +165,30 @@ namespace ADRL.AI.Agents
         /// </summary>
         private void OnDestroy()
         {
+            _eventBus?.Unsubscribe<EpisodeCompletedEvent>(OnEpisodeCompleted);
             _evaluator?.Dispose();
+        }
+
+        /// <summary>
+        /// Ends the ML-Agents episode when the simulation manager finalizes it for
+        /// a mission-completed episode. The agent's own terminal paths
+        /// (energy, out-of-bounds, step budget) already mark <see cref="_episodeTerminating"/>
+        /// before reporting, so the EpisodeCompletedEvent published in response to
+        /// those reports never triggers a second end.
+        /// </summary>
+        private void OnEpisodeCompleted(EpisodeCompletedEvent evt)
+        {
+            if (_episodeTerminating)
+                return;
+
+            _episodeTerminating = true;
+            EndEpisode();
         }
 
         public override void OnEpisodeBegin()
         {
             _useScriptedHeuristic = false;
+            _episodeTerminating = false;
 
             _fusion?.Reset();
 
@@ -231,6 +251,7 @@ namespace ADRL.AI.Agents
             if (_controller.Energy != null && _controller.Energy.IsDepleted)
             {
                 _eventBus?.Publish(new DroneEnergyDepletedEvent(_controller.DroneId));
+                _episodeTerminating = true;
                 ReportEpisodeEnded();
                 EndEpisode();
                 return;
@@ -239,6 +260,7 @@ namespace ADRL.AI.Agents
             if (IsOutOfBounds(_controller.transform.position))
             {
                 _eventBus?.Publish(new DroneOutOfBoundsEvent(_controller.DroneId));
+                _episodeTerminating = true;
                 ReportEpisodeEnded();
                 EndEpisode();
                 return;
@@ -249,6 +271,7 @@ namespace ADRL.AI.Agents
             // layer can finalize the episode.
             if (MaxStep > 0 && StepCount >= MaxStep)
             {
+                _episodeTerminating = true;
                 ReportEpisodeEnded();
             }
         }

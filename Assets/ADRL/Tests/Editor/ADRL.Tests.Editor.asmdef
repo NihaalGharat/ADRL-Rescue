@@ -4,6 +4,9 @@
   "references": [
     "ADRL.AI",
     "ADRL.Core",
+    "ADRL.Drone",
+    "ADRL.Environment",
+    "ADRL.Sensors",
     "Unity.TestFramework"
   ],
   "includePlatforms": [

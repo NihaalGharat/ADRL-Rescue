@@ -122,6 +122,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 8.1.1 — Runtime Event Integration: Collision & Victim Pipeline Foundation (2026-08-02)
+
+#### Collision Pipeline (ADRL.Drone)
+
+- **DroneCollisionDetector** — New `MonoBehaviour` (`ADRL.Drone.Components`, `[RequireComponent(DroneController)]`) on the drone prefab: kinematic Rigidbody + trigger CapsuleCollider surface; `OnTriggerEnter` publishes `CollisionEvent(droneId, tag-or-name, clamped impact)` on the `EventBus` and applies `DroneConfig.CollisionDamage` via `DroneHealth.TakeDamage`; self-child colliders ignored; destroyed-health guarded
+- **Drone prefab wiring** — One-time `DronePrefabWiring.Run` (`ADRL.Editor.Validation`) makes the existing capsule a trigger, adds the kinematic rigidbody, and attaches `DroneCollisionDetector` + `DroneVictimInteraction` (exit 0 verified, component GUIDs confirmed in prefab)
+- **DroneController** — Exposed public `EventBus` and `Config` accessors for prefab wiring (no behavioural change)
+
+#### Victim Pipeline (ADRL.Sensors / ADRL.Environment)
+
+- **IVictimDetectable** — Extended with `MarkDetected()` / `MarkRescued()` so the drone can signal detection/rescue without owning victim state
+- **Victim** — Single lifecycle owner: `Initialize(EventBus)` injection; guarded transitions publish `VictimFoundEvent` (`Waiting→Detected`) and `VictimRescuedEvent` (`Detected→Rescued`), each exactly once
+- **MissionProgressTracker** — New `MonoBehaviour` (`ADRL.Environment.Core`): counts `VictimRegisteredEvent` / `VictimRescuedEvent`, publishes `MissionCompletedEvent` exactly once when all registered victims are rescued; no episode/reward/simulation control; `EnvironmentResetEvent` keeps the registered total and resets progress
+- **EnvironmentManager** — Creates/initializes the tracker under `[MissionProgressTracker]`, injects the bus via `victim.Initialize(_eventBus)` in `RegisterVictim`
+
+#### Mission → Episode Finalization (ADRL.Core)
+
+- **MissionCompletedEvent(RescuedCount, TotalVictimCount)** — New `IEvent` in `GameEvent.cs`
+- **SimulationManager** — Sole episode owner: subscribes `MissionCompletedEvent`, finalizes a running unfinalized episode (`EpisodeCompletedEvent` + `Completed` + `SimulationStoppedEvent`), ignores events outside `Running`, unsubscribes in `OnDestroy`
+- **DroneAgent** — Subscribes `EpisodeCompletedEvent` → `EndEpisode()`; `_episodeTerminating` guard prevents double ends from energy/out-of-bounds/max-step paths (reset in `OnEpisodeBegin`)
+- **RewardEvaluator** — Unchanged; reacts to the existing terminal events. Mission-episode reward is 0 (success-bonus wiring is out of scope and logged as remaining Phase 8.1 work)
+
+#### Drone–Victim Interaction (ADRL.AI)
+
+- **DroneVictimInteraction** — New `MonoBehaviour` (`ADRL.AI.Interaction`): `Initialize(detectionRange, rescueRange)` with defaults from `SensorConfig.ThermalSensorRange` (30) × 0.25 rescue ratio; `FixedUpdate` scan uses `OverlapSphereNonAlloc` + `GetComponentInParent<IVictimDetectable>`; calls `MarkDetected`, then `MarkRescued` within rescue range; lives in `ADRL.AI` so `ADRL.Drone → Core` stays the only documented contract (no asmdef changes, no cycle)
+
+#### Validation
+
+- 5 new EditMode fixtures: CollisionPipelineTests (5), VictimInteractionTests (7), MissionProgressTrackerTests (5), SimulationMissionCompletedTests (3), plus `DroneTestHarness` — **62/62 passing** (42 prior + 20 new), exit 0
+- Batch `DronePrefabWiring.Run` exit 0; prefab YAML verified (kinematic Rigidbody, trigger capsule, `DroneCollisionDetector`/`DroneVictimInteraction`/`DroneController` script GUIDs present)
+- Runtime smoke test PASSED (moved 1.20 m, cumulative reward 0.148, sum invariant true), exit 0 — no regression from the collider-to-trigger change
+
 ### Phase 7.3 — Reward System (2026-08-02)
 
 #### Reward Evaluator (ADRL.AI.Rewards)

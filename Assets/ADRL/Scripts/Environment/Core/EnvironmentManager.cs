@@ -30,6 +30,7 @@ namespace ADRL.Environment.Core
         private EnvironmentConfig _config;
         private EnvironmentState _state = EnvironmentState.Uninitialized;
         private readonly List<Victim> _victims = new();
+        private MissionProgressTracker _missionTracker;
         private int _nextVictimId = 1;
         private int _nextHazardId = 1;
         private int _nextObstacleId = 1;
@@ -55,6 +56,14 @@ namespace ADRL.Environment.Core
             _eventBus = eventBus;
             _config = ResourceLocator.Configs.Get<EnvironmentConfig>();
             _state = EnvironmentState.Initializing;
+
+            if (_missionTracker == null)
+            {
+                var trackerObject = new GameObject("[MissionProgressTracker]");
+                trackerObject.transform.SetParent(transform, false);
+                _missionTracker = trackerObject.AddComponent<MissionProgressTracker>();
+                _missionTracker.Initialize(_eventBus);
+            }
 
             if (_spawnManager == null)
                 _spawnManager = FindAnyObjectByType<SpawnManager>();
@@ -83,7 +92,7 @@ namespace ADRL.Environment.Core
 
             var victimId = _nextVictimId++;
             victim.SetId(victimId);
-            victim.Initialize();
+            victim.Initialize(_eventBus);
             _victims.Add(victim);
             _eventBus.Publish(new VictimRegisteredEvent(victimId));
             return victimId;
@@ -234,6 +243,10 @@ namespace ADRL.Environment.Core
 
         private void OnDestroy()
         {
+            if (_missionTracker != null)
+                Destroy(_missionTracker.gameObject);
+            _missionTracker = null;
+
             CleanupTerrainGenerator();
             CleanupProceduralGenerator();
             CleanupObstacleManager();

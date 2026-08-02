@@ -47,6 +47,7 @@ namespace ADRL.Core.Simulation
         {
             _eventBus = eventBus;
             _eventBus?.Subscribe<AgentEpisodeEndedEvent>(OnAgentEpisodeEnded);
+            _eventBus?.Subscribe<MissionCompletedEvent>(OnMissionCompleted);
             SetState(SimulationState.Initializing);
             SetState(SimulationState.Ready);
 
@@ -134,9 +135,28 @@ namespace ADRL.Core.Simulation
             _eventBus?.Publish(new SimulationStoppedEvent());
         }
 
+        /// <summary>
+        /// Finalizes the current episode when the mission is completed. The
+        /// simulation manager remains the sole owner of the episode lifecycle; the
+        /// mission tracker only reports the completion. Reward accounting for a
+        /// mission-completed episode is deferred to a later phase, so the completed
+        /// event carries no reward totals yet.
+        /// </summary>
+        private void OnMissionCompleted(MissionCompletedEvent evt)
+        {
+            if (_currentState != SimulationState.Running || _episodeFinalized)
+                return;
+
+            _episodeFinalized = true;
+            _eventBus?.Publish(new EpisodeCompletedEvent(_currentEpisode, 0f, 0));
+            SetState(SimulationState.Completed);
+            _eventBus?.Publish(new SimulationStoppedEvent());
+        }
+
         private void OnDestroy()
         {
             _eventBus?.Unsubscribe<AgentEpisodeEndedEvent>(OnAgentEpisodeEnded);
+            _eventBus?.Unsubscribe<MissionCompletedEvent>(OnMissionCompleted);
         }
 
         private void SetState(SimulationState newState)

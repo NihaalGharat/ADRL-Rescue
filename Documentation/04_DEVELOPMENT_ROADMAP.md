@@ -228,7 +228,7 @@ gantt
 
 ---
 
-## Phase 7.3: Reward System (In Progress)
+## Phase 7.3: Reward System (Complete)
 
 **Goal:** Replace the placeholder reward design with a verified, event-driven reward evaluator.
 
@@ -240,12 +240,31 @@ gantt
 | 7.3.2 | `RewardBreakdown` — per-category diagnostics and event counters | ✅ Complete |
 | 7.3.3 | `IRewardSink` decoupling from ML-Agents | ✅ Complete |
 | 7.3.4 | Reward evaluation tests (42/42 passing) | ✅ Complete |
-| 7.3.5 | Documentation synchronization | ⏳ In Progress |
+| 7.3.5 | Documentation synchronization | ✅ Complete |
 
 ### Milestone
 - Reward mathematics verified against implementation (time, novelty, shaping, stuck/oscillation, terminal events)
 - Sum invariant validated by smoke test
 - Documentation aligned with implementation as single source of truth
+
+---
+
+## Phase 8.1: Runtime Event Integration — Mission & Interaction Pipeline (In Progress)
+
+**Goal:** Complete the runtime event wiring so victim discovery/rescue and collisions flow through the `EventBus` to mission completion and episode termination.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 8.1.1 | Collision & victim pipeline foundation — `DroneCollisionDetector`, `Victim` exactly-once events, `MissionProgressTracker`, `SimulationManager` mission-completion finalization, `DroneVictimInteraction` | ✅ Complete |
+| 8.1.2 | Mission-episode success reward wiring (`Success +50` on `MissionCompletedEvent`) and rescue/detection reward attribution | ⏳ Remaining |
+| 8.1.3 | Victim prefab integration and scene wiring of registered victims into `EnvironmentManager` | ⏳ Remaining |
+
+### Milestone
+- Collision, victim-found, victim-rescued, and mission-completed events verified on the `EventBus` (62/62 EditMode tests)
+- Drone prefab wired (kinematic rigidbody, trigger capsule, detector, interaction) with zero physics-response drift
+- Batch smoke test unaffected by the trigger-collider change (PASSED, reward 0.148)
 
 ---
 
@@ -261,6 +280,8 @@ gantt
 | v0.6.0 | Runtime Completion | Diagnostics, spawn pipeline, object pooling |
 | v0.7.0 | Infrastructure & Environment | Drone entity foundation, spawn pipeline, runtime integration |
 | v0.8.0 | RL Foundation | Sensors, AI agent, runtime activation (Phases 7.1/7.2) |
+| v0.8.1 | Reward System | Event-driven reward evaluator, reward diagnostics (Phase 7.3) |
+| v0.8.2 | Runtime Event Integration | Collision & victim pipeline, mission-completed episode finalization (Phase 8.1) |
 | v1.0.0 | Release | Full stable release |
 
 ---

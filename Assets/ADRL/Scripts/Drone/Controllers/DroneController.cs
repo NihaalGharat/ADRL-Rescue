@@ -26,6 +26,8 @@ namespace ADRL.Drone.Controllers
         public DroneEnergy Energy => _energy;
         public IMotor Motor => _motor;
         public DroneStateMachine StateMachine => _stateMachine;
+        public EventBus EventBus => _eventBus;
+        public DroneConfig Config => _config;
 
         public void Initialize(EventBus eventBus, DroneConfig config, IMotor motor, DroneManager droneManager)
         {
