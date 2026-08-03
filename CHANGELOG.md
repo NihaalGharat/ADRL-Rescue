@@ -122,6 +122,160 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 9.0 — Autonomous World Knowledge Framework (2026-08-04)
+
+#### Persistent Knowledge Layer (ADRL.AI.Decision.Knowledge)
+
+- **`KnowledgeType`** (new) — immutable knowledge classification: `Unknown`, `Victim`, `Obstacle`, `Hazard`, `ExploredRegion`, `SafeRegion`
+- **`WorldKnowledgeRecord`** (new) — immutable snapshot of one piece of world knowledge: `Type`, `Position`, `Confidence`, `Timestamp`, `Age`, `Source`, `IsValid`; no mutable state, never reclassified in place
+- **`KnowledgePolicy`** (new) — single configuration owner: `MaximumRecords`, per-type lifetimes, `MergeDistance`, `MinimumConfidence`, `ConfidenceDecay`, projection geometry (`DetectionDistance`, `SweepSpread`), `HazardProximityThreshold` (aligned with the mission's hazard threshold), memory `CorroborationWindow`/`CorroborationBoost`; configuration only, no logic
+- **`WorldKnowledgeStore`** (new) — single owner of persistent knowledge storage: fixed-capacity array, `Store`/`Update`/`Remove`/`Expire`/`Clear`/`QueryNearest`/`QueryAll`/`Contains`/`Count`/`CountOf`; never scores, selects or decides; deterministic tie-break and oldest-timestamp eviction; owned query copies
+- **`IKnowledgeQuery`** + **`KnowledgeQuery`** (new) — pure, stateless retrieval facade: `NearestVictim`, `NearestHazard`, `NearestObstacle`, `KnownVictims`, `KnownHazards`, `KnownObstacles`, `KnownRegions`; never writes to the store
+- **`KnowledgeUpdater`** (new) — single owner of all knowledge writes: inserts new observations, refreshes/merges re-observations within the merge distance, corroborates records through a fresh short-term memory when the current assessment is occluded, decays confidence and expires stale records; never performs decisions, scoring or selection
+- **`DecisionEngine`** — after assessment, runs `KnowledgeUpdater.Update(assessment, memory, stepClock)` before memory/mission; embeds the store into the built snapshot via `WithKnowledge`; exposes `KnowledgeStore`; ctor gains an optional `KnowledgePolicy` parameter; `Reset()` clears knowledge; fully backward compatible
+- **`DecisionContextSnapshot`** — new readonly `Knowledge` store field; `WithKnowledge` composes it without mutating the original; 9- and 10-argument constructors preserved (delegate with the empty store); builder unchanged
+- **`DecisionRuntimeState`** — diagnostic extension exposing `KnowledgeRecordCount`, `KnownVictims`, `KnownHazards`, `KnownObstacles`, `KnowledgeTimestamp`; 8- and 12-argument constructors preserved; `WithKnowledge` composes a fresh payload
+- **`DecisionDiagnostics`** — new `KnowledgeRecordCount`, `NearestVictimDistance`, `NearestHazardDistance`, `KnowledgeTimestamp`; `From` gains a knowledge-store overload; legacy 3-argument `From` preserved (delegates with the empty store); constructor extended with optional parameters
+- `DroneSmokeTest` observes the world-knowledge store and logs `knowledgeObserved`, `knowledgeRecords`, `knownVictims`, `knownHazards`, `knownObstacles`, `nearestVictimDistance`, `nearestHazardDistance`, `knowledgeTimestamp`; knowledge observation gated into the smoke PASS criteria
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `WorldKnowledgeTests` (20): store victim; store obstacle; store hazard; merge duplicate within distance; expire stale records; remove stale record; capacity enforcement; nearest-victim query; nearest-hazard query; empty query; confidence update on refresh; confidence decay removes low confidence; deterministic ordering; snapshot integration; diagnostics synchronization; knowledge updater stores from assessment; knowledge query known lists; engine integration; reset clears knowledge; store invariants (validator)
+
+#### Validation
+
+- EditMode suite: **201/201 passing** (181 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, decision/context/optimization observed, **world knowledge observed**
+- Mission decisions, behaviour selection, prioritization, optimization, execution and determinism unchanged; knowledge is recorded and queried only, never used to alter decisions (read-only for consumers)
+
+### Phase 8.9 — Autonomous Behaviour Optimization Framework (2026-08-03)
+
+#### Deterministic Execution Optimization
+
+- **`BehaviourExecutionProfile`** (new, `ADRL.AI.Decision.Optimization`) — immutable execution profile: `SpeedMultiplier`, `TurnRateMultiplier`, `CautionLevel`, `PreferredDistance`, `Smoothness`, `ExecutionConfidence`; readonly, `Empty` = neutral no-op (multipliers 1), never mutated
+- **`OptimizationPolicy`** (new) — single configuration owner of execution optimization: per-behaviour speed targets (multipliers over the executor base), turn-rate bounds, obstacle caution, victim approach distance, confidence scaling, smoothing factor; configuration only, no logic
+- **`IBehaviourOptimizer`** + **`BehaviourOptimizer`** (new) — single owner of execution optimization; reads the current `DecisionContextSnapshot` (mission objective, winning priority score/confidence, memory confidence, obstacle proximity) and produces a deterministic profile that adjusts speed, turn rate, caution, smoothing and execution confidence; never changes the mission, the priority, the behaviour or the command
+- **`OptimizationValidator`** (new) — pure validation: profile valid, confidence/speed/turn/caution in range, deterministic outputs; multiplier bounds are the single source of truth the optimizer clamps to
+- **`DecisionEngine`** — after behaviour selection, builds the current context, runs the optimizer, then hands the profile to the executor; the built snapshot carries `ExecutionProfile`; ctor, `Decide`, `Reset`, `GetDiagnostics`, `LastSnapshot` remain backward compatible (new optional `optimizationPolicy` ctor parameter)
+- **`DecisionContextSnapshot`** — new readonly `ExecutionProfile` field; snapshot becomes the complete per-step context; `WithExecutionProfile` composes it without mutating the original; 9-argument constructor preserved (delegates with the empty profile), builder unchanged
+- **`DecisionRuntimeState`** — diagnostic extension exposing `ExecutionSpeedMultiplier`, `ExecutionTurnRate`, `ExecutionConfidence`, `OptimizationTimestamp`; 8-argument constructor preserved
+- **Executors** — `IBehaviourExecutor.Resolve(assessment, profile)` added; each executor scales its base movement constants by the profile (search: forward × speed, yaw × turn; approach: steering/yaw × turn and caution; avoid: backoff × speed, evasion × turn and caution; idle: profile ignored); the legacy `Resolve(assessment)` overload delegates with the empty profile, so the Phase 8.7 path is byte-identical
+- `DroneSmokeTest` observes the optimized execution profile and logs `optimizationObserved`, `execConfidence`, `speedMult`, `turnRateMult`, `optimizationTimestamp`; profile observation gated into the smoke PASS criteria
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `BehaviourOptimizerTests` (15): deterministic identical inputs; search speed optimization; approach turn-rate optimization; avoid caution; rescue speed + preferred distance; idle returns empty profile; confidence scaling; smoothing from policy; speed clamping; turn-rate clamping; profile validity; validator rejects out-of-range profiles; validator confirms determinism; executor legacy path matches empty profile; engine integration (profile applied end-to-end, snapshot + diagnostics synchronized, determinism)
+
+#### Validation
+
+- EditMode suite: **181/181 passing** (166 prior + 15 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, decision/mission/winning-task/behaviour/command observed, context snapshot observed, **optimized execution profile observed**
+- Mission decisions, behaviour selection, prioritization and determinism unchanged; only execution parameters (speed/turn/caution) are scaled; movement remains deterministic
+
+### Phase 8.8 — Autonomous Decision Context Framework (2026-08-03)
+
+#### Unified Immutable Runtime Context
+
+- **`DecisionContextSnapshot`** (new, `ADRL.AI.Decision.Context`) — immutable runtime snapshot unifying every subsystem output of one decision step into a single consistent context: `Assessment`, `Memory`, `Mission`, `Candidates`, `Winning`, `Behaviour`, `Command`, synchronized `Diagnostics` and `RuntimeState`; all fields readonly, never mutated in place, `Empty` canonical pre-step snapshot
+- **`DecisionRuntimeState`** (new) — pure runtime metadata: `DecisionStep`, `EpisodeStep`, `DecisionTimestamp`, `CurrentBehaviour`, `CurrentMission`, `LastCommand`, `CurrentExecutor`, `CurrentWinner`; the two step clocks advance together in the current single-decision-per-step runtime
+- **`IDecisionContextBuilder`** (new) + **`DecisionContextBuilder`** (new) — the single owner of context composition: pure, stateless, deterministic, null-safe, defensively copies the candidate array so a built snapshot never aliases the engine's working buffer; no decision logic, no scoring, no transitions
+- **`DecisionContextValidator`** (new) — pure validation utilities confirming a snapshot is complete, holds no null references, the behaviour agrees with the winning objective, the mission objective is present, the embedded diagnostics agree field-for-field (so the step can be replayed), the candidate count is consistent, and the command agrees with the diagnostics
+- **`DecisionEngine`** — after each step captures the whole decision chain as a `DecisionContextSnapshot` through the builder, exposes it as `LastSnapshot`, and derives `GetDiagnostics()` from the built snapshot (single source of truth); the redundant per-step `_last*` bookkeeping was removed
+- **`DecisionDiagnostics`** — new `From(runtimeState, assessment, candidateCount)` projection so the embedded diagnostics are synchronized with the runtime state and candidate array by construction; `Empty` and the constructor contract are unchanged
+- `DroneSmokeTest` now observes the built context snapshot and logs `contextObserved` / `contextStep`
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionContextTests` (15): snapshot builds correctly; immutable snapshot; builder deterministic; runtime metadata correct; candidate count matches diagnostics; behaviour matches winner; mission matches diagnostics; command matches executor; validator rejects invalid snapshots; empty snapshot valid; repeated builds identical; no hidden state; null protection; reset clears runtime state; backward compatibility
+
+#### Validation
+
+- EditMode suite: **166/166 passing** (151 prior + 15 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, movement preserved, decision/mission/winning-task/behaviour/command observed, and the context snapshot observed
+- No runtime behaviour, scoring, ordering, reward or determinism changes; every Phase 8.7.1 and earlier semantic preserved
+
+### Phase 8.7.1 — Architectural Refinement: Candidate Generation Separation + Extended Decision Diagnostics (2026-08-03)
+
+#### Candidate Generation Separation
+
+- **`TaskCandidate`** (new) — immutable snapshot coupling a candidate `MissionTask` with its `CandidateOrigin` (`CurrentPerception` or `Continuity`) plus the deterministic evidence (`Proximity`, `Confidence`) the scorer consumes; the contract between generator and scorer
+- **`CandidateOrigin`** (new) — why a candidate is currently available; determined solely by the generator, never by the scorer
+- **`TaskCandidateGenerator`** (new) — the single owner of candidate availability: pure, stateless, deterministic. Derives the currently-valid objective states from perception, behaviour memory and the coordinator's task and emits each as a `TaskCandidate` in a fixed order with no duplicates. Never scores, compares, chooses winners or modifies runtime state; an invalid (empty) assessment yields no candidates
+- **`PriorityEvaluator`** responsibility reduced to scoring only — consumes `TaskCandidate[]` and emits `TaskPriority[]`; the availability logic moved to the generator
+- **`TaskPrioritizer`** reduced to pure arbitration — new core `Select(TaskPriority[])` returns the highest-priority winner; the legacy assessment/memory/mission overload is retained for backward compatibility and simply runs generation and scoring before delegating
+- **`DecisionEngine`** runtime now runs `Assessment → Memory → MissionCoordinator → TaskCandidateGenerator → PriorityEvaluator → TaskPrioritizer → MissionTask → BehaviourSelector → Executor → DroneCommand`; the chain is explicit and `DecisionEngine` remains the only runtime decision authority. No scoring, ordering, policy or behaviour values changed
+
+#### Extended Decision Diagnostics
+
+- **`DecisionDiagnostics`** now also exposes the selected executor (`SelectedExecutor`), the resolved command of the last step (`LastCommand`), the deterministic step-clock timestamp (`DecisionTimestamp`) and the generated candidate count (`CandidateCount`) for complete runtime replay; only immutable snapshots are exposed, never mutable state or internal collections. Constructor extended with optional parameters (backward compatible)
+- `DroneSmokeTest` now logs the selected executor, candidate count and decision timestamp alongside the decision path
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `TaskCandidateGeneratorTests` (11): hazard generates avoid candidate; confirmed victim generates rescue candidate; neutral assessment generates continuity candidate; no duplicate candidates; deterministic ordering; same inputs → same candidate list; generation independent from scoring; generation independent from prioritization; generated candidates always valid; invalid assessment produces no candidates; continuity keeps the coordinator's task identity
+- `TaskPrioritizerTests` extended with 4 diagnostics tests: candidate count, selected executor, last command, decision timestamp
+
+#### Validation
+
+- EditMode suite: **151/151 passing** (136 prior + 15 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, winning task observed (AvoidHazard) with a deterministic priority score, selected executor observed (`AvoidExecutor`), candidate count and decision timestamp surfaced, behaviour follows the winning task, movement preserved, reward finite and **sumInvariant=True**
+- No runtime behaviour, scoring, priority ordering, reward or determinism changes; all Phase 8.7 semantics preserved
+
+### Phase 8.7 — Autonomous Task Prioritization Framework (2026-08-03)
+
+#### Task Prioritization Layer (ADRL.AI.Decision.Prioritization)
+
+- **New `ADRL.AI.Decision.Prioritization` namespace** (`Assets/ADRL/Scripts/AI/Decision/Prioritization/`, existing `ADRL.AI` assembly): deterministic objective arbitration. When multiple valid objectives exist simultaneously, the prioritizer decides which the drone pursues. Not path planning, navigation, SLAM, reinforcement learning, or swarm coordination
+- **`TaskPriority`** — immutable scored candidate (`MissionTask`, `PriorityScore`, `Confidence`, `IsValid`); never mutated in place
+- **`PriorityPolicy`** — single-owner configuration surface for all scoring weights (`VictimPriority`, `HazardPriority`, `SearchPriority`, `ResumePriority`, `IdlePriority`, `MemoryBonus`, `ConfidenceBonus`, `DistancePenalty`, `CooldownPenalty`, `PriorityTieTolerance`); no magic numbers elsewhere. Safety-first defaults matching the mission coordinator's stance (hazard outranks victim, victim outranks search)
+- **`IPriorityEvaluator`** — pure, stateless scoring contract
+- **`PriorityEvaluator`** — the single owner of deterministic objective scoring. Derives currently-valid candidates from current perception (hazard, confirmed victim, unconfirmed target), behaviour memory and the coordinator's task; each candidate is scored `BasePriority + ConfidenceBonus/MemoryBonus - DistancePenalty*(1 - proximity) - CooldownPenalty`, emitted at most once per objective state in a fixed order
+- **`TaskPrioritizer`** — the single runtime owner of objective arbitration: scores every valid candidate via the evaluator and returns the highest-priority winner. No transitions, no movement, no memory ownership, no hidden state; deterministic ties resolve to the first candidate in generation order within `PriorityTieTolerance`
+
+#### DecisionEngine, Selection & Diagnostics Integration
+
+- **`DecisionEngine`** now runs `Assessment → Memory → MissionCoordinator → TaskPrioritizer → MissionTask → BehaviourSelector → Executor → DroneCommand`; the prioritizer's winning task feeds behaviour selection, replacing the coordinator's task directly (they agree by design; the prioritizer is the explicit arbitration authority). `DecisionEngine` remains the only runtime decision authority
+- `DecisionEngine` constructor gains an optional `PriorityPolicy` parameter (backward compatible); `Reset()` clears the prioritizer's last winner; the mission policy is retained for prioritizer thresholds
+- **`DecisionDiagnostics`** now also exposes the prioritizer's winning objective (`LastWinning`) and its deterministic score (`WinningPriorityScore`) alongside step count, last behaviour, last assessment and the current mission task; synchronized every decision step
+- `DroneSmokeTest` now logs the winning task (`lastWinningTask`) and score (`winningScore`) observationally alongside the decision path
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `TaskPrioritizerTests` (15): higher score wins; equal scores tie-break deterministically; victim outranks search; hazard outranks victim; cooldown penalty lowers score; memory bonus increases score; distance penalty reduces score; invalid candidates ignored; no duplicate candidate states; stable ordering; same inputs → same outputs; DecisionEngine uses the prioritizer; diagnostics expose the winning score; policy constants respected (configurable victim-first hierarchy); behaviour follows the winning task
+
+#### Validation
+
+- EditMode suite: **136/136 passing** (121 prior + 15 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, winning task observed (AvoidHazard) with a deterministic priority score, behaviour follows the winning task, movement preserved, reward finite and **sumInvariant=True**
+
+### Phase 8.6 — Autonomous Mission Task Coordination Framework (2026-08-03)
+
+#### Mission Task Coordination Layer (ADRL.AI.Decision.Mission)
+
+- **New `ADRL.AI.Decision.Mission` namespace** (`Assets/ADRL/Scripts/AI/Decision/Mission/`, existing `ADRL.AI` assembly): a deterministic mission task coordinator that determines *what objective* the drone currently pursues, sitting between behaviour memory and behaviour selection. An architectural extension of the Phase 8.5 runtime — not path planning, mapping, SLAM, or reinforcement learning
+- **`MissionTaskState`** — immutable objective enum: `Idle`, `SearchArea`, `InvestigateTarget`, `RescueVictim`, `AvoidHazard`, `ResumeSearch`
+- **`MissionTask`** — immutable snapshot of the current objective (`State`, `EntryStep`, `PreviousState`, `IsValid`); never mutated in place, every transition produces a fresh value
+- **`MissionPolicy`** — single-owner configuration surface for all mission constants (`ResumeTimeout`, `TransitionCooldown`, `HazardProximityThreshold`, `VictimConfirmationProximity`, `HazardPriority`, `VictimPriority`, `ConfidenceThreshold`); no magic numbers elsewhere; durations are decision steps so the layer stays deterministic and testable
+- **`MissionTransitionRules`** — pure, stateless transition function: current perception always overrides any objective (imminent hazard and perceived target handled first); SearchArea → InvestigateTarget on target detected; InvestigateTarget → RescueVictim on victim confirmed; InvestigateTarget → SearchArea when the target is lost before confirmation and the victim is no longer in memory; RescueVictim → ResumeSearch once the victim leaves perception and memory; ResumeSearch → SearchArea after `ResumeTimeout`; ANY state → AvoidHazard on hazard (priority-driven); AvoidHazard → previous task once the hazard clears and `TransitionCooldown` elapses; Idle → SearchArea on the first viable assessment; an invalid assessment holds the current task (no fabrication from garbage data)
+- **`MissionCoordinator`** — the single owner of the current mission task, its transitions, priority, continuity and state. Never generates movement, controls motors, reads physics, computes rewards, or performs path planning/mapping
+
+#### DecisionEngine & Selection Integration
+
+- **`DecisionEngine`** now sits above the mission coordinator: `Decide()` refreshes memory, advances the mission task from the assessment + memory at the deterministic step clock, selects a behaviour (current perception first, then the mission task), records the chosen behaviour, then resolves the command via the executor factory. `DecisionEngine` remains the sole runtime decision authority
+- **`IBehaviourSelector` / `BehaviourSelector`** — added a mission-aware `Select(assessment, mission)` overload (existing single-argument and memory-aware overloads preserved for backward compatibility). Mission maps to behaviour for neutral situations only: SearchArea/ResumeSearch → Search, InvestigateTarget/RescueVictim → Approach, AvoidHazard → Avoid, Idle → Idle; current sensor data always wins
+- `DecisionEngine` constructor gains an optional `MissionPolicy` parameter (backward compatible); `Reset()` also resets the mission coordinator; the mission task is exposed via `DecisionEngine.Mission`
+- **`DecisionDiagnostics`** now also exposes the current mission task (`LastMissionTask`) alongside step count, last behaviour and last assessment; `GetDiagnostics()` is synchronized every decision step
+- `DroneSmokeTest` now logs the observed mission task (`lastMission`) observationally alongside the decision path
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `MissionCoordinatorTests` (12): initial idle mission; valid assessment starts SearchArea; target detected → InvestigateTarget; confirmed victim → RescueVictim; rescue completed → ResumeSearch; ResumeSearch → SearchArea after timeout; hazard override from any mission; hazard cooldown delays restoration; previous task restored after cooldown; mission determinism for identical history; invalid assessment produces an Idle decision and holds the mission; mission continuity while the victim is in memory
+
+#### Validation
+
+- EditMode suite: **121/121 passing** (109 prior + 12 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, movement preserved, reward finite and **sumInvariant=True**, `decisionSeen=True`, mission task observed (AvoidHazard), behaviour follows the mission task
+
 ### Phase 8.5 — Autonomous Behaviour Memory & Coordination Framework (2026-08-03)
 
 #### Behaviour Memory Layer (ADRL.AI.Decision.Memory)

@@ -1,6 +1,7 @@
 namespace ADRL.Training.Runtime
 {
-using ADRL.AI.Agents;
+    using ADRL.AI.Agents;
+    using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Rewards;
     using ADRL.Drone.Controllers;
     using UnityEngine;
@@ -29,6 +30,9 @@ using ADRL.AI.Agents;
         private bool _started;
         private bool _completed;
         private bool _sawAutonomousDecision;
+        private bool _sawContextSnapshot;
+        private bool _sawExecutionProfile;
+        private bool _sawKnowledge;
         private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
@@ -57,6 +61,9 @@ using ADRL.AI.Agents;
             _started = true;
             _completed = false;
             Passed = false;
+            _sawContextSnapshot = false;
+            _sawExecutionProfile = false;
+            _sawKnowledge = false;
 
             PlaceDeterministicProbe();
 
@@ -118,6 +125,25 @@ using ADRL.AI.Agents;
             if (_agent?.Decision != null && _agent.LastDecision.HasValue && !_agent.LastCommand.IsIdle)
                 _sawAutonomousDecision = true;
 
+            // Confirms the Phase 8.8 context snapshot was actually built by a
+            // decision step (its runtime metadata advanced past the empty state).
+            if (_agent?.Decision != null && _agent.Decision.LastSnapshot.RuntimeState.DecisionStep > 0)
+                _sawContextSnapshot = true;
+
+            // Confirms the Phase 8.9 execution optimizer ran on a real decision
+            // step: the built snapshot carries an optimized execution profile
+            // backed by a positive execution confidence.
+            if (_agent?.Decision != null
+                && _agent.Decision.LastSnapshot.ExecutionProfile.ExecutionConfidence > 0f)
+                _sawExecutionProfile = true;
+
+            // Confirms the Phase 9.0 world knowledge layer recorded something the
+            // drone actually observed: the built snapshot carries a non-empty
+            // knowledge store (the drone knows about the deterministic probe).
+            if (_agent?.Decision != null
+                && _agent.Decision.LastSnapshot.Knowledge.Count > 0)
+                _sawKnowledge = true;
+
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
         }
@@ -143,7 +169,10 @@ using ADRL.AI.Agents;
                 && observed
                 && evaluatorPresent
                 && enginePresent
-                && _sawAutonomousDecision;
+                && _sawAutonomousDecision
+                && _sawContextSnapshot
+                && _sawExecutionProfile
+                && _sawKnowledge;
         }
 
         private void Complete()
@@ -160,13 +189,41 @@ using ADRL.AI.Agents;
             var state = _controller != null ? _controller.CurrentState.ToString() : "none";
             var evaluatorPresent = _agent?.Evaluator != null;
             var lastBehaviour = _agent?.LastDecision?.Behaviour.ToString() ?? "none";
+            var lastMission = _agent?.Decision?.Mission?.CurrentTask.State.ToString() ?? "none";
+            var lastWinningTask = _agent?.Decision?.GetDiagnostics().LastWinning.Task.State.ToString() ?? "none";
+            var winningScore = _agent?.Decision?.GetDiagnostics().WinningPriorityScore ?? 0f;
+            var selectedExecutor = _agent?.Decision?.GetDiagnostics().SelectedExecutor ?? "none";
+            var candidateCount = _agent?.Decision?.GetDiagnostics().CandidateCount ?? 0;
+            var decisionTimestamp = _agent?.Decision?.GetDiagnostics().DecisionTimestamp ?? 0f;
+            var contextStep = _agent?.Decision?.LastSnapshot.RuntimeState.DecisionStep ?? 0;
+            var execProfile = _agent?.Decision?.LastSnapshot.ExecutionProfile;
+            var execConfidence = execProfile?.ExecutionConfidence ?? 0f;
+            var execSpeed = execProfile?.SpeedMultiplier ?? 0f;
+            var execTurn = execProfile?.TurnRateMultiplier ?? 0f;
+            var optimizationTimestamp = _agent?.Decision?.LastSnapshot.RuntimeState.OptimizationTimestamp ?? 0f;
+            var knowledgeRecords = _agent?.Decision?.LastSnapshot.Knowledge.Count ?? 0;
+            var knownVictims = _agent?.Decision?.KnowledgeStore.CountOf(KnowledgeType.Victim) ?? 0;
+            var knownHazards = _agent?.Decision?.KnowledgeStore.CountOf(KnowledgeType.Hazard) ?? 0;
+            var knownObstacles = _agent?.Decision?.KnowledgeStore.CountOf(KnowledgeType.Obstacle) ?? 0;
+            var nearestVictimDistance = _agent?.Decision?.GetDiagnostics().NearestVictimDistance ?? 0f;
+            var nearestHazardDistance = _agent?.Decision?.GetDiagnostics().NearestHazardDistance ?? 0f;
+            var knowledgeTimestamp = _agent?.Decision?.GetDiagnostics().KnowledgeTimestamp ?? 0f;
 
             Passed = HasPassed();
 
             Debug.Log(
                 $"[DroneSmokeTest] PASSED={Passed} | moved={moved:F2}m | cumulativeReward={reward:F3} | " +
                 $"state={state} | obsDim={obsDim} | fusedProviders={fusionCount} | evaluator={evaluatorPresent} | " +
-                $"decisionSeen={_sawAutonomousDecision} | lastBehaviour={lastBehaviour}");
+                $"decisionSeen={_sawAutonomousDecision} | lastBehaviour={lastBehaviour} | lastMission={lastMission} | " +
+                $"lastWinningTask={lastWinningTask} | winningScore={winningScore:F3} | " +
+                $"selectedExecutor={selectedExecutor} | candidateCount={candidateCount} | decisionTimestamp={decisionTimestamp:F0} | " +
+                $"contextObserved={_sawContextSnapshot} | contextStep={contextStep} | " +
+                $"optimizationObserved={_sawExecutionProfile} | execConfidence={execConfidence:F3} | " +
+                $"speedMult={execSpeed:F3} | turnRateMult={execTurn:F3} | optimizationTimestamp={optimizationTimestamp:F0} | " +
+                $"knowledgeObserved={_sawKnowledge} | knowledgeRecords={knowledgeRecords} | " +
+                $"knownVictims={knownVictims} | knownHazards={knownHazards} | knownObstacles={knownObstacles} | " +
+                $"nearestVictimDistance={nearestVictimDistance:F2} | nearestHazardDistance={nearestHazardDistance:F2} | " +
+                $"knowledgeTimestamp={knowledgeTimestamp:F0}");
 
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.
