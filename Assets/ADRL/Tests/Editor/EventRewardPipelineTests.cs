@@ -113,5 +113,69 @@ namespace ADRL.Tests.Editor.Rewards
             h.Evaluator.Dispose();
             Assert.DoesNotThrow(() => h.EventBus.Publish(new DroneEnergyDepletedEvent(0)));
         }
+
+        [Test]
+        public void MissionCompleted_GrantsSuccessBonus()
+        {
+            using var h = new TestHarness(droneId: 0);
+            h.EventBus.Publish(new MissionCompletedEvent(2, 2));
+
+            var bd = h.Evaluator.CurrentBreakdown;
+            Assert.AreEqual(h.Config.SuccessBonus, bd.SuccessReward, 1e-6f);
+            Assert.AreEqual(1, bd.SuccessEvents);
+            Assert.AreEqual(h.Config.SuccessBonus, h.Evaluator.EpisodeReward, 1e-6f);
+            Assert.AreEqual(h.Config.SuccessBonus, bd.TotalReward, 1e-6f);
+        }
+
+        [Test]
+        public void MissionCompleted_DuplicatePublish_DoesNotStackReward()
+        {
+            using var h = new TestHarness(droneId: 0);
+            h.EventBus.Publish(new MissionCompletedEvent(2, 2));
+            h.EventBus.Publish(new MissionCompletedEvent(2, 2)); // duplicate report
+
+            var bd = h.Evaluator.CurrentBreakdown;
+            Assert.AreEqual(h.Config.SuccessBonus, bd.SuccessReward, 1e-6f);
+            Assert.AreEqual(1, bd.SuccessEvents);
+            Assert.AreEqual(1, h.Sink.Count);
+            Assert.AreEqual(h.Config.SuccessBonus, h.Evaluator.EpisodeReward, 1e-6f);
+        }
+
+        [Test]
+        public void MissionCompleted_Reset_ClearsSuccessState()
+        {
+            using var h = new TestHarness(droneId: 0);
+            h.EventBus.Publish(new MissionCompletedEvent(1, 1));
+            Assert.AreEqual(1, h.Evaluator.CurrentBreakdown.SuccessEvents);
+
+            h.Evaluator.Reset(Vector3.zero);
+            Assert.AreEqual(0, h.Evaluator.CurrentBreakdown.SuccessEvents);
+            Assert.AreEqual(0f, h.Evaluator.CurrentBreakdown.SuccessReward, 0f);
+
+            // A new episode may earn the success bonus again.
+            h.EventBus.Publish(new MissionCompletedEvent(1, 1));
+            var bd = h.Evaluator.CurrentBreakdown;
+            Assert.AreEqual(1, bd.SuccessEvents);
+            Assert.AreEqual(h.Config.SuccessBonus, bd.SuccessReward, 1e-6f);
+        }
+
+        [Test]
+        public void MissionCompleted_TotalEqualsBreakdownSum()
+        {
+            using var h = new TestHarness(droneId: 0);
+            h.EventBus.Publish(new CollisionEvent(0, "Obstacle", 1f));
+            h.EventBus.Publish(new MissionCompletedEvent(2, 2));
+
+            var bd = h.Evaluator.CurrentBreakdown;
+            var categorySum = bd.TimePenaltyReward + bd.NoveltyReward + bd.PotentialReward +
+                              bd.StuckPenaltyReward + bd.OscillationPenaltyReward +
+                              bd.CollisionPenaltyReward + bd.EnergyPenaltyReward +
+                              bd.OutOfBoundsPenaltyReward + bd.VictimFoundReward +
+                              bd.VictimRescuedReward + bd.SuccessReward;
+
+            Assert.AreEqual(bd.TotalReward, categorySum, 1e-5f);
+            Assert.AreEqual(h.Sink.Sum, h.Evaluator.EpisodeReward, 1e-6f);
+            Assert.AreEqual(h.Sink.Sum, bd.TotalReward, 1e-6f);
+        }
     }
 }

@@ -1,22 +1,25 @@
 namespace ADRL.Training.Runtime
 {
-    using ADRL.AI.Agents;
+using ADRL.AI.Agents;
     using ADRL.AI.Rewards;
     using ADRL.Drone.Controllers;
     using UnityEngine;
 
     /// <summary>
-    /// Automated heuristic smoke test. After the orchestrator spawns a drone it
-    /// drives the agent with a scripted forward command and completes as soon as
-    /// the full runtime pipeline (spawn -&gt; controller -&gt; agent -&gt; resolver -&gt;
-    /// motor -&gt; locomotion -&gt; reward) is proven functional, so batch validation
-    /// finishes within seconds rather than a fixed play session.
+    /// Automated heuristic smoke test. Since Phase 8.3 made the DecisionEngine the
+    /// sole runtime decision authority, the smoke test now validates the autonomous
+    /// decision path instead of a scripted action vector. It places a deterministic
+    /// obstacle ahead of the spawned drone so sensors yield reliable fused readings,
+    /// then confirms the decision framework assessed/selected/commanded and the full
+    /// runtime pipeline (spawn -> controller -> agent -> DecisionEngine -> DroneCommand ->
+    /// motor -> locomotion -> reward) is functional, so batch validation finishes
+    /// within seconds.
     /// </summary>
     public sealed class DroneSmokeTest : MonoBehaviour
     {
         private const float MinMovement = 1f;
         private const float MaxDuration = 3f;
-        private static readonly Vector3 ForwardAction = new(0f, 0f, 1f);
+        private const float ProbeDistance = 2.5f;
 
         private DroneController _controller;
         private DroneAgent _agent;
@@ -25,6 +28,8 @@ namespace ADRL.Training.Runtime
         private float _maxDistanceFromOrigin;
         private bool _started;
         private bool _completed;
+        private bool _sawAutonomousDecision;
+        private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
         public bool Passed { get; private set; }
@@ -53,20 +58,50 @@ namespace ADRL.Training.Runtime
             _completed = false;
             Passed = false;
 
-            _agent?.SetScriptedHeuristic(ForwardAction);
+            PlaceDeterministicProbe();
 
             Debug.Log(
-                $"[DroneSmokeTest] Started (agent={_agent != null}, obsDim={_agent?.ObservationDimension ?? 0}).");
+                $"[DroneSmokeTest] Started (agent={_agent != null}, obsDim={_agent?.ObservationDimension ?? 0}, engine={_agent?.Decision != null}).");
+        }
+
+        private void PlaceDeterministicProbe()
+        {
+            if (_agent == null || _controller == null)
+                return;
+
+            var forward = _controller.transform.forward;
+            var probePos = _controller.transform.position + forward * ProbeDistance;
+            var active = _agent.Decision != null && _agent.Fusion != null;
+
+            if (!active)
+                return;
+
+            // A deterministic collider ahead of the drone guarantees the ray sensor
+            // reports a proximity and liveness band, so the decision framework has
+            // real fused input instead of an all-zero (idle) reading.
+            _probe = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _probe.name = "[DroneSmokeProbe]";
+            _probe.transform.position = probePos;
+            _probe.transform.localScale = new Vector3(1f, 2f, 1f);
+
+            var collider = _probe.GetComponent<Collider>();
+            if (collider != null)
+                _probe.tag = "Obstacle";
+        }
+
+        private void CleanupProbe()
+        {
+            if (_probe == null)
+                return;
+
+            Object.Destroy(_probe);
+            _probe = null;
         }
 
         private void Update()
         {
             if (!_started || _completed)
                 return;
-
-            // Episode resets clear the override; re-arm it so movement continues.
-            if (_agent != null && !_agent.IsScriptedHeuristicActive)
-                _agent.SetScriptedHeuristic(ForwardAction);
 
             _elapsed += Time.deltaTime;
 
@@ -77,14 +112,21 @@ namespace ADRL.Training.Runtime
                     _maxDistanceFromOrigin = distance;
             }
 
+            // Confirms the DecisionEngine ran a step and commanded non-idle output
+            // at least once during the episode, proving the autonomous decision
+            // authority feeds the actuator pipeline.
+            if (_agent?.Decision != null && _agent.LastDecision.HasValue && !_agent.LastCommand.IsIdle)
+                _sawAutonomousDecision = true;
+
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
         }
 
         /// <summary>
-        /// True once every stage of the runtime pipeline is proven: the controller
-        /// exists, the drone actually moved, observations were generated, both
-        /// sensor providers are fused, and the reward evaluator is active.
+        /// True once every stage of the autonomous runtime pipeline is proven: the
+        /// controller exists, the drone actually moved, observations were generated,
+        /// both sensor providers are fused, the DecisionEngine ran and produced a
+        /// non-idle command, and the reward evaluator is active.
         /// </summary>
         private bool HasPassed()
         {
@@ -92,13 +134,16 @@ namespace ADRL.Training.Runtime
             var fusionCount = _agent?.Fusion != null ? _agent.Fusion.ProviderCount : 0;
             var observed = _agent != null && _agent.Fusion != null;
             var evaluatorPresent = _agent?.Evaluator != null;
+            var enginePresent = _agent?.Decision != null;
 
             return _controller != null
                 && _maxDistanceFromOrigin > MinMovement
                 && obsDim > 0
                 && fusionCount >= 2
                 && observed
-                && evaluatorPresent;
+                && evaluatorPresent
+                && enginePresent
+                && _sawAutonomousDecision;
         }
 
         private void Complete()
@@ -106,7 +151,7 @@ namespace ADRL.Training.Runtime
             _started = false;
             _completed = true;
 
-            _agent?.ClearScriptedHeuristic();
+            CleanupProbe();
 
             var moved = _maxDistanceFromOrigin;
             var reward = _agent != null ? _agent.GetCumulativeReward() : 0f;
@@ -114,16 +159,18 @@ namespace ADRL.Training.Runtime
             var fusionCount = _agent?.Fusion != null ? _agent.Fusion.ProviderCount : 0;
             var state = _controller != null ? _controller.CurrentState.ToString() : "none";
             var evaluatorPresent = _agent?.Evaluator != null;
+            var lastBehaviour = _agent?.LastDecision?.Behaviour.ToString() ?? "none";
 
             Passed = HasPassed();
 
             Debug.Log(
                 $"[DroneSmokeTest] PASSED={Passed} | moved={moved:F2}m | cumulativeReward={reward:F3} | " +
-                $"state={state} | obsDim={obsDim} | fusedProviders={fusionCount} | evaluator={evaluatorPresent}");
+                $"state={state} | obsDim={obsDim} | fusedProviders={fusionCount} | evaluator={evaluatorPresent} | " +
+                $"decisionSeen={_sawAutonomousDecision} | lastBehaviour={lastBehaviour}");
 
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.
-            // Surfaces reward regressions (e.g. reward == ~0.148) in CI output.
+            // Surfaces reward regressions in CI output.
             if (_agent?.Evaluator != null)
             {
                 var bd = _agent.Evaluator.CurrentBreakdown;

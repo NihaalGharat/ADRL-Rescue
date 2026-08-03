@@ -122,6 +122,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 8.3 — Decision Engine Runtime Integration (2026-08-02)
+
+#### Runtime Authority Handover (DroneAgent)
+
+- **DecisionEngine is now the sole runtime decision authority** — `DroneAgent.OnActionReceived` derives movement from the fused sensor reading through `DecisionEngine.Decide(fused) → DecisionResult.Command` instead of translating the ML-Agents action buffer. The action buffer is no longer the movement source; autonomous decisions drive the existing actuator pipeline
+- **Single command authority preserved** — `DroneAgent.LastDecision` exposes the latest `DecisionResult`; `DroneEngine.Decision` exposes the engine; engine state resets per episode via `OnEpisodeBegin`
+- **`DroneActionResolver` retained as the actuator translator** — the class and its `DroneCommand`/index contract are preserved (still used by `ConfigureBrain` and `Heuristic`) and reserved as the translation layer for the future reinforcement-learning policy; not duplicated, not removed
+- **No bridges, mode switches, or config flags introduced** — phased handover keeps a single high-level decision producer and a single ownership boundary
+
+#### Smoke Test (DroneSmokeTest)
+
+- Repurposed from the scripted-action forward drive to validate the DecisionEngine path: places a deterministic probe collider ahead of the spawned drone so sensors yield real fused readings, then confirms the drone moved, observations were produced, both providers fused, the DecisionEngine ran and issued a non-idle command, and the reward evaluator is active
+- Movement, reward accounting, determinism, and the reward sum invariant are preserved
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionRuntimeIntegrationTests` (4): single non-idle command from a live fused reading; no duplicate/divergent command generation across steps; invalid reading → idle; engine determinism across identical runtime inputs
+
+#### Validation
+
+- EditMode suite: **87/87 passing** (83 prior + 4 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, movement 1.10m, reward finite and **sumInvariant=True**, `decisionSeen=True`, last behaviour Avoid
+
+### Phase 8.2 — Autonomous Decision Framework (2026-08-02)
+
+#### Decision Framework (ADRL.AI.Decision)
+
+- **ADRL.AI.Decision** — New namespace (`Assets/ADRL/Scripts/AI/Decision/`, existing `ADRL.AI` assembly): a deterministic decision layer that owns *decision making only*. Movement, physics, rewards, simulation, mission, environment, and episode lifecycle stay with their existing owners
+- **SituationSnapshot** — Immutable, allocation-free projection of one sensed situation (target detected/proximity/side, obstacle proximity/side, viability); read-only assessment, never drives sensing or rewards
+- **ISituationAssessor / FogOfWarSituationAssessor** — Single owner of situation assessment: interprets a fused `ISensorReading` (band layout = `[proximity, liveness]` pairs) into a `SituationSnapshot`, gated by `DecisionContext.MinimumActiveRatio`
+- **BehaviourState / IBehaviourSelector / BehaviourSelector** — Deterministic selection policy: invalid → `Idle`, imminent obstacle → `Avoid`, detected target → `Approach`, else `Search`; safety ranked above approach
+- **DecisionContext** — Immutable config-driven tuning (detection/avoid thresholds, active ratio, approach/evade gains); fully deterministic for a fixed input
+- **DecisionEngine** — Execution entry point: `Decide(ISensorReading) → DecisionResult(BehaviourState, DroneCommand, SituationSnapshot)`; resolves the command against the existing `DroneActionResolver`/`DroneController` actuator contract (`ADRL.AI.DecisionMaking.DroneCommand`); no movement/execution performed; `GetDiagnostics()` / `Reset()` state accessors
+- **DecisionDiagnostics** — Read-only snapshot of running state (step count, last behaviour, last assessment); never influences decisions
+- **DecisionResult** — Immutable step output binding behaviour + command + assessment
+
+#### Integration Boundary
+
+- The framework consumes the existing fusion layer (`ISensorReading` from `ADRL.Sensors`) and produces the existing command type (`DroneCommand`); no existing system (DroneAgent, RewardEvaluator, SimulationManager, MissionProgressTracker, SensorFusionProvider, DroneActionResolver, DroneController, RuntimeOrchestrator) was modified or replaced
+
+#### Validation
+
+- 11 new EditMode tests in DecisionFrameworkTests: invalid-reading assessment, target detection/side from band layout, selector precedence (avoid > approach > search > idle), engine resolution/step-tracking, idle command for invalid input, determinism for identical readings, reset semantics — **83/83 passing** (72 prior + 11 new), exit 0
+- Runtime smoke test re-run: PASSED, exit 0, reward sum invariant true (no regression; existing runtime behaviour preserved)
+
+### Phase 8.1.3 — Victim Prefab Integration & Runtime Registration (2026-08-02)
+
+#### Victim Prefab (ADRL.Environment / ADRL.Editor)
+
+- **Victim.prefab** — New prefab at `Assets/ADRL/Resources/Prefabs/Victim/Victim.prefab` (resource path `Prefabs/Victim/Victim`): capsule primitive on the Default layer with a **solid (non-trigger) collider** (required because `DroneVictimInteraction` and the thermal/ray sensors scan with `QueryTriggerInteraction.Ignore` over `DefaultRaycastLayers`) and the `Victim` lifecycle component (`Waiting` start state)
+- **VictimPrefabWiring** — One-time editor step (`ADRL.Editor.Validation`, menu `ADRL/Phase 8.1.3/Wire Victim Prefab`) that creates the prefab deterministically and exits 0/1; idempotent (skips when the prefab already exists)
+
+#### Runtime Registration (ADRL.Training)
+
+- **RuntimeOrchestrator** — Registers `PrefabCategory.Victim` / `"Default"` → `Prefabs/Victim/Victim` in `ResourceLocator.Prefabs` **before** `EnvironmentBootstrap.Boot` (the `VictimGenerationRule` reads the registry in its constructor during boot), so procedural generation now spawns 1–10 victims per `EnvironmentConfig` (MinVictims/MaxVictims) instead of 0
+- Victims instantiated by `VictimGenerationRule` flow through `EnvironmentManager.RegisterVictim` → `VictimRegisteredEvent` → `MissionProgressTracker` registered count, enabling mission completion for the first time at runtime
+
+#### Validation
+
+- 6 new EditMode tests in VictimPrefabIntegrityTests: prefab exists, loadable via Resources path, carries `Victim`, solid non-trigger collider, Default layer, starts `Waiting` — **72/72 passing** (66 prior + 6 new), exit 0
+- Runtime smoke test re-run: PASSED, exit 0, environment log now reports `victims=N (N ≥ 1)` (previously `victims=0`)
+
+### Phase 8.1.2 — Mission Success Reward Integration (2026-08-02)
+
+#### Reward Evaluator (ADRL.AI.Rewards)
+
+- **RewardEvaluator** — Now subscribes `MissionCompletedEvent` (in addition to the existing drone-id-filtered terminal events) and grants `RewardConfig.SuccessBonus` (+50) through the existing `GrantTerminal` path; the reward is granted at most once per episode — a duplicate `MissionCompletedEvent` never stacks the bonus (`_successEvents` guard, reset in `Reset()`)
+- **RewardBreakdown** — Reuses the existing `SuccessReward` / `SuccessEvents` fields and counters; no new statistics introduced
+- **RewardConfig** — `SuccessBonus` (+50) already existed; reused unchanged
+- **Diagnostics** — Mission success already flows through the existing `SuccessReward` breakdown field into the smoke test `sumInvariant` checks; no duplicate logging added
+
+#### Validation
+
+- 4 new tests in EventRewardPipelineTests: success bonus granted once, duplicate publish does not stack, reset clears success state, total equals breakdown sum — **66/66 passing** (62 prior + 4 new), exit 0
+- Runtime smoke test re-run: PASSED, exit 0, reward sum invariant true (no regression)
+
 ### Phase 8.1.1 — Runtime Event Integration: Collision & Victim Pipeline Foundation (2026-08-02)
 
 #### Collision Pipeline (ADRL.Drone)

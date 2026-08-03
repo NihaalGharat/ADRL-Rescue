@@ -22,6 +22,8 @@ namespace ADRL.Training.Runtime
     {
         private const string DronePrefabResourcePath = "Prefabs/Drone/Drone";
         private const string DefaultDroneType = "default";
+        private const string VictimPrefabResourcePath = "Prefabs/Victim/Victim";
+        private const string DefaultVictimType = "Default";
 
         private static bool _activated;
         private static DroneSubsystem _subsystem;
@@ -76,6 +78,7 @@ namespace ADRL.Training.Runtime
             Debug.Log("[RuntimeOrchestrator] Activating runtime systems...");
 
             RegisterGeneratedSettings();
+            RegisterVictimPrefab();
 
             EnvironmentBootstrap.Boot(CreateWorldSettings(), eventBus);
             LogEnvironmentState();
@@ -124,6 +127,23 @@ namespace ADRL.Training.Runtime
             var settings = ScriptableObject.CreateInstance<WorldSettings>();
             ResourceLocator.Configs.Register(settings);
             return settings;
+        }
+
+        private static void RegisterVictimPrefab()
+        {
+            if (!ResourceLocator.IsInitialized)
+                return;
+
+            var prefab = AssetProvider.Load<GameObject>(VictimPrefabResourcePath);
+            if (prefab == null)
+            {
+                Debug.LogError(
+                    $"[RuntimeOrchestrator] Victim prefab not found at Resources path '{VictimPrefabResourcePath}'.");
+                return;
+            }
+
+            ResourceLocator.Prefabs.Register(PrefabCategory.Victim, DefaultVictimType, VictimPrefabResourcePath);
+            Debug.Log($"[RuntimeOrchestrator] Registered victim prefab '{prefab.name}'.");
         }
 
         private static void RegisterDronePrefab()

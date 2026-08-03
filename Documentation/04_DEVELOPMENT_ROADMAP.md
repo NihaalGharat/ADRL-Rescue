@@ -258,13 +258,58 @@ gantt
 | Task | Description | Status |
 |------|-------------|--------|
 | 8.1.1 | Collision & victim pipeline foundation — `DroneCollisionDetector`, `Victim` exactly-once events, `MissionProgressTracker`, `SimulationManager` mission-completion finalization, `DroneVictimInteraction` | ✅ Complete |
-| 8.1.2 | Mission-episode success reward wiring (`Success +50` on `MissionCompletedEvent`) and rescue/detection reward attribution | ⏳ Remaining |
-| 8.1.3 | Victim prefab integration and scene wiring of registered victims into `EnvironmentManager` | ⏳ Remaining |
+| 8.1.2 | Mission-episode success reward wiring (`Success +50` on `MissionCompletedEvent`) and rescue/detection reward attribution | ✅ Complete |
+| 8.1.3 | Victim prefab integration and scene wiring of registered victims into `EnvironmentManager` | ✅ Complete |
 
 ### Milestone
-- Collision, victim-found, victim-rescued, and mission-completed events verified on the `EventBus` (62/62 EditMode tests)
+- Collision, victim-found, victim-rescued, and mission-completed events verified on the `EventBus` (66/66 EditMode tests)
 - Drone prefab wired (kinematic rigidbody, trigger capsule, detector, interaction) with zero physics-response drift
 - Batch smoke test unaffected by the trigger-collider change (PASSED, reward 0.148)
+- Mission success reward wired into `RewardEvaluator` via `MissionCompletedEvent` (+50, exactly once per episode)
+- Victim prefab created and registered at runtime before environment boot; procedural generation spawns victims into `EnvironmentManager` (`victims=N` in smoke log, previously `0`)
+
+---
+
+## Phase 8.2: Autonomous Decision Framework (Complete)
+
+**Goal:** Introduce a deterministic decision layer that separates situation assessment, decision context, behaviour selection, and decision execution — providing the foundation for autonomous behaviour before RL policy optimisation. The framework owns *decision making only*; movement, physics, rewards, simulation, mission, environment, and episode lifecycle remain owned by their existing systems.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 8.2.1 | `ADRL.AI.Decision` namespace — `SituationSnapshot`, `DecisionContext`, `BehaviourState`, `DecisionResult`, `DecisionDiagnostics` | ✅ Complete |
+| 8.2.2 | Situation assessment — `ISituationAssessor` / `FogOfWarSituationAssessor` consuming the fused `ISensorReading` layer | ✅ Complete |
+| 8.2.3 | Behaviour selection — `IBehaviourSelector` / `BehaviourSelector` deterministic priority policy (Avoid > Approach > Search > Idle) | ✅ Complete |
+| 8.2.4 | `DecisionEngine` — composition point producing a `DroneCommand` on the existing actuator contract | ✅ Complete |
+| 8.2.5 | Integration boundary (reuse, no replacement) — consumes `ISensorReading`, produces `DroneCommand`; existing runtime systems untouched | ✅ Complete |
+
+### Milestone
+- New `ADRL.AI.Decision` framework, deterministic and decoupled from sensors/actuators (83/83 EditMode tests, 11 new)
+- Behaviour selection precedence verified: imminent obstacle → Avoid; detected target → Approach; else Search; invalid → Idle
+- `DecisionEngine.Decide(ISensorReading) → DecisionResult(BehaviourState, DroneCommand, SituationSnapshot)` through the existing actuator contract
+- Runtime smoke test unaffected (PASSED, exit 0, reward sum invariant true) — no existing behaviour changed
+
+---
+
+## Phase 8.3: Decision Engine Runtime Integration (Complete)
+
+**Goal:** Make the Phase 8.2 Decision Framework the runtime decision authority inside `DroneAgent` without violating any existing ownership boundary. The DecisionEngine now produces the DroneCommand every step from the fused sensor reading; the `DroneActionResolver` is retained as the actuator translator reserved for the future reinforcement-learning policy.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 8.3.1 | Wire `DroneAgent.OnActionReceived` to `DecisionEngine.Decide(fused)` as the sole command authority; expose `Decision` / `LastDecision`; reset engine per episode | ✅ Complete |
+| 8.3.2 | Retain `DroneActionResolver` as the reserved actuator/language translation layer (still used by `ConfigureBrain` / `Heuristic`); no bridges, mode switches, or config flags | ✅ Complete |
+| 8.3.3 | Repurpose `DroneSmokeTest` to validate the DecisionEngine path with a deterministic probe; preserve movement, rewards, determinism, and the sum invariant | ✅ Complete |
+| 8.3.4 | Add `DecisionRuntimeIntegrationTests` (single-command authority, invalid-reading idle, determinism) | ✅ Complete |
+
+### Milestone
+- DecisionEngine is the sole high-level command producer at runtime; single ownership preserved; no duplicate decision system, no circular dependencies, no hidden state
+- `DecisionRuntimeIntegrationTests` added (4); full EditMode suite **87/87 passing**, exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: movement 1.10m, reward finite, **sumInvariant=True**, `decisionSeen=True`, last behaviour Avoid
+- `DroneActionResolver` and its `DroneCommand` contract retained as the future RL actuator-translator layer
 
 ---
 
@@ -282,6 +327,7 @@ gantt
 | v0.8.0 | RL Foundation | Sensors, AI agent, runtime activation (Phases 7.1/7.2) |
 | v0.8.1 | Reward System | Event-driven reward evaluator, reward diagnostics (Phase 7.3) |
 | v0.8.2 | Runtime Event Integration | Collision & victim pipeline, mission-completed episode finalization (Phase 8.1) |
+| v0.8.3 | Decision Runtime | DecisionEngine as the runtime decision authority, smoke-test + integration validation (Phase 8.3) |
 | v1.0.0 | Release | Full stable release |
 
 ---

@@ -80,6 +80,7 @@ namespace ADRL.AI.Rewards
             _eventBus.Subscribe<VictimFoundEvent>(OnVictimFound);
             _eventBus.Subscribe<VictimRescuedEvent>(OnVictimRescued);
             _eventBus.Subscribe<CollisionEvent>(OnCollision);
+            _eventBus.Subscribe<MissionCompletedEvent>(OnMissionCompleted);
         }
 
         /// <summary>
@@ -97,6 +98,7 @@ namespace ADRL.AI.Rewards
             _eventBus.Unsubscribe<VictimFoundEvent>(OnVictimFound);
             _eventBus.Unsubscribe<VictimRescuedEvent>(OnVictimRescued);
             _eventBus.Unsubscribe<CollisionEvent>(OnCollision);
+            _eventBus.Unsubscribe<MissionCompletedEvent>(OnMissionCompleted);
         }
 
         /// <summary>
@@ -241,6 +243,21 @@ namespace ADRL.AI.Rewards
                 return;
             _collisionEvents++;
             _collisionPenaltyReward += GrantTerminal(_config.CollisionPenalty);
+        }
+
+        /// <summary>
+        /// Grants the mission success bonus when every registered victim has been
+        /// rescued. The reward is granted at most once per episode even if a
+        /// duplicate <see cref="MissionCompletedEvent"/> is observed, so the
+        /// success reward is never stacked.
+        /// </summary>
+        private void OnMissionCompleted(MissionCompletedEvent e)
+        {
+            if (_successEvents > 0)
+                return;
+
+            _successEvents++;
+            _successReward += GrantTerminal(_config.SuccessBonus);
         }
 
         /// <summary>

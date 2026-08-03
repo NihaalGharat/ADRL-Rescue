@@ -1,5 +1,6 @@
 namespace ADRL.AI.Agents
 {
+    using ADRL.AI.Decision;
     using ADRL.AI.DecisionMaking;
     using ADRL.AI.Rewards;
     using ADRL.Core.Bootstrap;
@@ -53,7 +54,7 @@ namespace ADRL.AI.Agents
 
         private DroneController _controller;
         private SensorFusionProvider _fusion;
-        private DroneActionResolver _resolver;
+        private DecisionEngine _decisionEngine;
         private RewardEvaluator _evaluator;
         private BehaviorParameters _behaviorParameters;
         private EventBus _eventBus;
@@ -64,6 +65,19 @@ namespace ADRL.AI.Agents
         public SensorFusionProvider Fusion => _fusion;
         public RewardEvaluator Evaluator => _evaluator;
         public DroneCommand LastCommand { get; private set; }
+
+        /// <summary>
+        /// The autonomous decision authority. Phase 8.3 hands high-level command
+        /// production to this framework: it fuses the sensor reading, assesses the
+        /// situation, selects a behaviour, and resolves the DroneCommand the
+        /// existing actuator pipeline applies. The <see cref="DroneActionResolver"/>
+        /// remains the actuator signature/translator reserved for the future
+        /// reinforcement-learning policy path.
+        /// </summary>
+        public DecisionEngine Decision => _decisionEngine;
+
+        /// <summary>The decision result of the most recent step, or null before any step.</summary>
+        public DecisionResult? LastDecision { get; private set; }
 
         /// <summary>Total size of the vector observation space.</summary>
         public int ObservationDimension
@@ -144,7 +158,16 @@ namespace ADRL.AI.Agents
             _fusion.Add(new DroneRaySensor(_sensorConfig));
             _fusion.Add(new DroneThermalSensor(_sensorConfig));
 
-            _resolver = new DroneActionResolver();
+            // Phase 8.3: the DecisionEngine is the sole high-level command
+            // authority at runtime. It consumes the fused sensor reading and emits
+            // the DroneCommand the actuator pipeline applies. The configuration
+            // surface stays with DecisionContext so all decision thresholds remain
+            // config-driven and deterministic.
+            _decisionEngine = new DecisionEngine(
+                DecisionContext.Default,
+                new FogOfWarSituationAssessor(DecisionContext.Default),
+                new BehaviourSelector(DecisionContext.Default));
+
             _evaluator = _rewardConfig != null && _eventBus != null && _controller != null
                 ? new RewardEvaluator(
                     _rewardConfig,
@@ -191,6 +214,8 @@ namespace ADRL.AI.Agents
             _episodeTerminating = false;
 
             _fusion?.Reset();
+            _decisionEngine?.Reset();
+            LastDecision = null;
 
             if (_controller == null)
             {
@@ -238,7 +263,19 @@ namespace ADRL.AI.Agents
             if (_controller.CurrentState != DroneState.Active && _controller.Motor != null)
                 _controller.Activate();
 
-            var command = _resolver != null ? _resolver.Resolve(actions) : DroneCommand.Idle;
+            // Phase 8.3: the DecisionEngine is the sole runtime decision authority.
+            // The fused sensor reading drives it; the resolved DroneCommand is
+            // applied through the existing actuator pipeline. The action buffer is
+            // no longer the movement source (replaced by autonomous decisions);
+            // DroneActionResolver remains the reserved translation layer for the
+            // future reinforcement-learning policy.
+            var decision = _decisionEngine != null && _fusion != null
+                ? _decisionEngine.Decide(_fusion.Fuse(_controller.transform))
+                : (DecisionResult?)null;
+
+            LastDecision = decision;
+            var command = decision.HasValue ? decision.Value.Command : DroneCommand.Idle;
+
             LastCommand = command;
 
             ApplyCommand(command);

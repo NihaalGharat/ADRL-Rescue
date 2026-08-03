@@ -190,7 +190,7 @@ float GrantTerminal(float amount)                 // verbatim, bypasses scale/cl
 }
 ```
 
-Per step, `UpdateStep` applies: time penalty (`TimePenalty × dt`), novelty bonus on first cell visit, potential shaping `F = ShapingScale × (ShapingGamma × Φ(s′) − Φ(s))` where `Φ` is the visited-cell count, and stuck/oscillation detection on their respective 2 s windows. Terminal rewards are granted from `EventBus` subscriptions for `DroneEnergyDepletedEvent`, `DroneOutOfBoundsEvent`, `VictimFoundEvent`, `VictimRescuedEvent`, and `CollisionEvent`, each filtered by drone id.
+Per step, `UpdateStep` applies: time penalty (`TimePenalty × dt`), novelty bonus on first cell visit, potential shaping `F = ShapingScale × (ShapingGamma × Φ(s′) − Φ(s))` where `Φ` is the visited-cell count, and stuck/oscillation detection on their respective 2 s windows. Terminal rewards are granted from `EventBus` subscriptions for `DroneEnergyDepletedEvent`, `DroneOutOfBoundsEvent`, `VictimFoundEvent`, `VictimRescuedEvent`, and `CollisionEvent`, each filtered by drone id, plus `MissionCompletedEvent`, which grants the success bonus at most once per episode.
 
 Rewards reach the agent through `IRewardSink` (`AgentRewardSink`), keeping the evaluator independent of ML-Agents.
 
