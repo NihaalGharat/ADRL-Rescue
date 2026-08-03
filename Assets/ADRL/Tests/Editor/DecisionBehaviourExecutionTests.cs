@@ -210,10 +210,13 @@ namespace ADRL.Tests.Editor.Decision
             });
 
             var result = engine.Decide(fused);
-            var fromFactory = factory.Get(result.Behaviour).Resolve(result.Assessment);
+            var profile = engine.LastSnapshot.ExecutionProfile;
+            var fromFactory = factory.Get(result.Behaviour).Resolve(result.Assessment, profile);
 
-            // The engine command is exactly what its behaviour executor produces:
-            // the factory is the single command generator for a behaviour.
+            // The engine command is exactly what its behaviour executor produces for
+            // the optimized execution profile: the factory is the single command
+            // generator for a behaviour, and the Phase 8.9 optimizer only refines how
+            // that executor moves - it never generates movement itself.
             Assert.AreEqual(BehaviourState.Approach, result.Behaviour);
             Assert.IsFalse(result.Command.IsIdle);
             Assert.AreEqual(fromFactory.MoveDirection, result.Command.MoveDirection);

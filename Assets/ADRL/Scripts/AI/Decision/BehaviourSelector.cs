@@ -1,6 +1,7 @@
 namespace ADRL.AI.Decision
 {
     using ADRL.AI.Decision.Memory;
+    using ADRL.AI.Decision.Mission;
 
     /// <summary>
     /// Deterministic behaviour-selection policy. It ranks the assessed situation
@@ -16,6 +17,9 @@ namespace ADRL.AI.Decision
     /// memory tip the decision - a recently seen victim keeps the drone
     /// approaching until the memory expires, and a recent obstacle keeps the drone
     /// avoiding briefly (preventing left/right oscillation) before resuming search.
+    /// The mission-aware overload is the Phase 8.6 path: it maps the mission
+    /// coordinator's current <see cref="MissionTask"/> onto a behaviour for neutral
+    /// situations, again with current perception always winning.
     /// </remarks>
     public sealed class BehaviourSelector : IBehaviourSelector
     {
@@ -54,6 +58,38 @@ namespace ADRL.AI.Decision
                 return BehaviourState.Avoid;
 
             return BehaviourState.Search;
+        }
+
+        public BehaviourState Select(SituationSnapshot assessment, MissionTask mission)
+        {
+            if (!assessment.IsValid)
+                return BehaviourState.Idle;
+
+            var obstacleImminent = assessment.ObstacleProximity >= _context.AvoidThreshold;
+
+            // Current perception always overrides the mission objective.
+            if (obstacleImminent)
+                return BehaviourState.Avoid;
+
+            if (assessment.TargetDetected)
+                return BehaviourState.Approach;
+
+            // The mission only resolves neutral current situations.
+            switch (mission.State)
+            {
+                case MissionTaskState.Idle:
+                    return BehaviourState.Idle;
+                case MissionTaskState.SearchArea:
+                case MissionTaskState.ResumeSearch:
+                    return BehaviourState.Search;
+                case MissionTaskState.InvestigateTarget:
+                case MissionTaskState.RescueVictim:
+                    return BehaviourState.Approach;
+                case MissionTaskState.AvoidHazard:
+                    return BehaviourState.Avoid;
+                default:
+                    return BehaviourState.Search;
+            }
         }
     }
 }
