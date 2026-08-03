@@ -2,6 +2,7 @@ namespace ADRL.AI.Decision
 {
     using ADRL.AI.Decision.Context;
     using ADRL.AI.Decision.Execution;
+    using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Decision.Memory;
     using ADRL.AI.Decision.Mission;
@@ -38,7 +39,11 @@ namespace ADRL.AI.Decision
     /// the <see cref="IDecisionContextBuilder"/> - the single owner of context
     /// composition - and exposes the synchronized
     /// <see cref="DecisionDiagnostics"/> and the built snapshot for validation and
-    /// the smoke test.
+    /// the smoke test. It then explains the completed decision as an immutable
+    /// <see cref="ADRL.AI.Decision.Explainability.DecisionExplanation"/> through the
+    /// <see cref="ADRL.AI.Decision.Explainability.DecisionExplanationBuilder"/> - the
+    /// single owner of explanation composition - which reads the snapshot only and
+    /// never influences the decision chain.
     /// </remarks>
     public sealed class DecisionEngine
     {
@@ -55,10 +60,12 @@ namespace ADRL.AI.Decision
         private readonly IDecisionContextBuilder _builder;
         private readonly IBehaviourOptimizer _optimizer;
         private readonly KnowledgeUpdater _knowledgeUpdater;
+        private readonly DecisionExplanationBuilder _explanationBuilder;
 
         private int _stepCount;
         private DecisionRuntimeState _runtimeState;
         private DecisionContextSnapshot _lastSnapshot;
+        private DecisionExplanation _lastExplanation;
 
         public DecisionEngine(
             DecisionContext context,
@@ -83,8 +90,10 @@ namespace ADRL.AI.Decision
             _builder = new DecisionContextBuilder();
             _optimizer = new BehaviourOptimizer(optimizationPolicy ?? OptimizationPolicy.Default);
             _knowledgeUpdater = new KnowledgeUpdater(knowledgePolicy ?? KnowledgePolicy.Default);
+            _explanationBuilder = new DecisionExplanationBuilder();
             _runtimeState = DecisionRuntimeState.Empty;
             _lastSnapshot = DecisionContextSnapshot.Empty;
+            _lastExplanation = DecisionExplanation.Empty;
         }
 
         /// <summary>The behaviour-memory service backing this engine's decisions.</summary>
@@ -192,7 +201,18 @@ namespace ADRL.AI.Decision
                 diagnostics,
                 _runtimeState)
                 .WithExecutionProfile(profile)
-                .WithKnowledge(_knowledgeUpdater.Store);
+                .WithKnowledge(_knowledgeUpdater.Store)
+                .WithScoredCandidates(scored);
+
+            // Phase 9.1: explain the completed decision. The explanation is built
+            // strictly from the immutable snapshot by the single owner of
+            // explanation composition, so it never influences the decision chain.
+            // The diagnostics and the snapshot are recomposed to carry the
+            // explanation, keeping diagnostics, snapshot and explanation
+            // synchronized.
+            _lastExplanation = _explanationBuilder.Build(_lastSnapshot);
+            _lastSnapshot = _lastSnapshot.WithDiagnostics(
+                _lastSnapshot.Diagnostics.WithExplanation(_lastExplanation));
 
             _stepCount++;
 
@@ -222,6 +242,14 @@ namespace ADRL.AI.Decision
         public DecisionContextSnapshot LastSnapshot => _lastSnapshot;
 
         /// <summary>
+        /// The immutable, deterministic explanation of the last decision step - the
+        /// complete decision chain as structured, human-readable reasoning. The
+        /// canonical <see cref="DecisionExplanation.Empty"/> explanation before any
+        /// step. Observational only: it never influences decisions.
+        /// </summary>
+        public DecisionExplanation LastExplanation => _lastExplanation;
+
+        /// <summary>
         /// Read-only projection of the framework's running state, synchronized with
         /// the last built context snapshot.
         /// </summary>
@@ -236,6 +264,7 @@ namespace ADRL.AI.Decision
             _stepCount = 0;
             _runtimeState = DecisionRuntimeState.Empty;
             _lastSnapshot = DecisionContextSnapshot.Empty;
+            _lastExplanation = DecisionExplanation.Empty;
             _memoryService.Reset();
             _mission.Reset();
             _knowledgeUpdater.Reset();

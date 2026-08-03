@@ -2,6 +2,7 @@ namespace ADRL.AI.Decision
 {
     using ADRL.AI.DecisionMaking;
     using ADRL.AI.Decision.Context;
+    using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Decision.Mission;
     using ADRL.AI.Decision.Prioritization;
@@ -64,6 +65,15 @@ namespace ADRL.AI.Decision
         /// <summary>The deterministic step-clock value at which world knowledge was last updated.</summary>
         public readonly float KnowledgeTimestamp;
 
+        /// <summary>
+        /// The deterministic explanation of the last decision step, or
+        /// <see cref="DecisionExplanation.Empty"/> before any step. Carried so the
+        /// diagnostics projection also exposes the human-readable explanation
+        /// (winner, behaviour, executor, command and the narrative reasons) - it is
+        /// read-only and never influences decisions.
+        /// </summary>
+        public readonly DecisionExplanation LastExplanation;
+
         public DecisionDiagnostics(
             int stepCount,
             BehaviourState lastBehaviour,
@@ -77,7 +87,8 @@ namespace ADRL.AI.Decision
             int knowledgeRecordCount = 0,
             float nearestVictimDistance = 0f,
             float nearestHazardDistance = 0f,
-            float knowledgeTimestamp = 0f)
+            float knowledgeTimestamp = 0f,
+            DecisionExplanation lastExplanation = default)
         {
             StepCount = stepCount;
             LastBehaviour = lastBehaviour;
@@ -92,6 +103,7 @@ namespace ADRL.AI.Decision
             NearestVictimDistance = nearestVictimDistance;
             NearestHazardDistance = nearestHazardDistance;
             KnowledgeTimestamp = knowledgeTimestamp;
+            LastExplanation = lastExplanation;
         }
 
         /// <summary>An idle, zero-step diagnostics payload.</summary>
@@ -104,7 +116,38 @@ namespace ADRL.AI.Decision
             string.Empty,
             DroneCommand.Idle,
             0f,
-            0);
+            0,
+            0,
+            0f,
+            0f,
+            0f,
+            DecisionExplanation.Empty);
+
+        /// <summary>
+        /// Returns a copy of this diagnostics payload carrying the given decision
+        /// explanation. The payload is immutable, so this never mutates the
+        /// original - it composes a fresh value with the explanation the engine
+        /// builds from the last snapshot, so diagnostics and explanation stay
+        /// synchronized without changing any decision behaviour.
+        /// </summary>
+        public DecisionDiagnostics WithExplanation(DecisionExplanation lastExplanation)
+        {
+            return new DecisionDiagnostics(
+                StepCount,
+                LastBehaviour,
+                LastAssessment,
+                LastMissionTask,
+                LastWinning,
+                SelectedExecutor,
+                LastCommand,
+                DecisionTimestamp,
+                CandidateCount,
+                KnowledgeRecordCount,
+                NearestVictimDistance,
+                NearestHazardDistance,
+                KnowledgeTimestamp,
+                lastExplanation);
+        }
 
         /// <summary>
         /// Projects the diagnostics of the last decision step from the runtime

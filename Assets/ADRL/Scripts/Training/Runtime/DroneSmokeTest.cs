@@ -1,6 +1,7 @@
 namespace ADRL.Training.Runtime
 {
     using ADRL.AI.Agents;
+    using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Rewards;
     using ADRL.Drone.Controllers;
@@ -33,6 +34,7 @@ namespace ADRL.Training.Runtime
         private bool _sawContextSnapshot;
         private bool _sawExecutionProfile;
         private bool _sawKnowledge;
+        private bool _sawExplanation;
         private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
@@ -64,6 +66,7 @@ namespace ADRL.Training.Runtime
             _sawContextSnapshot = false;
             _sawExecutionProfile = false;
             _sawKnowledge = false;
+            _sawExplanation = false;
 
             PlaceDeterministicProbe();
 
@@ -143,6 +146,15 @@ namespace ADRL.Training.Runtime
             if (_agent?.Decision != null
                 && _agent.Decision.LastSnapshot.Knowledge.Count > 0)
                 _sawKnowledge = true;
+
+            // Confirms the Phase 9.1 explainability layer explained a real decision
+            // step: the engine exposes a valid explanation whose step clock
+            // advanced past the empty state. Observational only - it never gates the
+            // smoke PASS criteria.
+            if (_agent?.Decision != null
+                && _agent.Decision.LastExplanation.IsValid
+                && _agent.Decision.LastExplanation.DecisionStep > 0)
+                _sawExplanation = true;
 
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
@@ -224,6 +236,38 @@ namespace ADRL.Training.Runtime
                 $"knownVictims={knownVictims} | knownHazards={knownHazards} | knownObstacles={knownObstacles} | " +
                 $"nearestVictimDistance={nearestVictimDistance:F2} | nearestHazardDistance={nearestHazardDistance:F2} | " +
                 $"knowledgeTimestamp={knowledgeTimestamp:F0}");
+
+            // Phase 9.1 explanation observation (observational only - it never
+            // alters the PASS/FAIL exit code). Surfaces whether the engine built a
+            // valid explanation and whether the deterministic formatter rendered it.
+            var explanation = _agent?.Decision?.LastExplanation;
+            var explanationWinner = explanation.HasValue ? explanation.Value.Winning.Task.State.ToString() : "none";
+            var explanationBehaviour = explanation.HasValue ? explanation.Value.Behaviour.ToString() : "none";
+            var explanationExecutor = explanation.HasValue ? explanation.Value.Executor : "none";
+            var explanationCommand = explanation.HasValue
+                ? (explanation.Value.Command.IsIdle ? "Idle" : "Active")
+                : "none";
+            var formatterOutput = explanation.HasValue
+                ? DecisionExplanationFormatter.Format(explanation.Value)
+                : string.Empty;
+            var formatterValid = _sawExplanation
+                && formatterOutput.Length > 0
+                && formatterOutput.Contains("Winner")
+                && formatterOutput.Contains(explanationBehaviour)
+                && formatterOutput.Contains(explanationExecutor);
+            var formatterLineCount = formatterOutput.Length == 0
+                ? 0
+                : formatterOutput.Split('\n').Length;
+
+            Debug.Log(
+                $"[DroneSmokeTest] explanationObserved={_sawExplanation} | explanationWinner={explanationWinner} | " +
+                $"explanationBehaviour={explanationBehaviour} | explanationExecutor={explanationExecutor} | " +
+                $"explanationCommand={explanationCommand} | formatterValid={formatterValid} | formatterLines={formatterLineCount}");
+            Debug.Log(
+                "[DroneSmokeTest] ExplanationFormatter | "
+                + (formatterOutput.Length == 0
+                    ? "(empty)"
+                    : formatterOutput.Replace("\r", string.Empty).Replace("\n", " | ")));
 
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.

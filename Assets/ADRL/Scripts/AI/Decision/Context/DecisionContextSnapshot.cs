@@ -72,6 +72,15 @@ namespace ADRL.AI.Decision.Context
         /// </summary>
         public readonly WorldKnowledgeStore Knowledge;
 
+        /// <summary>
+        /// The full scored priority list of the last decision, in evaluation order.
+        /// Carried so the complete decision chain is captured in one consistent
+        /// context - the winning objective is the first-ranked entry and the list
+        /// lets a reader replay the arbitration that produced it. Owned copy, never
+        /// shared mutable state; empty before any step.
+        /// </summary>
+        public readonly TaskPriority[] ScoredCandidates;
+
         public DecisionContextSnapshot(
             SituationSnapshot assessment,
             BehaviourMemory memory,
@@ -135,6 +144,35 @@ namespace ADRL.AI.Decision.Context
             DecisionRuntimeState runtimeState,
             BehaviourExecutionProfile executionProfile,
             WorldKnowledgeStore knowledge)
+            : this(
+                assessment,
+                memory,
+                mission,
+                candidates,
+                winning,
+                behaviour,
+                command,
+                diagnostics,
+                runtimeState,
+                executionProfile,
+                knowledge,
+                null)
+        {
+        }
+
+        public DecisionContextSnapshot(
+            SituationSnapshot assessment,
+            BehaviourMemory memory,
+            MissionTask mission,
+            TaskCandidate[] candidates,
+            TaskPriority winning,
+            BehaviourState behaviour,
+            DroneCommand command,
+            DecisionDiagnostics diagnostics,
+            DecisionRuntimeState runtimeState,
+            BehaviourExecutionProfile executionProfile,
+            WorldKnowledgeStore knowledge,
+            TaskPriority[] scoredCandidates)
         {
             Assessment = assessment;
             Memory = memory;
@@ -147,6 +185,7 @@ namespace ADRL.AI.Decision.Context
             RuntimeState = runtimeState;
             ExecutionProfile = executionProfile;
             Knowledge = knowledge ?? WorldKnowledgeStore.Empty;
+            ScoredCandidates = scoredCandidates ?? Array.Empty<TaskPriority>();
         }
 
         /// <summary>
@@ -168,7 +207,8 @@ namespace ADRL.AI.Decision.Context
                 Diagnostics,
                 RuntimeState,
                 executionProfile,
-                Knowledge);
+                Knowledge,
+                ScoredCandidates);
         }
 
         /// <summary>
@@ -190,7 +230,62 @@ namespace ADRL.AI.Decision.Context
                 Diagnostics,
                 RuntimeState,
                 ExecutionProfile,
-                knowledge);
+                knowledge,
+                ScoredCandidates);
+        }
+
+        /// <summary>
+        /// Returns a copy of this snapshot carrying the given scored priority list
+        /// as an owned copy, so the snapshot can never alias the engine's working
+        /// buffer. The snapshot is immutable, so this never mutates the original -
+        /// it composes a fresh value carrying the scored priorities as the complete
+        /// record of the step's arbitration.
+        /// </summary>
+        public DecisionContextSnapshot WithScoredCandidates(TaskPriority[] scoredCandidates)
+        {
+            var owned = scoredCandidates == null
+                ? Array.Empty<TaskPriority>()
+                : new TaskPriority[scoredCandidates.Length];
+            if (scoredCandidates != null)
+                Array.Copy(scoredCandidates, owned, scoredCandidates.Length);
+
+            return new DecisionContextSnapshot(
+                Assessment,
+                Memory,
+                Mission,
+                Candidates,
+                Winning,
+                Behaviour,
+                Command,
+                Diagnostics,
+                RuntimeState,
+                ExecutionProfile,
+                Knowledge,
+                owned);
+        }
+
+        /// <summary>
+        /// Returns a copy of this snapshot carrying the given synchronized
+        /// diagnostics. The snapshot is immutable, so this never mutates the
+        /// original - it composes a fresh value embedding the diagnostics payload
+        /// (for example one carrying the last decision explanation) without
+        /// touching the decision chain it projects.
+        /// </summary>
+        public DecisionContextSnapshot WithDiagnostics(DecisionDiagnostics diagnostics)
+        {
+            return new DecisionContextSnapshot(
+                Assessment,
+                Memory,
+                Mission,
+                Candidates,
+                Winning,
+                Behaviour,
+                Command,
+                diagnostics,
+                RuntimeState,
+                ExecutionProfile,
+                Knowledge,
+                ScoredCandidates);
         }
 
         /// <summary>An empty, pre-step context snapshot.</summary>

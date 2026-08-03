@@ -122,6 +122,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 9.1 — Autonomous Decision Explainability Framework (2026-08-04)
+
+#### Deterministic Explanation Layer (ADRL.AI.Decision.Explainability)
+
+- **`DecisionReason`** (new) — immutable value object representing one individual reasoning entry (`Section` + `Text` + `IsValid`), e.g. "Target detected (0.91)", "Mission RescueVictim", "Approach selected"; produced only by the builder, consumed read-only by the formatter and validation
+- **`DecisionExplanation`** (new) — immutable, deterministic explanation of one completed decision step: `Assessment`, `Knowledge` summary (record count, known victims/hazards/obstacles, nearest victim/hazard distances), `Memory` summary (last behaviour, victim/obstacle records, record count), `Mission`, ordered `CandidateTasks`, full `ScoredCandidates` priority list, `Winning`, `Behaviour`, `Executor`, `OptimizationProfile`, `Command`, `DecisionTimestamp`, `DecisionStep` and the narrative `Reasons`; every array is an owned copy, all members readonly, `Empty` is the canonical pre-step explanation
+- **`DecisionExplanationBuilder`** (new) — single owner of explanation composition; pure, stateless, deterministic function of the built `DecisionContextSnapshot`; reads the snapshot only, never scores/selects/mutates; defensively copies every array; numeric text formatted with the invariant culture so output is byte-identical across locales
+- **`DecisionExplanationFormatter`** (new) — deterministic, human-readable rendering of the explanation: reasons grouped by section (Assessment → Knowledge → Mission → Candidates → Priority → Winner → Behaviour → Executor → Optimization → Command) with section headers and separators; same explanation → byte-identical output
+- **`DecisionExplanationValidator`** (new) — pure validation: complete, no null references, mission valid, winner matches behaviour, behaviour matches executor (`{Behaviour}Executor`), executor matches command (IdleExecutor ⇔ idle command), candidate count consistent, timestamp/step valid; canonical empty explanation validates successfully
+- **`DecisionContextSnapshot`** — new readonly `ScoredCandidates` (owned copy) so the snapshot carries the full scored priority list (not just the winner); 9-/10-/11-argument constructors preserved (delegate with an empty list); `WithScoredCandidates`, `WithDiagnostics`, `WithExecutionProfile`, `WithKnowledge` all preserve every field
+- **`DecisionDiagnostics`** — new `LastExplanation` member + `WithExplanation`; constructor extended with an optional parameter; `Empty` carries `DecisionExplanation.Empty`; the engine recomposes the snapshot's diagnostics to carry the explanation, so snapshot, diagnostics and explanation stay synchronized
+- **`DecisionEngine`** — after capturing the snapshot, builds the immutable explanation via the `DecisionExplanationBuilder` (single owner of explanation composition), stores `LastExplanation` (exposed), and recomposes the snapshot's diagnostics with it; `Reset()` restores the empty explanation; fully backward compatible, zero behavioural change
+- `DroneSmokeTest` observes the explanation and logs `explanationObserved`, `explanationWinner`, `explanationBehaviour`, `explanationExecutor`, `explanationCommand`, `formatterValid`, `formatterLines` and the rendered formatter output; observational only — **no PASS criteria change**
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionExplanationTests` (20): build explanation; empty explanation valid; immutable explanation; assessment captured; knowledge captured; memory captured; mission captured; candidates captured; priority captured; winner captured; behaviour captured; executor captured; optimization captured; command captured; formatter deterministic; formatter contains sections; validator accepts valid; validator rejects invalid; same snapshot → same explanation; explanation does not modify snapshot
+
+#### Validation
+
+- EditMode suite: **221/221 passing** (201 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, movement/behaviour/optimization/determinism unchanged, decision/context/optimization/knowledge observed, **explanation observed, formatter output valid**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, navigation, rewards, simulation, RL and training unchanged; explainability is read-only and never influences decisions
+
 ### Phase 9.0 — Autonomous World Knowledge Framework (2026-08-04)
 
 #### Persistent Knowledge Layer (ADRL.AI.Decision.Knowledge)

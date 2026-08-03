@@ -409,6 +409,34 @@ gantt
 
 ---
 
+## Phase 9.1: Autonomous Decision Explainability Framework (Complete)
+
+**Goal:** Introduce a deterministic, immutable explanation layer that explains every completed decision in a structured, human-readable and fully deterministic manner. It answers "why did the drone make this decision?" without changing how decisions are made. Explainability is strictly observational: it reads the built `DecisionContextSnapshot` only, never influences mission logic, prioritization, selection, optimization, execution, knowledge, memory, navigation, rewards, simulation, RL or training. No RL, no path planning, no navigation, no SLAM, no mapping, no swarm logic.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 9.1.1 | `ADRL.AI.Decision.Explainability` namespace — `DecisionReason.cs`, `DecisionExplanation.cs`, `DecisionExplanationBuilder.cs`, `DecisionExplanationFormatter.cs`, `DecisionExplanationValidator.cs` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 9.1.2 | `DecisionReason` — immutable value object representing one individual reasoning entry (`Section`, `Text`, `IsValid`); produced only by the builder | ✅ Complete |
+| 9.1.3 | `DecisionExplanation` — immutable explanation of one decision step: Assessment, Knowledge summary, Memory summary, Mission, Candidate summary, Priority, Winning, Behaviour, Executor, Optimization Profile, Command, Decision Timestamp, Decision Step, narrative Reasons; owned-copy arrays, all readonly, `Empty` canonical | ✅ Complete |
+| 9.1.4 | `DecisionExplanationBuilder` — single owner of explanation composition; pure, stateless, deterministic; reads the snapshot only; never mutates runtime state; defensively copies arrays; invariant-culture numeric formatting | ✅ Complete |
+| 9.1.5 | `DecisionExplanationFormatter` — deterministic human-readable rendering grouped by section; same explanation → byte-identical output | ✅ Complete |
+| 9.1.6 | `DecisionExplanationValidator` — explanation complete, no null references, winner matches behaviour, behaviour matches executor, executor matches command, mission valid, candidate count valid, timestamp valid, step valid | ✅ Complete |
+| 9.1.7 | `DecisionContextSnapshot` — new `ScoredCandidates` field (owned copy) + `WithScoredCandidates`; 9-/10-/11-arg constructors preserved; `With*` methods preserve every field | ✅ Complete |
+| 9.1.8 | `DecisionDiagnostics` — new `LastExplanation` member + `WithExplanation`; constructor extended with an optional parameter; `Empty` carries `DecisionExplanation.Empty` | ✅ Complete |
+| 9.1.9 | `DecisionEngine` — builds the explanation after snapshot capture via the builder, stores/exposes `LastExplanation`, recomposes the snapshot's diagnostics to carry it; `Reset` restores the empty explanation; backward compatible | ✅ Complete |
+| 9.1.10 | `DroneSmokeTest` — observes the explanation (`explanationObserved`, winner, behaviour, executor, command, `formatterValid`, formatter output); observational only, **no PASS criteria change** | ✅ Complete |
+
+### Milestone
+- `DecisionExplanationBuilder` is the sole owner of explanation composition, `DecisionExplanationFormatter` of formatting, `DecisionExplanationValidator` of validation; the engine remains the sole decision authority and exposes the last explanation without any behavioural change
+- No duplicate composition, no hidden mutable state, no circular dependencies, no new Assembly Definitions; immutable explanation with owned-copy arrays; deterministic (same snapshot → same explanation); backward compatible
+- `DecisionExplanationTests` added (20); full EditMode suite **221/221 passing** (201 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: finite reward, **sumInvariant=True**, movement/behaviour/optimization/determinism unchanged, **explanation observed, formatter output valid**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, navigation, rewards, simulation, RL and training unchanged; explainability is read-only and never influences decisions
+
+---
+
 ## Phase 9.0: Autonomous World Knowledge Framework (Complete)
 
 **Goal:** Introduce a deterministic knowledge layer that persistently stores discovered information about the environment, answering "what does the drone currently know about the world?" Knowledge is read-only for consumers and write-only through the `KnowledgeUpdater`. No RL, no path planning, no navigation, no SLAM, no mapping, no multi-agent communication, and no behaviour decisions.
@@ -539,6 +567,7 @@ gantt
 | v0.8.9 | Decision Context | Unified immutable per-step context snapshot, synchronized diagnostics, validator, smoke + integration validation (Phase 8.8) |
 | v0.9.0 | Behaviour Optimization | Deterministic execution optimization layer: immutable execution profile, optimizer + validator, profile-aware executors, smoke + integration validation (Phase 8.9) |
 | v0.10.0 | World Knowledge | Persistent world-knowledge layer: store + updater + query, snapshot integration, synchronized diagnostics, smoke + integration validation (Phase 9.0) |
+| v0.11.0 | Decision Explainability | Deterministic immutable explanation layer: reasons + explanation + builder + formatter + validator, scored-priority snapshot integration, synchronized diagnostics, smoke + integration validation (Phase 9.1) |
 | v1.0.0 | Release | Full stable release |
 
 ---
