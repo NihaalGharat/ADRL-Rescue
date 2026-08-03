@@ -122,6 +122,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 8.4 — Autonomous Behaviour Execution Framework (2026-08-03)
+
+#### Behaviour Execution Layer (ADRL.AI.Decision.Execution)
+
+- **New `ADRL.AI.Decision.Execution` namespace** (`Assets/ADRL/Scripts/AI/Decision/Execution/`, existing `ADRL.AI` assembly): a dedicated behaviour execution layer so movement generation is owned by behaviour-specific executors rather than `DecisionEngine` itself
+- **`IBehaviourExecutor`** — single owner of movement generation for one behaviour; pure, stateless function of the assessed situation (same `SituationSnapshot` → identical `DroneCommand`); never decides what to do and never runs the drone
+- **`IdleExecutor`** — always commands `DroneCommand.Idle`; no parameters
+- **`SearchExecutor`** — steady forward exploration with a gentle, constant-rate yaw sweep; deterministic, no random numbers, no left/right oscillation, configurable forward speed + yaw rate
+- **`ApproachExecutor`** — steers toward the assessed target side with clamped lateral steering and smoothed yaw (reduces jitter); configurable forward speed, steer gain, yaw gain
+- **`AvoidExecutor`** — deterministic avoidance side (evades away from the assessed obstacle side), backoff + smooth turn that begins recovering heading; no left/right oscillation; configurable backoff speed, steer gain, yaw gain
+- **`BehaviourExecutorFactory`** — the single behaviour-to-executor mapping; returns the matching executor for Idle/Search/Approach/Avoid (unknown falls back to Idle); no switch duplication elsewhere
+
+#### DecisionEngine Refactor
+
+- **`DecisionEngine` no longer contains behaviour-specific movement logic** — its `ResolveCommand` switch was removed; `Decide()` now performs assessment → behaviour selection → executor lookup → `DroneCommand` via `BehaviourExecutorFactory`, then returns the `DecisionResult`
+- `DecisionEngine` remains the single runtime decision authority; `DecisionResult`/`DroneCommand`/`DroneAgent`/`DroneController` contracts unchanged; existing `DecisionContext` constructor preserved (new executor constants added via a second, backward-compatible constructor)
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionBehaviourExecutionTests` (11): idle command; deterministic search exploration; approach steering toward target (both sides + clamping); avoid command generation (both sides + deterministic side / no oscillation); factory returns the correct executor for each behaviour; executors report matching behaviour; single mapping (no duplicate command generation, stable instances); identical snapshot → identical command across all executors; engine delegates to the behaviour executor for the resolved command
+
+#### Validation
+
+- EditMode suite: **98/98 passing** (87 prior + 11 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, movement 1.14m, reward finite and **sumInvariant=True**, `decisionSeen=True`, last behaviour Avoid
+
 ### Phase 8.3 — Decision Engine Runtime Integration (2026-08-02)
 
 #### Runtime Authority Handover (DroneAgent)

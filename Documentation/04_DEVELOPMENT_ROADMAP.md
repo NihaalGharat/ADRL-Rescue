@@ -313,6 +313,30 @@ gantt
 
 ---
 
+## Phase 8.4: Autonomous Behaviour Execution Framework (Complete)
+
+**Goal:** Introduce a dedicated Behaviour Execution layer so movement generation is owned by behaviour-specific executors rather than `DecisionEngine` itself. `DecisionEngine` remains the single runtime decision authority; executors become the single owners of behaviour-specific movement generation. An architectural refactoring and extension of the Phase 8.3 runtime — not a redesign.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 8.4.1 | `ADRL.AI.Decision.Execution` namespace — `IBehaviourExecutor`, `IdleExecutor`, `SearchExecutor`, `ApproachExecutor`, `AvoidExecutor`, `BehaviourExecutorFactory` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 8.4.2 | `IdleExecutor` — generates `DroneCommand.Idle` only | ✅ Complete |
+| 8.4.3 | `SearchExecutor` — deterministic forward exploration with smooth yaw sweep; no oscillation, no random numbers, configurable constants | ✅ Complete |
+| 8.4.4 | `ApproachExecutor` — steer toward detected victim, reduced yaw jitter, smooth forward motion, configurable gains, deterministic | ✅ Complete |
+| 8.4.5 | `AvoidExecutor` — deterministic avoidance side, smooth turn, heading recovery, no left/right oscillation, configurable parameters | ✅ Complete |
+| 8.4.6 | `BehaviourExecutorFactory` — returns the correct executor for Idle/Search/Approach/Avoid; no switch duplication elsewhere | ✅ Complete |
+| 8.4.7 | `DecisionEngine` — performs assessment, selects behaviour, obtains executor, requests `DroneCommand`, returns `DecisionResult`; no behaviour-specific movement logic remains | ✅ Complete |
+
+### Milestone
+- `DecisionEngine` retains sole decision authority; movement generation delegated to behaviour executors via `BehaviourExecutorFactory` (single mapping, no duplicate command generation, stable executor instances)
+- `DecisionBehaviourExecutionTests` added (11); full EditMode suite **98/98 passing** (87 prior + 11 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: movement 1.14m, reward finite, **sumInvariant=True**, `decisionSeen=True`, last behaviour Avoid
+- Executors are pure, stateless functions of the assessed situation (identical snapshot → identical command); no circular dependencies, no hidden state
+
+---
+
 ## Version Milestones
 
 | Version | Phase | Features |
@@ -328,6 +352,7 @@ gantt
 | v0.8.1 | Reward System | Event-driven reward evaluator, reward diagnostics (Phase 7.3) |
 | v0.8.2 | Runtime Event Integration | Collision & victim pipeline, mission-completed episode finalization (Phase 8.1) |
 | v0.8.3 | Decision Runtime | DecisionEngine as the runtime decision authority, smoke-test + integration validation (Phase 8.3) |
+| v0.8.4 | Behaviour Execution | Behaviour executor layer, factory-based command generation, smoke + integration validation (Phase 8.4) |
 | v1.0.0 | Release | Full stable release |
 
 ---
