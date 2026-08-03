@@ -8,6 +8,7 @@ namespace ADRL.AI.Decision
     using ADRL.AI.Decision.Mission;
     using ADRL.AI.Decision.Optimization;
     using ADRL.AI.Decision.Prioritization;
+    using ADRL.AI.Decision.Trace;
     using ADRL.AI.DecisionMaking;
     using ADRL.Sensors.Interfaces;
 
@@ -43,7 +44,14 @@ namespace ADRL.AI.Decision
     /// <see cref="ADRL.AI.Decision.Explainability.DecisionExplanation"/> through the
     /// <see cref="ADRL.AI.Decision.Explainability.DecisionExplanationBuilder"/> - the
     /// single owner of explanation composition - which reads the snapshot only and
-    /// never influences the decision chain.
+    /// never influences the decision chain. Finally it records the completed
+    /// decision as an immutable replayable
+    /// <see cref="ADRL.AI.Decision.Trace.DecisionTraceFrame"/> through the
+    /// <see cref="ADRL.AI.Decision.Trace.DecisionTraceBuilder"/> - the single owner
+    /// of trace composition - appended to the bounded
+    /// <see cref="ADRL.AI.Decision.Trace.DecisionTraceStore"/> and embedded in the
+    /// snapshot; tracing is strictly observational and never influences the
+    /// decision chain.
     /// </remarks>
     public sealed class DecisionEngine
     {
@@ -61,11 +69,14 @@ namespace ADRL.AI.Decision
         private readonly IBehaviourOptimizer _optimizer;
         private readonly KnowledgeUpdater _knowledgeUpdater;
         private readonly DecisionExplanationBuilder _explanationBuilder;
+        private readonly DecisionTraceBuilder _traceBuilder;
+        private readonly DecisionTraceStore _traceStore;
 
         private int _stepCount;
         private DecisionRuntimeState _runtimeState;
         private DecisionContextSnapshot _lastSnapshot;
         private DecisionExplanation _lastExplanation;
+        private DecisionTraceFrame _lastTraceFrame;
 
         public DecisionEngine(
             DecisionContext context,
@@ -91,9 +102,12 @@ namespace ADRL.AI.Decision
             _optimizer = new BehaviourOptimizer(optimizationPolicy ?? OptimizationPolicy.Default);
             _knowledgeUpdater = new KnowledgeUpdater(knowledgePolicy ?? KnowledgePolicy.Default);
             _explanationBuilder = new DecisionExplanationBuilder();
+            _traceBuilder = new DecisionTraceBuilder();
+            _traceStore = new DecisionTraceStore();
             _runtimeState = DecisionRuntimeState.Empty;
             _lastSnapshot = DecisionContextSnapshot.Empty;
             _lastExplanation = DecisionExplanation.Empty;
+            _lastTraceFrame = DecisionTraceFrame.Empty;
         }
 
         /// <summary>The behaviour-memory service backing this engine's decisions.</summary>
@@ -214,6 +228,17 @@ namespace ADRL.AI.Decision
             _lastSnapshot = _lastSnapshot.WithDiagnostics(
                 _lastSnapshot.Diagnostics.WithExplanation(_lastExplanation));
 
+            // Phase 9.2: trace the completed decision. The trace frame is built
+            // strictly from the snapshot and its explanation by the single owner of
+            // trace composition, appended to the single owner of trace history and
+            // carried by the snapshot, so the whole decision chain is replayable
+            // without any behavioural change. Tracing is observational only.
+            _lastTraceFrame = _traceBuilder.Build(_lastSnapshot, _lastExplanation);
+            _lastSnapshot = _lastSnapshot.WithTrace(_lastTraceFrame);
+            _lastSnapshot = _lastSnapshot.WithDiagnostics(
+                _lastSnapshot.Diagnostics.WithTraceFrame(_lastTraceFrame));
+            _traceStore.Append(_lastTraceFrame);
+
             _stepCount++;
 
             return new DecisionResult(behaviour, command, assessment);
@@ -250,6 +275,22 @@ namespace ADRL.AI.Decision
         public DecisionExplanation LastExplanation => _lastExplanation;
 
         /// <summary>
+        /// The immutable, replayable trace frame of the last decision step - the
+        /// complete decision chain as a structured trace record for replay,
+        /// inspection and debugging. The canonical <see cref="DecisionTraceFrame.Empty"/>
+        /// frame before any step. Observational only: it never influences decisions.
+        /// </summary>
+        public DecisionTraceFrame LastTraceFrame => _lastTraceFrame;
+
+        /// <summary>
+        /// The single owner of trace history, recording every completed decision as
+        /// an immutable frame in deterministic append order (bounded, evicting the
+        /// oldest frame at capacity). Read-only for consumers; the engine is the
+        /// only writer. Cleared by <see cref="Reset"/>.
+        /// </summary>
+        public DecisionTraceStore TraceStore => _traceStore;
+
+        /// <summary>
         /// Read-only projection of the framework's running state, synchronized with
         /// the last built context snapshot.
         /// </summary>
@@ -265,6 +306,8 @@ namespace ADRL.AI.Decision
             _runtimeState = DecisionRuntimeState.Empty;
             _lastSnapshot = DecisionContextSnapshot.Empty;
             _lastExplanation = DecisionExplanation.Empty;
+            _lastTraceFrame = DecisionTraceFrame.Empty;
+            _traceStore.Clear();
             _memoryService.Reset();
             _mission.Reset();
             _knowledgeUpdater.Reset();

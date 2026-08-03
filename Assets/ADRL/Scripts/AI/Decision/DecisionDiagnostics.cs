@@ -6,6 +6,7 @@ namespace ADRL.AI.Decision
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Decision.Mission;
     using ADRL.AI.Decision.Prioritization;
+    using ADRL.AI.Decision.Trace;
     using UnityEngine;
 
     /// <summary>
@@ -74,6 +75,15 @@ namespace ADRL.AI.Decision
         /// </summary>
         public readonly DecisionExplanation LastExplanation;
 
+        /// <summary>
+        /// The immutable, replayable trace frame of the last decision step, or
+        /// <see cref="DecisionTraceFrame.Empty"/> before any step. Carried so the
+        /// diagnostics projection also exposes the structured trace record of the
+        /// step for replay and inspection - it is read-only and never influences
+        /// decisions.
+        /// </summary>
+        public readonly DecisionTraceFrame LastTraceFrame;
+
         public DecisionDiagnostics(
             int stepCount,
             BehaviourState lastBehaviour,
@@ -88,7 +98,8 @@ namespace ADRL.AI.Decision
             float nearestVictimDistance = 0f,
             float nearestHazardDistance = 0f,
             float knowledgeTimestamp = 0f,
-            DecisionExplanation lastExplanation = default)
+            DecisionExplanation lastExplanation = default,
+            DecisionTraceFrame lastTraceFrame = null)
         {
             StepCount = stepCount;
             LastBehaviour = lastBehaviour;
@@ -104,6 +115,7 @@ namespace ADRL.AI.Decision
             NearestHazardDistance = nearestHazardDistance;
             KnowledgeTimestamp = knowledgeTimestamp;
             LastExplanation = lastExplanation;
+            LastTraceFrame = lastTraceFrame ?? DecisionTraceFrame.Empty;
         }
 
         /// <summary>An idle, zero-step diagnostics payload.</summary>
@@ -121,7 +133,8 @@ namespace ADRL.AI.Decision
             0f,
             0f,
             0f,
-            DecisionExplanation.Empty);
+            DecisionExplanation.Empty,
+            DecisionTraceFrame.Empty);
 
         /// <summary>
         /// Returns a copy of this diagnostics payload carrying the given decision
@@ -146,7 +159,35 @@ namespace ADRL.AI.Decision
                 NearestVictimDistance,
                 NearestHazardDistance,
                 KnowledgeTimestamp,
-                lastExplanation);
+                lastExplanation,
+                LastTraceFrame);
+        }
+
+        /// <summary>
+        /// Returns a copy of this diagnostics payload carrying the given trace
+        /// frame. The payload is immutable, so this never mutates the original - it
+        /// composes a fresh value with the trace frame the engine builds from the
+        /// last snapshot, so diagnostics and trace stay synchronized without
+        /// changing any decision behaviour.
+        /// </summary>
+        public DecisionDiagnostics WithTraceFrame(DecisionTraceFrame lastTraceFrame)
+        {
+            return new DecisionDiagnostics(
+                StepCount,
+                LastBehaviour,
+                LastAssessment,
+                LastMissionTask,
+                LastWinning,
+                SelectedExecutor,
+                LastCommand,
+                DecisionTimestamp,
+                CandidateCount,
+                KnowledgeRecordCount,
+                NearestVictimDistance,
+                NearestHazardDistance,
+                KnowledgeTimestamp,
+                LastExplanation,
+                lastTraceFrame);
         }
 
         /// <summary>

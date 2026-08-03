@@ -3,6 +3,7 @@ namespace ADRL.Training.Runtime
     using ADRL.AI.Agents;
     using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
+    using ADRL.AI.Decision.Trace;
     using ADRL.AI.Rewards;
     using ADRL.Drone.Controllers;
     using UnityEngine;
@@ -35,6 +36,7 @@ namespace ADRL.Training.Runtime
         private bool _sawExecutionProfile;
         private bool _sawKnowledge;
         private bool _sawExplanation;
+        private bool _sawTrace;
         private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
@@ -67,6 +69,7 @@ namespace ADRL.Training.Runtime
             _sawExecutionProfile = false;
             _sawKnowledge = false;
             _sawExplanation = false;
+            _sawTrace = false;
 
             PlaceDeterministicProbe();
 
@@ -155,6 +158,16 @@ namespace ADRL.Training.Runtime
                 && _agent.Decision.LastExplanation.IsValid
                 && _agent.Decision.LastExplanation.DecisionStep > 0)
                 _sawExplanation = true;
+
+            // Confirms the Phase 9.2 trace framework recorded a real decision step:
+            // the engine exposes a valid trace frame whose step clock advanced past
+            // the empty state and the trace store holds it. Observational only - it
+            // never gates the smoke PASS criteria.
+            if (_agent?.Decision != null
+                && _agent.Decision.LastTraceFrame != null
+                && _agent.Decision.LastTraceFrame.DecisionStep > 0
+                && _agent.Decision.TraceStore.Count > 0)
+                _sawTrace = true;
 
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
@@ -268,6 +281,30 @@ namespace ADRL.Training.Runtime
                 + (formatterOutput.Length == 0
                     ? "(empty)"
                     : formatterOutput.Replace("\r", string.Empty).Replace("\n", " | ")));
+
+            // Phase 9.2 trace observation + replay validation (observational only -
+            // it never alters the PASS/FAIL exit code). Surfaces whether the engine
+            // recorded every decision into the bounded trace store and whether the
+            // replayed latest frame is internally consistent.
+            var trace = _agent?.Decision?.LastTraceFrame;
+            var traceStore = _agent?.Decision?.TraceStore;
+            var traceCount = traceStore != null ? traceStore.Count : 0;
+            var latestTraceStep = trace != null ? trace.DecisionStep : 0;
+            var latestBehaviour = trace != null ? trace.Behaviour.ToString() : "none";
+            var latestMission = trace != null ? trace.Mission.State.ToString() : "none";
+            var replayed = traceStore != null
+                ? DecisionReplay.ReplayLatest(traceStore)
+                : DecisionTraceFrame.Empty;
+            var replayValid = _sawTrace
+                && trace != null
+                && DecisionReplayValidator.IsValid(trace)
+                && replayed.DecisionStep == trace.DecisionStep
+                && replayed.Behaviour == trace.Behaviour;
+
+            Debug.Log(
+                $"[DroneSmokeTest] traceObserved={_sawTrace} | traceCount={traceCount} | " +
+                $"latestTraceStep={latestTraceStep} | latestBehaviour={latestBehaviour} | " +
+                $"latestMission={latestMission} | replayValid={replayValid}");
 
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.

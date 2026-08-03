@@ -122,6 +122,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 9.2 — Autonomous Decision Trace & Replay Framework (2026-08-04)
+
+#### Deterministic Trace Layer (ADRL.AI.Decision.Trace)
+
+- **`DecisionTraceFrame`** (new) — immutable, replayable trace of one completed decision step: `DecisionStep`, `DecisionTimestamp`, `Assessment`, `Mission`, `Behaviour`, `OptimizationProfile`, `Command`, `Explanation`, `Diagnostics`, `WinningTask`, `CandidateCount`, `KnowledgeCount`, `MemoryCount`, `ExecutorName`, `OptimizationConfidence` and the narrative `Reasons`; all members readonly, reasons are an owned copy, `Empty` is the canonical pre-step frame. Implemented as a sealed immutable class because the frame embeds the step's `DecisionDiagnostics` while the diagnostics projection exposes the last trace frame - a value type would form an infinitely sized layout (CS0523)
+- **`DecisionTraceBuilder`** (new) — single owner of trace composition; pure, stateless, deterministic function of the built `DecisionContextSnapshot` and its `DecisionExplanation`; reads both only, never mutates runtime state; counts and executor names read null-safely
+- **`DecisionTraceStore`** (new) — single owner of trace history: bounded, configurable capacity (default 128), `Append`, `Clear`, `Count`, `Latest`, `Get(index)`, `Enumerate` (owned copy, oldest first); deterministic append ordering; oldest-first eviction when full; out-of-range reads return `Empty` (never throw); no LINQ
+- **`DecisionReplay`** (new) — deterministic replay utility: `ReplayFrame`, `ReplayLatest`, `ReplayRange` (owned copy); reads immutable trace frames only and never writes runtime, engine, snapshot, explanation, diagnostics, mission or behaviour; null/invalid requests yield empty results, never exceptions
+- **`DecisionReplayValidator`** (new) — pure replay-consistency validation: frame complete, behaviour matches trace, mission matches trace, explanation matches trace, diagnostics synchronized (step/behaviour/command/mission/winner), command synchronized, knowledge synchronized, optimization synchronized (confidence identical across frame, profile and explanation); returns plain bools, no exceptions
+- **`DecisionContextSnapshot`** — new readonly `Trace` field + `WithTrace`; 9-/10-/11-/12-argument constructors preserved (delegate with the empty trace); `WithExecutionProfile`, `WithKnowledge`, `WithScoredCandidates`, `WithDiagnostics` all preserve every field
+- **`DecisionDiagnostics`** — new `LastTraceFrame` member + `WithTraceFrame`; constructor extended with an optional parameter; `Empty` carries `DecisionTraceFrame.Empty`; `WithExplanation` preserves the trace
+- **`DecisionEngine`** — after building the explanation, builds the immutable trace frame via the `DecisionTraceBuilder` (single owner of trace composition), embeds it into the snapshot (`WithTrace`) and its diagnostics (`WithTraceFrame`), appends it to the bounded `TraceStore`, and exposes `LastTraceFrame` + `TraceStore`; `Reset()` clears the store and restores the empty frame; fully backward compatible, zero behavioural change
+- `DroneSmokeTest` observes the trace store and logs `traceObserved`, `traceCount`, `latestTraceStep`, `latestBehaviour`, `latestMission`, `replayValid` (replayed latest frame validated); observational only — **no PASS criteria change**
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionTraceTests` (20): append; retrieval; eviction; replay latest; replay range; deterministic ordering; immutable frame; behaviour synchronization; mission synchronization; optimization synchronization; command synchronization; knowledge synchronization; memory synchronization; explanation synchronization; diagnostics synchronization; replay validator accepts valid; replay validator rejects mismatch; empty trace; reset clears store; identical snapshot → identical trace
+
+#### Validation
+
+- EditMode suite: **241/241 passing** (221 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, movement/behaviour/optimization/determinism unchanged, decision/context/optimization/knowledge/explanation observed, **trace observed and replay validation succeeds**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, navigation, rewards, simulation, RL and training unchanged; tracing is read-only and never influences decisions
+
 ### Phase 9.1 — Autonomous Decision Explainability Framework (2026-08-04)
 
 #### Deterministic Explanation Layer (ADRL.AI.Decision.Explainability)

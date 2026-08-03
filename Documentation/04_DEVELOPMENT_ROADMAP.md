@@ -409,6 +409,34 @@ gantt
 
 ---
 
+## Phase 9.2: Autonomous Decision Trace & Replay Framework (Complete)
+
+**Goal:** Introduce a deterministic decision tracing system that records every autonomous decision into immutable, replayable trace frames, allowing exact replay, inspection, regression testing and debugging without changing runtime behaviour. Tracing is strictly observational: it reads the built `DecisionContextSnapshot` and its explanation only, never influences decision making, prioritization, mission selection, optimization or execution. No RL, no path planning, no navigation, no SLAM, no mapping, no swarm logic.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 9.2.1 | `ADRL.AI.Decision.Trace` namespace — `DecisionTraceFrame.cs`, `DecisionTraceBuilder.cs`, `DecisionTraceStore.cs`, `DecisionReplay.cs`, `DecisionReplayValidator.cs` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 9.2.2 | `DecisionTraceFrame` — immutable trace of one decision (step, timestamp, assessment, mission, behaviour, optimization profile, command, explanation, diagnostics, winning task, candidate/knowledge/memory counts, executor name, optimization confidence, reasons); all readonly, owned-copy reasons, `Empty` canonical; sealed immutable class to avoid a value-type layout cycle with `DecisionDiagnostics` | ✅ Complete |
+| 9.2.3 | `DecisionTraceBuilder` — single owner of trace composition; pure, stateless, deterministic; reads the snapshot and explanation only; never mutates runtime state; null-safe counts/executor | ✅ Complete |
+| 9.2.4 | `DecisionTraceStore` — single owner of trace history: bounded configurable capacity (default 128), `Append`/`Clear`/`Count`/`Latest`/`Get`/`Enumerate`, oldest-first eviction, deterministic append ordering, no LINQ, never throws | ✅ Complete |
+| 9.2.5 | `DecisionReplay` — replay utility: `ReplayFrame`/`ReplayLatest`/`ReplayRange`; reads immutable frames only, produces immutable owned-copy results, never writes runtime; null/invalid → empty results, no exceptions | ✅ Complete |
+| 9.2.6 | `DecisionReplayValidator` — replay consistency: behaviour/mission/explanation match trace, diagnostics synchronized, command/knowledge/optimization synchronized; plain bool returns, no exceptions | ✅ Complete |
+| 9.2.7 | `DecisionContextSnapshot` — new `Trace` field + `WithTrace`; 9-/10-/11-/12-arg constructors preserved; `With*` methods preserve every field | ✅ Complete |
+| 9.2.8 | `DecisionDiagnostics` — new `LastTraceFrame` member + `WithTraceFrame`; constructor extended with an optional parameter; `Empty` carries `DecisionTraceFrame.Empty` | ✅ Complete |
+| 9.2.9 | `DecisionEngine` — builds the trace after explanation via the builder, embeds it into snapshot (`WithTrace`) and diagnostics (`WithTraceFrame`), appends to the bounded `TraceStore`, exposes `LastTraceFrame` + `TraceStore`; `Reset` clears the store; backward compatible | ✅ Complete |
+| 9.2.10 | `DroneSmokeTest` — observes the trace (`traceObserved`, `traceCount`, `latestTraceStep`, `latestBehaviour`, `latestMission`, `replayValid`); observational only, **no PASS criteria change** | ✅ Complete |
+
+### Milestone
+- `DecisionTraceBuilder` is the sole owner of trace composition, `DecisionTraceStore` of trace history, `DecisionReplay` of replay reads, `DecisionReplayValidator` of replay validation; the engine remains the sole decision authority and records each step without any behavioural change
+- No duplicate tracing, no hidden mutable state, no circular dependencies, no new Assembly Definitions; immutable trace frame with owned-copy reasons; deterministic ordering and eviction; backward compatible
+- `DecisionTraceTests` added (20); full EditMode suite **241/241 passing** (221 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: finite reward, **sumInvariant=True**, movement/behaviour/optimization/determinism unchanged, **trace observed and replay validation succeeds**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, navigation, rewards, simulation, RL and training unchanged; tracing is read-only and never influences decisions
+
+---
+
 ## Phase 9.1: Autonomous Decision Explainability Framework (Complete)
 
 **Goal:** Introduce a deterministic, immutable explanation layer that explains every completed decision in a structured, human-readable and fully deterministic manner. It answers "why did the drone make this decision?" without changing how decisions are made. Explainability is strictly observational: it reads the built `DecisionContextSnapshot` only, never influences mission logic, prioritization, selection, optimization, execution, knowledge, memory, navigation, rewards, simulation, RL or training. No RL, no path planning, no navigation, no SLAM, no mapping, no swarm logic.
@@ -568,6 +596,7 @@ gantt
 | v0.9.0 | Behaviour Optimization | Deterministic execution optimization layer: immutable execution profile, optimizer + validator, profile-aware executors, smoke + integration validation (Phase 8.9) |
 | v0.10.0 | World Knowledge | Persistent world-knowledge layer: store + updater + query, snapshot integration, synchronized diagnostics, smoke + integration validation (Phase 9.0) |
 | v0.11.0 | Decision Explainability | Deterministic immutable explanation layer: reasons + explanation + builder + formatter + validator, scored-priority snapshot integration, synchronized diagnostics, smoke + integration validation (Phase 9.1) |
+| v0.12.0 | Decision Trace & Replay | Deterministic replayable trace layer: frame + builder + bounded store + replay + replay validator, snapshot/diagnostics integration, smoke + integration validation (Phase 9.2) |
 | v1.0.0 | Release | Full stable release |
 
 ---
