@@ -6,6 +6,7 @@ namespace ADRL.AI.Decision.Context
     using ADRL.AI.Decision.Mission;
     using ADRL.AI.Decision.Optimization;
     using ADRL.AI.Decision.Prioritization;
+    using ADRL.AI.Decision.Trace;
     using ADRL.AI.DecisionMaking;
 
     /// <summary>
@@ -13,10 +14,11 @@ namespace ADRL.AI.Decision.Context
     /// decision step into a single consistent context: the assessed situation, the
     /// behaviour memory at that step, the mission objective, the generated
     /// candidates, the winning objective, the selected behaviour, the resolved
-    /// command, the synchronized diagnostics and the runtime metadata. Produced by
+    /// command, the synchronized diagnostics, the runtime metadata and the
+    /// replayable decision trace. Produced by
     /// the <see cref="DecisionContextBuilder"/>, the single owner of context
-    /// composition; consumed read-only by validation, diagnostics and the smoke
-    /// test. Never mutated in place.
+    /// composition; consumed read-only by validation, diagnostics, replay and the
+    /// smoke test. Never mutated in place.
     /// </summary>
     /// <remarks>
     /// All fields are readonly and the snapshot is never mutated after construction.
@@ -80,6 +82,15 @@ namespace ADRL.AI.Decision.Context
         /// shared mutable state; empty before any step.
         /// </summary>
         public readonly TaskPriority[] ScoredCandidates;
+
+        /// <summary>
+        /// The immutable, replayable trace frame of the last decision step, or
+        /// <see cref="DecisionTraceFrame.Empty"/> before any step. Carried so the
+        /// snapshot is the complete per-step context - the full decision chain as a
+        /// structured trace record for replay, inspection and debugging. Read-only:
+        /// it never influences decisions.
+        /// </summary>
+        public readonly DecisionTraceFrame Trace;
 
         public DecisionContextSnapshot(
             SituationSnapshot assessment,
@@ -173,6 +184,37 @@ namespace ADRL.AI.Decision.Context
             BehaviourExecutionProfile executionProfile,
             WorldKnowledgeStore knowledge,
             TaskPriority[] scoredCandidates)
+            : this(
+                assessment,
+                memory,
+                mission,
+                candidates,
+                winning,
+                behaviour,
+                command,
+                diagnostics,
+                runtimeState,
+                executionProfile,
+                knowledge,
+                scoredCandidates,
+                DecisionTraceFrame.Empty)
+        {
+        }
+
+        public DecisionContextSnapshot(
+            SituationSnapshot assessment,
+            BehaviourMemory memory,
+            MissionTask mission,
+            TaskCandidate[] candidates,
+            TaskPriority winning,
+            BehaviourState behaviour,
+            DroneCommand command,
+            DecisionDiagnostics diagnostics,
+            DecisionRuntimeState runtimeState,
+            BehaviourExecutionProfile executionProfile,
+            WorldKnowledgeStore knowledge,
+            TaskPriority[] scoredCandidates,
+            DecisionTraceFrame trace)
         {
             Assessment = assessment;
             Memory = memory;
@@ -186,6 +228,7 @@ namespace ADRL.AI.Decision.Context
             ExecutionProfile = executionProfile;
             Knowledge = knowledge ?? WorldKnowledgeStore.Empty;
             ScoredCandidates = scoredCandidates ?? Array.Empty<TaskPriority>();
+            Trace = trace ?? DecisionTraceFrame.Empty;
         }
 
         /// <summary>
@@ -208,7 +251,8 @@ namespace ADRL.AI.Decision.Context
                 RuntimeState,
                 executionProfile,
                 Knowledge,
-                ScoredCandidates);
+                ScoredCandidates,
+                Trace);
         }
 
         /// <summary>
@@ -231,7 +275,8 @@ namespace ADRL.AI.Decision.Context
                 RuntimeState,
                 ExecutionProfile,
                 knowledge,
-                ScoredCandidates);
+                ScoredCandidates,
+                Trace);
         }
 
         /// <summary>
@@ -265,6 +310,31 @@ namespace ADRL.AI.Decision.Context
         }
 
         /// <summary>
+        /// Returns a copy of this snapshot carrying the given trace frame. The
+        /// snapshot is immutable, so this never mutates the original - it composes a
+        /// fresh value embedding the replayable decision trace the engine builds
+        /// from the snapshot and its explanation, so the snapshot is the complete
+        /// per-step context including the structured trace record.
+        /// </summary>
+        public DecisionContextSnapshot WithTrace(DecisionTraceFrame trace)
+        {
+            return new DecisionContextSnapshot(
+                Assessment,
+                Memory,
+                Mission,
+                Candidates,
+                Winning,
+                Behaviour,
+                Command,
+                Diagnostics,
+                RuntimeState,
+                ExecutionProfile,
+                Knowledge,
+                ScoredCandidates,
+                trace);
+        }
+
+        /// <summary>
         /// Returns a copy of this snapshot carrying the given synchronized
         /// diagnostics. The snapshot is immutable, so this never mutates the
         /// original - it composes a fresh value embedding the diagnostics payload
@@ -285,7 +355,8 @@ namespace ADRL.AI.Decision.Context
                 RuntimeState,
                 ExecutionProfile,
                 Knowledge,
-                ScoredCandidates);
+                ScoredCandidates,
+                Trace);
         }
 
         /// <summary>An empty, pre-step context snapshot.</summary>
@@ -300,6 +371,8 @@ namespace ADRL.AI.Decision.Context
             DecisionDiagnostics.Empty,
             DecisionRuntimeState.Empty,
             BehaviourExecutionProfile.Empty,
-            WorldKnowledgeStore.Empty);
+            WorldKnowledgeStore.Empty,
+            null,
+            DecisionTraceFrame.Empty);
     }
 }
