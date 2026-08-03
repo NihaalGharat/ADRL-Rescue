@@ -122,6 +122,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 8.5 — Autonomous Behaviour Memory & Coordination Framework (2026-08-03)
+
+#### Behaviour Memory Layer (ADRL.AI.Decision.Memory)
+
+- **New `ADRL.AI.Decision.Memory` namespace** (`Assets/ADRL/Scripts/AI/Decision/Memory/`, existing `ADRL.AI` assembly): a short-term behaviour memory so the drone carries recently perceived context across consecutive frames. An architectural extension of the Phase 8.4 runtime — not path planning, mapping, SLAM, or reinforcement learning
+- **`MemoryRecord`** — immutable runtime memory snapshot (`BehaviourState`, `Timestamp`, `Age`, `Confidence`, `IsValid`); no mutable public fields; ageing and confidence decay are expressed by replacing the record with an updated immutable one
+- **`MemoryPolicy`** — single-owner configuration surface for all memory timing/decay/capacity constants (`VictimMemoryDuration`, `ObstacleMemoryDuration`, `ConfidenceDecay`, `RefreshThreshold`, `MaxRecords`); no magic numbers elsewhere; durations are decision steps so the layer stays deterministic and testable without wall-clock dependency
+- **`BehaviourMemory`** — bounded, deterministic store (`LastVictimSeen`, `LastObstacleSeen`, `LastBehaviour`) with `Store`/`Retrieve`/`Remove`/`Clear`/`Expire`; fixed-capacity backing array so memory can never grow without bound; main-thread only, matching framework assumptions
+- **`BehaviourMemoryService`** — the single owner of all runtime memory updates: refreshes existing memory from the current assessment, re-bases stale memories (per `RefreshThreshold`), expires records past their configured duration, decays confidence, clears invalid records. Never generates commands and never selects behaviours
+
+#### DecisionEngine & Selection Integration
+
+- **`DecisionEngine`** now consumes `SituationSnapshot` + `BehaviourMemory`: `Decide()` refreshes memory from the assessment at a deterministic step clock, selects a behaviour through the memory-aware selector, records the chosen behaviour, then resolves the command via the executor factory. `DecisionEngine` remains the sole runtime decision authority; memory never replaces current perception
+- **`IBehaviourSelector` / `BehaviourSelector`** — added a memory-aware `Select(assessment, memory)` overload (existing single-argument overload preserved for backward compatibility). Continuity rules: current sensor data always wins; only neutral current situations consult memory — a recently seen victim keeps the drone approaching until the memory expires, and a recent obstacle keeps it avoiding briefly (preventing left/right oscillation) before resuming search
+- `DecisionEngine` constructor gains an optional `MemoryPolicy` parameter (backward compatible); `Reset()` also clears memory
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `BehaviourMemoryTests` (11): store victim memory; retrieve victim memory; store obstacle memory; expiration removes stale memory; refresh extends lifetime; clear removes records; memory never exceeds configured capacity; same history produces identical decisions; expired memory no longer influences behaviour; current perception overrides remembered perception; victim continuity keeps approaching while memory is fresh
+
+#### Validation
+
+- EditMode suite: **109/109 passing** (98 prior + 11 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, movement 1.07m, reward finite and **sumInvariant=True**, `decisionSeen=True`, last behaviour Avoid (memory continuity now reaches a second victim reward deterministically)
+
 ### Phase 8.4 — Autonomous Behaviour Execution Framework (2026-08-03)
 
 #### Behaviour Execution Layer (ADRL.AI.Decision.Execution)

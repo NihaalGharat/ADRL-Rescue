@@ -337,6 +337,30 @@ gantt
 
 ---
 
+## Phase 8.5: Autonomous Behaviour Memory & Coordination Framework (Complete)
+
+**Goal:** Introduce short-term autonomous behaviour memory so the drone can remember recently perceived information and make more intelligent decisions across consecutive frames. An architectural extension of the Phase 8.4 Behaviour Execution runtime — not path planning, mapping, SLAM, or reinforcement learning. `DecisionEngine` remains the only runtime decision authority; `BehaviourMemory` never generates commands and never selects behaviours — it only stores and retrieves runtime context.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 8.5.1 | `ADRL.AI.Decision.Memory` namespace — `BehaviourMemory.cs`, `MemoryRecord.cs`, `MemoryPolicy.cs`, `BehaviourMemoryService.cs` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 8.5.2 | `MemoryRecord` — immutable runtime memory (`BehaviourState`, `Timestamp`, `Age`, `Confidence`, `IsValid`); no mutable public fields | ✅ Complete |
+| 8.5.3 | `BehaviourMemory` — maintains `LastVictimSeen`, `LastObstacleSeen`, `LastBehaviour`; `Store`/`Retrieve`/`Clear`/`Expire`; bounded, never grows indefinitely | ✅ Complete |
+| 8.5.4 | `MemoryPolicy` — owns all memory timing/configuration constants (`VictimMemoryDuration`, `ObstacleMemoryDuration`, `ConfidenceDecay`, `RefreshThreshold`, `MaxRecords`); no magic numbers elsewhere | ✅ Complete |
+| 8.5.5 | `BehaviourMemoryService` — single owner of all runtime updates: refresh existing memory, expire stale memory, update confidence, clear invalid records | ✅ Complete |
+| 8.5.6 | `DecisionEngine` — receives `SituationSnapshot` AND `BehaviourMemory`; still owns assessment, behaviour selection, executor selection, `DecisionResult`; memory influences selection but never replaces current perception | ✅ Complete |
+| 8.5.7 | Behaviour continuity — victim seen recently continues Approach until memory expires; obstacle avoided prevents immediate oscillation then resumes Search after timeout; no random behaviour, fully deterministic | ✅ Complete |
+
+### Milestone
+- `DecisionEngine` retains sole decision authority; memory consumed read-only by the memory-aware selector overload (legacy single-argument selector preserved for backward compatibility)
+- `BehaviourMemoryTests` added (11); full EditMode suite **109/109 passing** (98 prior + 11 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: movement 1.07m, reward finite, **sumInvariant=True**, `decisionSeen=True`, last behaviour Avoid (memory continuity reaches a second victim reward deterministically)
+- Memory is bounded (fixed capacity), allocation-light, deterministic (step-clock timestamps, no `Time` dependency), automatically expires stale records, and carries no circular dependencies; main-thread only, matching framework assumptions
+
+---
+
 ## Version Milestones
 
 | Version | Phase | Features |
@@ -353,6 +377,7 @@ gantt
 | v0.8.2 | Runtime Event Integration | Collision & victim pipeline, mission-completed episode finalization (Phase 8.1) |
 | v0.8.3 | Decision Runtime | DecisionEngine as the runtime decision authority, smoke-test + integration validation (Phase 8.3) |
 | v0.8.4 | Behaviour Execution | Behaviour executor layer, factory-based command generation, smoke + integration validation (Phase 8.4) |
+| v0.8.5 | Behaviour Memory | Short-term behaviour memory, continuity-based selection, smoke + integration validation (Phase 8.5) |
 | v1.0.0 | Release | Full stable release |
 
 ---
