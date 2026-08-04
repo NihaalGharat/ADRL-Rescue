@@ -1,5 +1,6 @@
 namespace ADRL.AI.Decision
 {
+    using ADRL.AI.Decision.Advisory;
     using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Context;
     using ADRL.AI.Decision.Evaluation;
@@ -84,6 +85,7 @@ namespace ADRL.AI.Decision
         private DecisionTelemetrySnapshot _lastTelemetry;
         private DecisionAnalyticsSnapshot _lastAnalytics;
         private DecisionEvaluationSnapshot _lastEvaluation;
+        private DecisionAdvisorySnapshot _lastAdvisory;
 
         public DecisionEngine(
             DecisionContext context,
@@ -119,6 +121,7 @@ namespace ADRL.AI.Decision
             _lastTelemetry = DecisionTelemetrySnapshot.Empty;
             _lastAnalytics = DecisionAnalyticsSnapshot.Empty;
             _lastEvaluation = DecisionEvaluationSnapshot.Empty;
+            _lastAdvisory = DecisionAdvisorySnapshot.Empty;
         }
 
         /// <summary>The behaviour-memory service backing this engine's decisions.</summary>
@@ -291,6 +294,25 @@ namespace ADRL.AI.Decision
             _lastSnapshot = _lastSnapshot.WithDiagnostics(
                 _lastSnapshot.Diagnostics.WithEvaluation(_lastEvaluation));
 
+            // Phase 10.0: advise on the quality of the completed decision. The
+            // single owner of advisory computation derives the immutable advisory
+            // snapshot (overall recommendation, ordered recommendations,
+            // confidence, requires-attention and status) from the evaluation,
+            // analytics, telemetry, trace and explanation without any allocation
+            // beyond the snapshot itself; it is exposed as LastAdvisory and
+            // embedded in the last snapshot's diagnostics, so diagnostics,
+            // telemetry, analytics, evaluation and advisory stay synchronized
+            // without any behavioural change. Advisory is observational only - it
+            // never influences decisions.
+            _lastAdvisory = DecisionAdvisoryCalculator.Calculate(
+                _lastEvaluation,
+                _lastAnalytics,
+                _lastTelemetry,
+                _lastTraceFrame,
+                _lastExplanation);
+            _lastSnapshot = _lastSnapshot.WithDiagnostics(
+                _lastSnapshot.Diagnostics.WithAdvisory(_lastAdvisory));
+
             _stepCount++;
 
             return new DecisionResult(behaviour, command, assessment);
@@ -431,6 +453,36 @@ namespace ADRL.AI.Decision
         }
 
         /// <summary>
+        /// The immutable advisory snapshot computed from the evaluation, analytics,
+        /// telemetry, trace and explanation - the overall recommendation, priority
+        /// ordered recommendation set and confidence for the decisions made. The
+        /// canonical <see cref="DecisionAdvisorySnapshot.Empty"/> snapshot before any
+        /// step. Observational only: it never influences decisions.
+        /// </summary>
+        public DecisionAdvisorySnapshot LastAdvisory => _lastAdvisory;
+
+        /// <summary>
+        /// The current advisory snapshot, recomputed on demand from the current
+        /// evaluation, analytics, telemetry, trace and explanation. Identical to
+        /// <see cref="LastAdvisory"/> after a decision step.
+        /// </summary>
+        public DecisionAdvisorySnapshot GetAdvisory()
+        {
+            return DecisionAdvisoryCalculator.Calculate(
+                _lastEvaluation,
+                _lastAnalytics,
+                _lastTelemetry,
+                _lastTraceFrame,
+                _lastExplanation);
+        }
+
+        /// <summary>Clears the accumulated decision advisory and its exposure.</summary>
+        public void ResetAdvisory()
+        {
+            _lastAdvisory = DecisionAdvisorySnapshot.Empty;
+        }
+
+        /// <summary>
         /// Read-only projection of the framework's running state, synchronized with
         /// the last built context snapshot.
         /// </summary>
@@ -451,6 +503,7 @@ namespace ADRL.AI.Decision
             ResetTelemetry();
             ResetAnalytics();
             ResetEvaluation();
+            ResetAdvisory();
             _memoryService.Reset();
             _mission.Reset();
             _knowledgeUpdater.Reset();

@@ -1,8 +1,8 @@
 # ADRL-Rescue Namespace Guide
 
-**Version:** 1.7  
-**Phase:** 7.3 — Reward System & Validation  
-**Date:** 02/08/2026
+**Version:** 2.0  
+**Phase:** 10.0 — Autonomous Decision Advisory (v1.0.0 Release)  
+**Date:** 04/08/2026
 
 ---
 
@@ -35,6 +35,21 @@ ADRL.Drone
 ADRL.AI
 ├── ADRL.AI.Agents
 ├── ADRL.AI.DecisionMaking
+├── ADRL.AI.Decision
+│   ├── ADRL.AI.Decision.Advisory
+│   ├── ADRL.AI.Decision.Analytics
+│   ├── ADRL.AI.Decision.Context
+│   ├── ADRL.AI.Decision.Evaluation
+│   ├── ADRL.AI.Decision.Execution
+│   ├── ADRL.AI.Decision.Explainability
+│   ├── ADRL.AI.Decision.Knowledge
+│   ├── ADRL.AI.Decision.Memory
+│   ├── ADRL.AI.Decision.Mission
+│   ├── ADRL.AI.Decision.Optimization
+│   ├── ADRL.AI.Decision.Prioritization
+│   ├── ADRL.AI.Decision.Telemetry
+│   └── ADRL.AI.Decision.Trace
+├── ADRL.AI.Interaction
 └── ADRL.AI.Rewards
 
 ADRL.Environment
@@ -69,6 +84,10 @@ ADRL.Editor
 
 ADRL.Tests.Editor
 ├── ADRL.Tests.Editor.Configuration
+├── ADRL.Tests.Editor.Decision
+├── ADRL.Tests.Editor.Environment
+├── ADRL.Tests.Editor.Interaction
+├── ADRL.Tests.Editor.Mission
 ├── ADRL.Tests.Editor.Performance
 ├── ADRL.Tests.Editor.Rewards
 └── ADRL.Tests.Editor.Simulation

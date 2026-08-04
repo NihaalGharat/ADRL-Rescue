@@ -66,8 +66,8 @@
 | **Tagline** | *The drone does not follow paths. It learns to find them.* |
 | **Repository** | [github.com/NihaalGharat/ADRL-Rescue](https://github.com/NihaalGharat/ADRL-Rescue) |
 | **Author** | Nihaal Gharat (Project Founder), Bhavya Damani (Co-Developer) |
-| **Current Version** | `0.8.1` |
-| **Project Status** | 🟢 RL Foundation Complete — Reward System In Progress (Phase 7.3) |
+| **Current Version** | `1.0.0` |
+| **Project Status** | 🟢 Autonomous Decision Framework Complete — v1.0.0 Release (Phase 10.0) |
 | **License** | MIT License |
 | **Intended Audience** | AI researchers, robotics students, Unity developers, RL practitioners |
 
@@ -726,7 +726,7 @@ A feature is considered **done** when:
 
 # 26. Versioning Strategy
 
-**Current Version:** v0.8.1 (RL Foundation Complete — Reward System In Progress)
+**Current Version:** v1.0.0 (Autonomous Decision Framework Release — Phase 10.0)
 
 For the full version history, completed releases, and planned milestones, see [CHANGELOG.md](../CHANGELOG.md). CHANGELOG is the single source of truth for all releases.
 

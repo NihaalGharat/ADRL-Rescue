@@ -27,6 +27,7 @@
 | 16 | [Future Scope](16_FUTURE_SCOPE.md) | Future features and roadmap |
 | 17 | [Software Design Specification](17_SOFTWARE_DESIGN_SPECIFICATION.md) | Implementation blueprint for all C# scripts |
 | 18 | [Developer Handbook](18_DEVELOPER_HANDBOOK.md) | Practical guide for developers |
+| 19 | [Decision Framework](19_DECISION_FRAMEWORK.md) | Canonical architecture of the autonomous Decision Engine (Phases 8.1–10.0) |
 | — | [Project Glossary](PROJECT_GLOSSARY.md) | Terminology reference |
 | — | [Roadmap Source](ROADMAP_SOURCE.md) | Original roadmap source document |
 

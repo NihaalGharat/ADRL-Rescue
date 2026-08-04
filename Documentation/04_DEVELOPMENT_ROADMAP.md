@@ -41,23 +41,20 @@ gantt
     ML-Agents Integration   :done, p4b, after p4a, 14d
     Behavior Parameters     :done, p4c, after p4b, 7d
     
-    section Training (v0.5.0)
-    Reward System           :active, p5a, after p4c, 10d
-    PPO Training Pipeline   :p5b, after p5a, 21d
-    Model Evaluation        :p5c, after p5b, 7d
+    section Runtime & Reward (v0.5.0 - v0.8.1)
+    Runtime Framework       :done, p5a, after p4c, 14d
+    Reward System           :done, p5b, after p5a, 10d
     
-    section Infrastructure & RL (v0.7.0 - v0.8.0)
-    Runtime Framework       :done, p7a, after p4c, 14d
-    RL Foundation           :done, p7b, after p7a, 10d
+    section Autonomous Decision Framework (v0.8.2 - v1.0.0)
+    Decision Engine         :done, p8a, 2026-07-30, 20d
+    Decision Layers         :done, p8b, after p8a, 25d
+    Observability Layers    :done, p8c, after p8b, 20d
+    Advisory (v1.0.0)       :done, p8d, after p8c, 5d
     
-    section Reward System (Phase 7.3)
-    Reward Evaluator        :active, p73, after p7b, 5d
-    Reward Tests & Docs     :active, p74, after p73, 5d
-    
-    section Polish (v0.6.0)
-    UI System               :p6a, after p74, 7d
-    Performance Tuning      :p6b, after p6a, 7d
-    Final Documentation     :p6c, after p6b, 7d
+    section Future Work (v1.1+)
+    RL Training Pipeline (PPO) :p9a, after p8d, 21d
+    UI / Polish                :p9b, after p9a, 14d
+    Multi-Agent Swarm          :p9c, after p9b, 21d
 ```
 
 ---
@@ -158,7 +155,7 @@ gantt
 
 ---
 
-## Phase 5: Training (v0.5.0) ⏳ In Progress
+## Phase 5: Training (v0.5.0) — Reward System Complete, PPO Training Pending
 
 **Goal:** Implement reward system and train the PPO model.
 
@@ -249,7 +246,7 @@ gantt
 
 ---
 
-## Phase 8.1: Runtime Event Integration — Mission & Interaction Pipeline (In Progress)
+## Phase 8.1: Runtime Event Integration — Mission & Interaction Pipeline (Complete)
 
 **Goal:** Complete the runtime event wiring so victim discovery/rescue and collisions flow through the `EventBus` to mission completion and episode termination.
 
@@ -406,6 +403,36 @@ gantt
 - `TaskCandidateGeneratorTests` added (11) + `TaskPrioritizerTests` extended (4 diagnostics tests); full EditMode suite **151/151 passing** (136 prior + 15 new), exit 0, zero compiler warnings
 - Runtime batch smoke test PASSED, exit 0: winning task observed (AvoidHazard), selected executor observed (`AvoidExecutor`), candidate count + decision timestamp surfaced, behaviour follows the winning task, movement preserved, reward finite, **sumInvariant=True**
 - No runtime behaviour, scoring, priority ordering, reward or determinism changes; all Phase 8.7 semantics preserved
+
+---
+
+## Phase 10.0: Autonomous Decision Advisory Framework (Complete)
+
+**Goal:** Introduce a deterministic, read-only advisory layer that recommends what an operator should do about the decisions made, answering "should we maintain the current strategy, increase knowledge gathering, review mission allocation, reduce speed, or strengthen obstacle avoidance?". The `DecisionAdvisoryCalculator` is the single owner of advisory computation — pure, stateless, reading the completed `DecisionEvaluationSnapshot`, `DecisionAnalyticsSnapshot`, `DecisionTelemetrySnapshot`, `DecisionTraceFrame` and `DecisionExplanation` only and producing an immutable `DecisionAdvisorySnapshot` (overall recommendation, ordered recommendations, advisory confidence, requires-attention flag and deterministic status). Fixed deterministic rules map each quality signal to at most one recommendation type (`DecisionRecommendationType` × 11, from `MaintainCurrentStrategy` through `ReviewMissionAllocation`), recommendations are ordered highest-priority-first (`DecisionRecommendationPriority` None/Low/Medium/High) with `DecisionRecommendationSeverity` None/Low/Medium/High/Critical, and the advisory carries the canonical status Nominal/Advisory/Attention/Critical via `StatusFor`. Advisory never influences runtime behaviour, decisions, prioritization, mission selection, optimization or execution. No RL, no learning, no planning, no navigation, no SLAM, no mapping, no swarm logic, no visualization.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 10.0.1 | `ADRL.AI.Decision.Advisory` namespace — `DecisionRecommendationType.cs`, `DecisionRecommendationPriority.cs`, `DecisionRecommendationSeverity.cs`, `DecisionRecommendation.cs`, `DecisionAdvisorySnapshot.cs`, `DecisionAdvisoryCalculator.cs`, `DecisionAdvisoryFormatter.cs`, `DecisionAdvisoryValidator.cs` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 10.0.2 | `DecisionRecommendationType` — the 11 recommendation kinds in fixed order (`None`, `MaintainCurrentStrategy`, `IncreaseSearchRadius`, `IncreaseSearchPersistence`, `IncreaseKnowledgeCoverage`, `IncreaseMissionPriority`, `IncreaseObstacleAvoidance`, `ReduceSpeedMultiplier`, `ReviewOptimization`, `ReviewSensorConfidence`, `ReviewKnowledgeCoverage`, `ReviewMissionAllocation`) | ✅ Complete |
+| 10.0.3 | `DecisionRecommendationPriority` (`None`/`Low`/`Medium`/`High`) + `DecisionRecommendationSeverity` (`None`/`Low`/`Medium`/`High`/`Critical`) — immutable recommendation with `Type`, `Priority`, `Severity`, `Reason`, `SuggestedAction`, `Confidence` (0-100), `DecisionStep`, `Timestamp`; strings null-coalesced to empty; `IsValid` | ✅ Complete |
+| 10.0.4 | `DecisionAdvisorySnapshot` — immutable advisory snapshot: step/timestamp, overall recommendation, ordered `Recommendations[]` (highest-priority-first, no duplicate types), `AdvisoryConfidence` (0-100), `RequiresAttention`, `Status` via `StatusFor(priority)`; canonical `Empty` valid | ✅ Complete |
+| 10.0.5 | `DecisionAdvisoryCalculator` — single owner of advisory computation: pure, stateless, `Calculate(evaluation, analytics, telemetry, trace, explanation)`; fixed deterministic rules (excellent quality 90+ → maintain strategy; critical knowledge < 30 → increase coverage; low knowledge < 50 → review coverage; low mission suitability < 50 → review allocation; unbalanced mission/behaviour distribution > 80 → increase priority/persistence; low optimization < 50 → review optimization; low confidence < 50 → review sensor confidence; active search + low knowledge → increase search radius; high speed > 1.1 → reduce speed; near hazard < 15 units without avoidance → increase obstacle avoidance; no rule → maintain strategy); each signal maps to at most one type, sorted highest-priority-first; no caching, no LINQ, allocation only for the snapshot and its recommendations; zero-count analytics → canonical `Empty` | ✅ Complete |
+| 10.0.6 | `DecisionAdvisoryFormatter` — pure deterministic Decision Advisory Report (Overall Recommendation, Advisory Confidence `F1`, High/Medium/Low Priority sections, Summary) with a fixed 22-column dotted label layout, invariant-culture floats, no timestamps; allocates only the final string | ✅ Complete |
+| 10.0.7 | `DecisionAdvisoryValidator` — pure validation: no duplicate recommendation types, priorities ordered highest-first, every confidence in [0, 100], valid severities, valid recommendation types with overall matching the strongest recommendation (`None` only when empty), snapshot complete with canonical status; plain bools, never throws | ✅ Complete |
+| 10.0.8 | `DecisionDiagnostics` — new `LastAdvisory` member + `WithAdvisory`; constructor extended with an optional parameter; `Empty` carries `DecisionAdvisorySnapshot.Empty`; `WithExplanation`/`WithTraceFrame`/`WithTelemetry`/`WithAnalytics`/`WithEvaluation` preserve the advisory | ✅ Complete |
+| 10.0.9 | `DecisionEngine` — after evaluation, computes the advisory snapshot via the `DecisionAdvisoryCalculator` (single owner of advisory computation), exposes `LastAdvisory` + `GetAdvisory()` + `ResetAdvisory()`, recomposes the last snapshot's diagnostics with the advisory; `Reset` clears advisory; backward compatible | ✅ Complete |
+| 10.0.10 | `DroneSmokeTest` — observes the advisory (`advisoryObserved`, `recommendationCount`, `overallRecommendation`, `advisoryConfidence`, `advisoryValid`); observational only, **no PASS criteria change** | ✅ Complete |
+
+### Milestone
+
+- `DecisionAdvisoryCalculator` is the sole owner of advisory computation; snapshot, formatter and validator are pure/immutable projections; the engine remains the sole decision authority and computes the advisory after evaluation without any behavioural change
+- No duplicate advisory systems, no hidden mutable state, no circular dependencies, no new Assembly Definitions; deterministic by construction (identical observations → identical advisory → identical formatter output); backward compatible
+- `DecisionAdvisoryTests` added (20); full EditMode suite **321/321 passing** (301 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: finite reward, **sumInvariant=True**, movement/behaviour/reward/decision/optimization/determinism unchanged, **advisory observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, telemetry, analytics, evaluation, navigation, rewards, simulation, RL and training unchanged; advisory is read-only and never influences decisions
+- This phase completes the observability stack: 9.0 World Knowledge, 9.1 Explainability, 9.2 Trace & Replay, 9.3 Telemetry, 9.4 Analytics, 9.5 Quality Evaluation, 10.0 Decision Advisory — positioning the project for the v1.0.0 release
 
 ---
 
@@ -683,7 +710,7 @@ gantt
 | v0.13.0 | Decision Telemetry | Deterministic read-only telemetry layer: snapshot + single-owner collector + internal running statistics + formatter + validator, diagnostics integration, O(1) allocation-free observation, smoke + integration validation (Phase 9.3) |
 | v0.14.0 | Decision Analytics | Deterministic read-only analytics layer: snapshot + pure single-owner calculator + health calculator + formatter + validator, telemetry-driven health/balance/entropy/utilization metrics, diagnostics integration, smoke + integration validation (Phase 9.4) |
 | v0.15.0 | Decision Quality Evaluation | Deterministic read-only quality evaluation layer: snapshot + pure single-owner calculator + metrics + formatter + validator, overall quality score with grade/status and six component scores, diagnostics integration, smoke + integration validation (Phase 9.5) |
-| v1.0.0 | Release | Full stable release |
+| v1.0.0 | Autonomous Decision Advisory | Deterministic read-only decision advisory layer: recommendation types/priority/severity + snapshot + pure single-owner calculator + formatter + validator, overall recommendation with ordered recommendations and confidence, diagnostics integration, smoke + integration validation (Phase 10.0) |
 
 ---
 

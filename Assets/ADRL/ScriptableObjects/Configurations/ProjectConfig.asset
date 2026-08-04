@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: ProjectConfig
   m_EditorClassIdentifier: 
   _productName: ADRL-Rescue
-  _version: 0.2.0
+  _version: 1.0.0
   _enableDebugMode: 0
   _logLevel: 1
   _initialScenes: []

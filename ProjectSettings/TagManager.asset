@@ -3,7 +3,13 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Drone
+  - Victim
+  - Obstacle
+  - Hazard
+  - Environment
+  - SpawnPoint
   layers:
   - Default
   - TransparentFX
@@ -11,11 +17,12 @@ TagManager:
   - 
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Drone
+  - Victim
+  - Obstacle
+  - Terrain
+  - Sensor
+  - Environment
   - 
   - 
   - 

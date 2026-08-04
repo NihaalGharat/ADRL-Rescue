@@ -1,6 +1,7 @@
 namespace ADRL.AI.Decision
 {
     using ADRL.AI.DecisionMaking;
+    using ADRL.AI.Decision.Advisory;
     using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Context;
     using ADRL.AI.Decision.Evaluation;
@@ -116,6 +117,17 @@ namespace ADRL.AI.Decision
         /// </summary>
         public readonly DecisionEvaluationSnapshot LastEvaluation;
 
+        /// <summary>
+        /// The immutable advisory snapshot computed from the decision evaluation,
+        /// analytics, telemetry, trace and explanation, or
+        /// <see cref="DecisionAdvisorySnapshot.Empty"/> before any step. Carried
+        /// so the diagnostics projection also exposes the recommended actions
+        /// (overall recommendation, ordered recommendations, confidence,
+        /// requires-attention and status) of the decision pipeline - it is
+        /// read-only and never influences decisions.
+        /// </summary>
+        public readonly DecisionAdvisorySnapshot LastAdvisory;
+
         public DecisionDiagnostics(
             int stepCount,
             BehaviourState lastBehaviour,
@@ -134,7 +146,8 @@ namespace ADRL.AI.Decision
             DecisionTraceFrame lastTraceFrame = null,
             DecisionTelemetrySnapshot lastTelemetry = default,
             DecisionAnalyticsSnapshot lastAnalytics = default,
-            DecisionEvaluationSnapshot lastEvaluation = default)
+            DecisionEvaluationSnapshot lastEvaluation = default,
+            DecisionAdvisorySnapshot lastAdvisory = default)
         {
             StepCount = stepCount;
             LastBehaviour = lastBehaviour;
@@ -162,6 +175,9 @@ namespace ADRL.AI.Decision
             LastEvaluation = lastEvaluation.EvaluationGrade == null
                 ? DecisionEvaluationSnapshot.Empty
                 : lastEvaluation;
+            LastAdvisory = lastAdvisory.Recommendations == null
+                ? DecisionAdvisorySnapshot.Empty
+                : lastAdvisory;
         }
 
         /// <summary>An idle, zero-step diagnostics payload.</summary>
@@ -183,7 +199,8 @@ namespace ADRL.AI.Decision
             DecisionTraceFrame.Empty,
             DecisionTelemetrySnapshot.Empty,
             DecisionAnalyticsSnapshot.Empty,
-            DecisionEvaluationSnapshot.Empty);
+            DecisionEvaluationSnapshot.Empty,
+            DecisionAdvisorySnapshot.Empty);
 
         /// <summary>
         /// Returns a copy of this diagnostics payload carrying the given decision
@@ -212,7 +229,8 @@ namespace ADRL.AI.Decision
                 LastTraceFrame,
                 LastTelemetry,
                 LastAnalytics,
-                LastEvaluation);
+                LastEvaluation,
+                LastAdvisory);
         }
 
         /// <summary>
@@ -242,7 +260,8 @@ namespace ADRL.AI.Decision
                 lastTraceFrame,
                 LastTelemetry,
                 LastAnalytics,
-                LastEvaluation);
+                LastEvaluation,
+                LastAdvisory);
         }
 
         /// <summary>
@@ -302,7 +321,8 @@ namespace ADRL.AI.Decision
                 LastTraceFrame,
                 LastTelemetry,
                 lastAnalytics,
-                LastEvaluation);
+                LastEvaluation,
+                LastAdvisory);
         }
 
         /// <summary>
@@ -333,7 +353,40 @@ namespace ADRL.AI.Decision
                 LastTraceFrame,
                 LastTelemetry,
                 LastAnalytics,
-                lastEvaluation);
+                lastEvaluation,
+                LastAdvisory);
+        }
+
+        /// <summary>
+        /// Returns a copy of this diagnostics payload carrying the given advisory
+        /// snapshot. The payload is immutable, so this never mutates the original -
+        /// it composes a fresh value with the advisory snapshot the engine computes
+        /// from the last evaluation, analytics, telemetry, trace and explanation,
+        /// so diagnostics and advisory stay synchronized without changing any
+        /// decision behaviour.
+        /// </summary>
+        public DecisionDiagnostics WithAdvisory(DecisionAdvisorySnapshot lastAdvisory)
+        {
+            return new DecisionDiagnostics(
+                StepCount,
+                LastBehaviour,
+                LastAssessment,
+                LastMissionTask,
+                LastWinning,
+                SelectedExecutor,
+                LastCommand,
+                DecisionTimestamp,
+                CandidateCount,
+                KnowledgeRecordCount,
+                NearestVictimDistance,
+                NearestHazardDistance,
+                KnowledgeTimestamp,
+                LastExplanation,
+                LastTraceFrame,
+                LastTelemetry,
+                LastAnalytics,
+                LastEvaluation,
+                lastAdvisory);
         }
 
         /// <summary>

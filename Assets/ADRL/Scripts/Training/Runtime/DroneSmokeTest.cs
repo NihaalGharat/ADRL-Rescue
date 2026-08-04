@@ -1,6 +1,7 @@
 namespace ADRL.Training.Runtime
 {
     using ADRL.AI.Agents;
+    using ADRL.AI.Decision.Advisory;
     using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Evaluation;
     using ADRL.AI.Decision.Explainability;
@@ -43,6 +44,7 @@ namespace ADRL.Training.Runtime
         private bool _sawTelemetry;
         private bool _sawAnalytics;
         private bool _sawEvaluation;
+        private bool _sawAdvisory;
         private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
@@ -79,6 +81,7 @@ namespace ADRL.Training.Runtime
             _sawTelemetry = false;
             _sawAnalytics = false;
             _sawEvaluation = false;
+            _sawAdvisory = false;
 
             PlaceDeterministicProbe();
 
@@ -202,6 +205,15 @@ namespace ADRL.Training.Runtime
                 && _agent.Decision.LastEvaluation.IsValid
                 && _agent.Decision.LastEvaluation.DecisionStep > 0)
                 _sawEvaluation = true;
+
+            // Confirms the Phase 10.0 advisory framework advised on a real
+            // decision step: the engine exposes a valid advisory whose step clock
+            // advanced past the empty state. Observational only - it never gates
+            // the smoke PASS criteria.
+            if (_agent?.Decision != null
+                && _agent.Decision.LastAdvisory.IsValid
+                && _agent.Decision.LastAdvisory.DecisionStep > 0)
+                _sawAdvisory = true;
 
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
@@ -386,6 +398,20 @@ namespace ADRL.Training.Runtime
             Debug.Log(
                 $"[DroneSmokeTest] evaluationObserved={_sawEvaluation} | qualityScore={evaluation.DecisionQualityScore:F1} | " +
                 $"evaluationGrade={evaluation.EvaluationGrade} | evaluationValid={evaluationValid}");
+
+            // Phase 10.0 advisory observation (observational only - it never
+            // alters the PASS/FAIL exit code). Surfaces the recommended actions
+            // of the decision pipeline and confirms the exported advisory
+            // snapshot validates.
+            var advisory = _agent?.Decision?.LastAdvisory ?? DecisionAdvisorySnapshot.Empty;
+            var advisoryValid = _sawAdvisory
+                && advisory.DecisionStep > 0
+                && DecisionAdvisoryValidator.IsValid(advisory);
+
+            Debug.Log(
+                $"[DroneSmokeTest] advisoryObserved={_sawAdvisory} | recommendationCount={advisory.Recommendations.Length} | " +
+                $"overallRecommendation={advisory.OverallRecommendation} | advisoryConfidence={advisory.AdvisoryConfidence:F0} | " +
+                $"advisoryValid={advisoryValid}");
 
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.

@@ -122,6 +122,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- No unreleased changes yet.
+
+---
+
+## [1.0.0] - 2026-08-04
+
+First stable release of the ADRL-Rescue autonomous decision framework: the deterministic **Decision Engine** and its layers (situation assessment, context, knowledge, memory, mission, prioritization, behaviour, optimization, execution, explainability, trace, telemetry, analytics, quality evaluation, advisory). **321/321 EditMode tests passing, zero compiler warnings, runtime batch smoke test passing.** Reinforcement Learning (PPO) training is future work — this release ships the deterministic decision framework only.
+
+### Phase 10.0 — Autonomous Decision Advisory Framework (2026-08-04)
+
+#### Deterministic Advisory Layer (ADRL.AI.Decision.Advisory)
+
+- **`DecisionRecommendationType`** (new) — the 11 recommendation kinds the pipeline can produce: `None`, `MaintainCurrentStrategy`, `IncreaseSearchRadius`, `IncreaseSearchPersistence`, `IncreaseKnowledgeCoverage`, `IncreaseMissionPriority`, `IncreaseObstacleAvoidance`, `ReduceSpeedMultiplier`, `ReviewOptimization`, `ReviewSensorConfidence`, `ReviewKnowledgeCoverage`, `ReviewMissionAllocation`
+- **`DecisionRecommendationPriority`** (new) — `None`/`Low`/`Medium`/`High`; **`DecisionRecommendationSeverity`** (new) — `None`/`Low`/`Medium`/`High`/`Critical`
+- **`DecisionRecommendation`** (new) — immutable, deterministic recommendation: `Type`, `Priority`, `Severity`, `Reason`, `SuggestedAction`, `Confidence` (0-100), `DecisionStep`, `Timestamp`; strings null-coalesced to empty; `IsValid`; all readonly
+- **`DecisionAdvisorySnapshot`** (new) — immutable, deterministic advisory snapshot: `DecisionStep`, `DecisionTimestamp`, `OverallRecommendation`, `Recommendations[]` (ordered highest-priority-first, no duplicate types), `AdvisoryConfidence` (0-100), `RequiresAttention`, `Status` (Nominal/Advisory/Attention/Critical via `StatusFor(priority)`); canonical `Empty` is valid; all readonly
+- **`DecisionAdvisoryCalculator`** (new, static) — the single owner of advisory computation: pure, stateless, `Calculate(DecisionEvaluationSnapshot, DecisionAnalyticsSnapshot, DecisionTelemetrySnapshot, DecisionTraceFrame, DecisionExplanation)` recommends what the operator should do about the decisions made; fixed deterministic rules (excellent quality 90+ → `MaintainCurrentStrategy`; critical knowledge coverage < 30 → `IncreaseKnowledgeCoverage` High/Critical; low knowledge coverage < 50 → `ReviewKnowledgeCoverage`; low mission suitability < 50 → `ReviewMissionAllocation`; unbalanced mission distribution > 80 → `IncreaseMissionPriority`; unbalanced behaviour distribution > 80 → `IncreaseSearchPersistence`; low optimization < 50 → `ReviewOptimization`; low confidence quality < 50 → `ReviewSensorConfidence`; active search mission with low knowledge coverage → `IncreaseSearchRadius`; high speed multiplier > 1.1 → `ReduceSpeedMultiplier`; near hazard (< 15 units) without avoidance → `IncreaseObstacleAvoidance`; no rule fires → `MaintainCurrentStrategy`); each signal maps to at most one type (no duplicates by construction), recommendations sorted highest-priority-first (ties by type order), overall = first, confidence = first's confidence; a zero-count analytics input returns the canonical `Empty`; no caching, no LINQ, no allocation beyond the snapshot and its recommendations
+- **`DecisionAdvisoryFormatter`** (new, static) — pure, deterministic Decision Advisory Report (header, Overall Recommendation, Advisory Confidence `F1`, High/Medium/Low Priority sections, Summary with Total Recommendations/Requires Attention/Status) with a fixed 22-column dotted label layout, invariant-culture floats, no timestamps; allocates only the final string
+- **`DecisionAdvisoryValidator`** (new, static) — pure validation: no duplicate recommendation types, priorities ordered highest-first, every confidence in [0, 100], valid severities, valid recommendation types with overall matching the strongest recommendation (`None` only when empty), snapshot complete with canonical status; plain bools, never throws
+- **`DecisionDiagnostics`** — new `LastAdvisory` member + `WithAdvisory`; constructor extended with an optional parameter; `Empty` carries `DecisionAdvisorySnapshot.Empty`; `WithExplanation`/`WithTraceFrame`/`WithTelemetry`/`WithAnalytics`/`WithEvaluation` preserve the advisory
+- **`DecisionEngine`** — after evaluation, computes the advisory snapshot via the `DecisionAdvisoryCalculator` (single owner of advisory computation), exposes `LastAdvisory` + `GetAdvisory()` + `ResetAdvisory()`, and recomposes the last snapshot's diagnostics with the advisory so diagnostics, telemetry, analytics, evaluation and advisory stay synchronized; `Reset()` clears advisory; fully backward compatible, zero behavioural change
+- `DroneSmokeTest` observes the advisory and logs `advisoryObserved`, `recommendationCount`, `overallRecommendation`, `advisoryConfidence`, `advisoryValid`; observational only — **no PASS criteria change**
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionAdvisoryTests` (20): calculator empty for no decisions; calculator uses trace step and timestamp; calculator deterministic output; calculator excellent quality maintains strategy; calculator critical knowledge increases coverage; calculator low knowledge reviews coverage; calculator low mission suitability reviews allocation; calculator unbalanced mission increases priority; calculator unbalanced behaviour increases persistence; calculator low optimization reviews optimization; calculator low confidence reviews sensor; calculator search mission with low knowledge increases radius; calculator high speed multiplier reduces speed; calculator near hazard advisory; calculator orders recommendations priority first; formatter deterministic and contains sections; validator accepts valid; validator rejects malformed snapshots; engine advisory after steps; reset clears advisory
+
+#### Validation
+
+- EditMode suite: **321/321 passing** (301 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, movement/behaviour/reward/decision/optimization/determinism unchanged, decision/context/optimization/knowledge/explanation/trace/telemetry/analytics/evaluation observed, **advisory observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, telemetry, analytics, evaluation, navigation, rewards, simulation, RL and training unchanged; advisory is read-only and never influences decisions
+
 ### Phase 9.5 — Autonomous Decision Quality Evaluation Framework (2026-08-04)
 
 #### Deterministic Evaluation Layer (ADRL.AI.Decision.Evaluation)
@@ -1090,7 +1123,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | v0.7.0 | Infrastructure & Environment | Drone entity foundation, spawn pipeline, runtime integration |
 | v0.8.0 | RL Foundation | Sensors, AI agent, runtime activation (Phases 7.1/7.2) |
 | v0.8.1 | Reward System | Reward evaluator, reward breakdown, reward config (Phase 7.3) |
-| v1.0.0 | Release | Full stable release |
+| v0.8.2 | Runtime Event Integration | Collision & victim pipeline, mission-completed episode finalization (Phase 8.1) |
+| v0.8.3 | Decision Runtime | DecisionEngine as the runtime decision authority (Phase 8.3) |
+| v0.8.4 | Behaviour Execution | Behaviour executor layer, factory-based command generation (Phase 8.4) |
+| v0.8.5 | Behaviour Memory | Short-term behaviour memory, continuity-based selection (Phase 8.5) |
+| v0.8.6 | Mission Coordination | Mission task coordinator, deterministic transitions (Phase 8.6) |
+| v0.8.7 | Task Prioritization | Objective arbitration, deterministic priority scoring (Phase 8.7) |
+| v0.8.8 | Architectural Refinement | Candidate generation separation, extended decision diagnostics (Phase 8.7.1) |
+| v0.8.9 | Decision Context | Unified immutable per-step context snapshot (Phase 8.8) |
+| v0.9.0 | Behaviour Optimization | Deterministic execution optimization layer (Phase 8.9) |
+| v0.10.0 | World Knowledge | Persistent world-knowledge layer (Phase 9.0) |
+| v0.11.0 | Decision Explainability | Deterministic immutable explanation layer (Phase 9.1) |
+| v0.12.0 | Decision Trace & Replay | Deterministic replayable trace layer (Phase 9.2) |
+| v0.13.0 | Decision Telemetry | Deterministic read-only telemetry layer (Phase 9.3) |
+| v0.14.0 | Decision Analytics | Deterministic read-only analytics layer (Phase 9.4) |
+| v0.15.0 | Decision Quality Evaluation | Deterministic read-only quality evaluation layer (Phase 9.5) |
+| v1.0.0 | Autonomous Decision Advisory | Deterministic read-only decision advisory layer (Phase 10.0) — first stable release |
 
 ---
 

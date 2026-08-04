@@ -8,85 +8,109 @@
 ADRL-Rescue/
 │
 ├── 📂 Assets/                 # Unity project assets
-│   └── 📂 ADRL/               # ADRL game content root
-│       ├── 📂 Art/            # Visual art assets
-│       ├── 📂 Audio/          # Audio clips and sound effects
-│       ├── 📂 Documentation/  # In-editor documentation assets
-│       ├── 📂 Gizmos/         # Unity Gizmo icons
-│       ├── 📂 Materials/      # Physics materials and shaders
-│       ├── 📂 Models/         # 3D models and meshes
-│       ├── 📂 Prefabs/        # Reusable GameObjects
-│       │   ├── 📂 Drone/
-│       │   ├── 📂 Effects/
-│       │   ├── 📂 Environment/
-│       │   ├── 📂 Obstacles/
-│       │   ├── 📂 UI/
-│       │   └── 📂 Victims/
-│       ├── 📂 Resources/      # Runtime-loadable assets
-│       ├── 📂 Scenes/         # Unity scenes
-│       ├── 📂 ScriptableObjects/  # Configuration ScriptableObjects
-│       │   ├── 📂 Configurations/
-│       │   ├── 📂 Drone/
-│       │   ├── 📂 Environment/
-│       │   ├── 📂 Rewards/
-│       │   ├── 📂 Sensors/
-│       │   └── 📂 Training/
-│       ├── 📂 Scripts/        # C# source code
-│       │   ├── 📂 AI/         # AI/ML system
-│       │   │   ├── 📂 Agents/
-│       │   │   ├── 📂 DecisionMaking/
-│       │   │   ├── 📂 Policies/
-│       │   │   ├── 📂 Rewards/
-│       │   │   └── 📂 Training/
-│       │   ├── 📂 Core/       # Core framework
-│       │   │   ├── 📂 Bootstrap/
-│       │   │   ├── 📂 Configuration/
-│       │   │   ├── 📂 Events/
-│       │   │   ├── 📂 Resources/
-│       │   │   ├── 📂 Services/
-│       │   │   ├── 📂 Simulation/
-│       │   │   └── 📂 Utilities/
-│       │   ├── 📂 Drone/      # Drone system
-│       │   │   ├── 📂 Behaviours/
-│       │   │   ├── 📂 Components/
-│       │   │   ├── 📂 Controllers/
-│       │   │   ├── 📂 Events/
-│       │   │   ├── 📂 Interfaces/
-│       │   │   ├── 📂 Navigation/
-│       │   │   └── 📂 Physics/
-│       │   ├── 📂 Editor/     # Editor tools (Editor-only assembly)
-│       │   │   └── 📂 Validation/
-│       │   ├── 📂 Environment/  # Environment system
-│       │   │   ├── 📂 Core/
-│       │   │   ├── 📂 Events/
-│       │   │   ├── 📂 Hazards/
-│       │   │   ├── 📂 Interfaces/
-│       │   │   ├── 📂 Obstacles/
-│       │   │   ├── 📂 Procedural/
-│       │   │   │   └── 📂 Rules/
-│       │   │   ├── 📂 Scenarios/
-│       │   │   ├── 📂 Spawning/
-│       │   │   ├── 📂 Terrain/
-│       │   │   ├── 📂 Validation/
-│       │   │   ├── 📂 Victims/
-│       │   │   └── 📂 WorldObjects/
-│       │   ├── 📂 Sensors/    # Sensor system
-│       │   │   ├── 📂 Detection/
-│       │   │   ├── 📂 Fusion/
-│       │   │   ├── 📂 Mapping/
-│       │   │   ├── 📂 Raycasting/
-│       │   │   └── 📂 Vision/
-│       │   ├── 📂 Training/   # Training pipeline
-│       │   └── 📂 UI/         # User interface
-│       ├── 📂 Settings/       # Unity asset settings
-│       ├── 📂 Shaders/        # Custom shaders
-│       ├── 📂 StreamingAssets/  # Streaming data
-│       ├── 📂 Tests/          # Test scripts
-│       └── 📂 Textures/       # Texture assets
+│   ├── 📂 ADRL/               # ADRL game content root
+│   │   ├── 📂 Art/            # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Audio/          # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Documentation/  # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Gizmos/         # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Materials/      # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Models/         # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Prefabs/        # Reusable GameObject categories (reserved — contains .gitkeep)
+│   │   │   ├── 📂 Drone/
+│   │   │   ├── 📂 Effects/
+│   │   │   ├── 📂 Environment/
+│   │   │   ├── 📂 Obstacles/
+│   │   │   ├── 📂 UI/
+│   │   │   └── 📂 Victims/
+│   │   ├── 📂 Resources/      # Runtime-loadable assets (Resources.Load)
+│   │   │   └── 📂 Prefabs/    # Real prefabs (Drone prefab)
+│   │   ├── 📂 Scenes/         # Unity scenes (Main.unity)
+│   │   ├── 📂 ScriptableObjects/  # Configuration ScriptableObjects
+│   │   │   ├── 📂 Configurations/ # ProjectConfig and other root configs
+│   │   │   ├── 📂 Drone/
+│   │   │   ├── 📂 Environment/
+│   │   │   ├── 📂 Rewards/
+│   │   │   ├── 📂 Sensors/
+│   │   │   └── 📂 Training/
+│   │   ├── 📂 Scripts/        # C# source code
+│   │   │   ├── 📂 AI/         # Decision framework, agents, interaction, rewards
+│   │   │   │   ├── 📂 Agents/
+│   │   │   │   ├── 📂 Decision/      # Decision Engine + layers (Phases 8.1–10.0)
+│   │   │   │   │   ├── 📂 Advisory/
+│   │   │   │   │   ├── 📂 Analytics/
+│   │   │   │   │   ├── 📂 Context/
+│   │   │   │   │   ├── 📂 Evaluation/
+│   │   │   │   │   ├── 📂 Execution/
+│   │   │   │   │   ├── 📂 Explainability/
+│   │   │   │   │   ├── 📂 Knowledge/
+│   │   │   │   │   ├── 📂 Memory/
+│   │   │   │   │   ├── 📂 Mission/
+│   │   │   │   │   ├── 📂 Optimization/
+│   │   │   │   │   ├── 📂 Prioritization/
+│   │   │   │   │   ├── 📂 Telemetry/
+│   │   │   │   │   └── 📂 Trace/
+│   │   │   │   ├── 📂 DecisionMaking/
+│   │   │   │   ├── 📂 Interaction/
+│   │   │   │   ├── 📂 Policies/      # Reserved (empty — contains .gitkeep)
+│   │   │   │   ├── 📂 Rewards/
+│   │   │   │   └── 📂 Training/      # Reserved (empty — contains .gitkeep)
+│   │   │   ├── 📂 Core/       # Core framework
+│   │   │   │   ├── 📂 Bootstrap/
+│   │   │   │   ├── 📂 Configuration/
+│   │   │   │   ├── 📂 Events/
+│   │   │   │   ├── 📂 Resources/
+│   │   │   │   ├── 📂 Services/
+│   │   │   │   ├── 📂 Simulation/
+│   │   │   │   └── 📂 Utilities/
+│   │   │   ├── 📂 Drone/      # Drone system
+│   │   │   │   ├── 📂 Behaviours/    # Reserved (empty — contains .gitkeep)
+│   │   │   │   ├── 📂 Components/
+│   │   │   │   ├── 📂 Controllers/
+│   │   │   │   ├── 📂 Core/           # DroneSubsystem, DroneManager, subsystem components
+│   │   │   │   ├── 📂 Events/
+│   │   │   │   ├── 📂 Interfaces/
+│   │   │   │   ├── 📂 Navigation/     # Reserved (empty — contains .gitkeep)
+│   │   │   │   ├── 📂 Physics/        # Reserved (empty — contains .gitkeep)
+│   │   │   │   └── 📂 Utilities/
+│   │   │   ├── 📂 Editor/     # Editor tools (Editor-only assembly)
+│   │   │   │   ├── 📂 Bootstrap/
+│   │   │   │   └── 📂 Validation/
+│   │   │   ├── 📂 Environment/  # Environment system
+│   │   │   │   ├── 📂 Core/
+│   │   │   │   ├── 📂 Events/
+│   │   │   │   ├── 📂 Hazards/
+│   │   │   │   ├── 📂 Interfaces/
+│   │   │   │   ├── 📂 Obstacles/
+│   │   │   │   ├── 📂 Procedural/
+│   │   │   │   │   └── 📂 Rules/
+│   │   │   │   ├── 📂 Scenarios/
+│   │   │   │   ├── 📂 Spawning/
+│   │   │   │   ├── 📂 Terrain/
+│   │   │   │   ├── 📂 Validation/
+│   │   │   │   ├── 📂 Victims/
+│   │   │   │   └── 📂 WorldObjects/
+│   │   │   ├── 📂 Sensors/    # Sensor system
+│   │   │   │   ├── 📂 Detection/
+│   │   │   │   ├── 📂 Fusion/
+│   │   │   │   ├── 📂 Interfaces/
+│   │   │   │   ├── 📂 Mapping/        # Reserved (empty — contains .gitkeep)
+│   │   │   │   ├── 📂 Raycasting/
+│   │   │   │   └── 📂 Vision/         # Reserved (empty — contains .gitkeep)
+│   │   │   ├── 📂 Training/   # Runtime orchestration, smoke test
+│   │   │   │   └── 📂 Runtime/
+│   │   │   └── 📂 UI/         # Reserved (empty — contains .gitkeep + ADRL.UI.asmdef)
+│   │   ├── 📂 Settings/       # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Shaders/        # Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 StreamingAssets/# Reserved (empty — contains .gitkeep)
+│   │   ├── 📂 Tests/          # EditMode test assembly (ADRL.Tests.Editor)
+│   │   │   └── 📂 Editor/
+│   │   └── 📂 Textures/       # Reserved (empty — contains .gitkeep)
+│   │
+│   └── 📂 ML-Agents/          # ML-Agents runtime timers (autogenerated)
 │
 ├── 📂 Documentation/          # Project documentation
 ├── 📂 Media/                  # Screenshots, videos, GIFs
-├── 📂 Python/                 # Training scripts and configs
+├── 📂 Python/                 # Training scripts and configs (placeholder — future work)
 ├── 📂 Research/               # Papers, notes, references
 ├── 📂 Packages/               # Unity package manifest
 ├── 📂 ProjectSettings/        # Unity project settings
