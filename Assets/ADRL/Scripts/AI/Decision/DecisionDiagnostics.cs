@@ -3,6 +3,7 @@ namespace ADRL.AI.Decision
     using ADRL.AI.DecisionMaking;
     using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Context;
+    using ADRL.AI.Decision.Evaluation;
     using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Decision.Mission;
@@ -104,6 +105,17 @@ namespace ADRL.AI.Decision
         /// </summary>
         public readonly DecisionAnalyticsSnapshot LastAnalytics;
 
+        /// <summary>
+        /// The immutable quality-evaluation snapshot computed from the decision
+        /// analytics, telemetry, trace and explanation, or
+        /// <see cref="DecisionEvaluationSnapshot.Empty"/> before any step.
+        /// Carried so the diagnostics projection also exposes the decision quality
+        /// evaluation (overall score, grade, suitability, confidence, optimization,
+        /// knowledge and consistency) of the decision pipeline - it is read-only
+        /// and never influences decisions.
+        /// </summary>
+        public readonly DecisionEvaluationSnapshot LastEvaluation;
+
         public DecisionDiagnostics(
             int stepCount,
             BehaviourState lastBehaviour,
@@ -121,7 +133,8 @@ namespace ADRL.AI.Decision
             DecisionExplanation lastExplanation = default,
             DecisionTraceFrame lastTraceFrame = null,
             DecisionTelemetrySnapshot lastTelemetry = default,
-            DecisionAnalyticsSnapshot lastAnalytics = default)
+            DecisionAnalyticsSnapshot lastAnalytics = default,
+            DecisionEvaluationSnapshot lastEvaluation = default)
         {
             StepCount = stepCount;
             LastBehaviour = lastBehaviour;
@@ -146,6 +159,9 @@ namespace ADRL.AI.Decision
                 || lastAnalytics.MissionAnalytics == null
                 ? DecisionAnalyticsSnapshot.Empty
                 : lastAnalytics;
+            LastEvaluation = lastEvaluation.EvaluationGrade == null
+                ? DecisionEvaluationSnapshot.Empty
+                : lastEvaluation;
         }
 
         /// <summary>An idle, zero-step diagnostics payload.</summary>
@@ -166,7 +182,8 @@ namespace ADRL.AI.Decision
             DecisionExplanation.Empty,
             DecisionTraceFrame.Empty,
             DecisionTelemetrySnapshot.Empty,
-            DecisionAnalyticsSnapshot.Empty);
+            DecisionAnalyticsSnapshot.Empty,
+            DecisionEvaluationSnapshot.Empty);
 
         /// <summary>
         /// Returns a copy of this diagnostics payload carrying the given decision
@@ -194,7 +211,8 @@ namespace ADRL.AI.Decision
                 lastExplanation,
                 LastTraceFrame,
                 LastTelemetry,
-                LastAnalytics);
+                LastAnalytics,
+                LastEvaluation);
         }
 
         /// <summary>
@@ -223,7 +241,8 @@ namespace ADRL.AI.Decision
                 LastExplanation,
                 lastTraceFrame,
                 LastTelemetry,
-                LastAnalytics);
+                LastAnalytics,
+                LastEvaluation);
         }
 
         /// <summary>
@@ -251,7 +270,9 @@ namespace ADRL.AI.Decision
                 KnowledgeTimestamp,
                 LastExplanation,
                 LastTraceFrame,
-                lastTelemetry);
+                lastTelemetry,
+                LastAnalytics,
+                LastEvaluation);
         }
 
         /// <summary>
@@ -280,7 +301,39 @@ namespace ADRL.AI.Decision
                 LastExplanation,
                 LastTraceFrame,
                 LastTelemetry,
-                lastAnalytics);
+                lastAnalytics,
+                LastEvaluation);
+        }
+
+        /// <summary>
+        /// Returns a copy of this diagnostics payload carrying the given quality
+        /// evaluation snapshot. The payload is immutable, so this never mutates the
+        /// original - it composes a fresh value with the evaluation snapshot the
+        /// engine computes from the last analytics, telemetry, trace and
+        /// explanation, so diagnostics and evaluation stay synchronized without
+        /// changing any decision behaviour.
+        /// </summary>
+        public DecisionDiagnostics WithEvaluation(DecisionEvaluationSnapshot lastEvaluation)
+        {
+            return new DecisionDiagnostics(
+                StepCount,
+                LastBehaviour,
+                LastAssessment,
+                LastMissionTask,
+                LastWinning,
+                SelectedExecutor,
+                LastCommand,
+                DecisionTimestamp,
+                CandidateCount,
+                KnowledgeRecordCount,
+                NearestVictimDistance,
+                NearestHazardDistance,
+                KnowledgeTimestamp,
+                LastExplanation,
+                LastTraceFrame,
+                LastTelemetry,
+                LastAnalytics,
+                lastEvaluation);
         }
 
         /// <summary>

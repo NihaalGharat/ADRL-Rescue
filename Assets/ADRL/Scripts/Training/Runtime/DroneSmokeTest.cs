@@ -2,6 +2,7 @@ namespace ADRL.Training.Runtime
 {
     using ADRL.AI.Agents;
     using ADRL.AI.Decision.Analytics;
+    using ADRL.AI.Decision.Evaluation;
     using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Decision.Telemetry;
@@ -41,6 +42,7 @@ namespace ADRL.Training.Runtime
         private bool _sawTrace;
         private bool _sawTelemetry;
         private bool _sawAnalytics;
+        private bool _sawEvaluation;
         private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
@@ -76,6 +78,7 @@ namespace ADRL.Training.Runtime
             _sawTrace = false;
             _sawTelemetry = false;
             _sawAnalytics = false;
+            _sawEvaluation = false;
 
             PlaceDeterministicProbe();
 
@@ -190,6 +193,15 @@ namespace ADRL.Training.Runtime
             if (_agent?.Decision != null
                 && _agent.Decision.LastAnalytics.DecisionCount > 0)
                 _sawAnalytics = true;
+
+            // Confirms the Phase 9.5 evaluation framework evaluated a real
+            // decision step: the engine exposes a valid evaluation whose step
+            // clock advanced past the empty state. Observational only - it never
+            // gates the smoke PASS criteria.
+            if (_agent?.Decision != null
+                && _agent.Decision.LastEvaluation.IsValid
+                && _agent.Decision.LastEvaluation.DecisionStep > 0)
+                _sawEvaluation = true;
 
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
@@ -361,6 +373,19 @@ namespace ADRL.Training.Runtime
                 $"knowledgeUsage={analytics.KnowledgeUtilizationRate:F0} | memoryUsage={analytics.MemoryUtilizationRate:F0} | " +
                 $"behaviourEntropy={analytics.BehaviourEntropy:F2} | missionEntropy={analytics.MissionEntropy:F2} | " +
                 $"analyticsValid={analyticsValid}");
+
+            // Phase 9.5 evaluation observation (observational only - it never
+            // alters the PASS/FAIL exit code). Surfaces the decision quality
+            // summary of the decision pipeline and confirms the exported
+            // evaluation snapshot validates.
+            var evaluation = _agent?.Decision?.LastEvaluation ?? DecisionEvaluationSnapshot.Empty;
+            var evaluationValid = _sawEvaluation
+                && evaluation.DecisionStep > 0
+                && DecisionEvaluationValidator.IsValid(evaluation);
+
+            Debug.Log(
+                $"[DroneSmokeTest] evaluationObserved={_sawEvaluation} | qualityScore={evaluation.DecisionQualityScore:F1} | " +
+                $"evaluationGrade={evaluation.EvaluationGrade} | evaluationValid={evaluationValid}");
 
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.

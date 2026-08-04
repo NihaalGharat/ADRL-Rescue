@@ -2,6 +2,7 @@ namespace ADRL.AI.Decision
 {
     using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Context;
+    using ADRL.AI.Decision.Evaluation;
     using ADRL.AI.Decision.Execution;
     using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
@@ -82,6 +83,7 @@ namespace ADRL.AI.Decision
         private DecisionTraceFrame _lastTraceFrame;
         private DecisionTelemetrySnapshot _lastTelemetry;
         private DecisionAnalyticsSnapshot _lastAnalytics;
+        private DecisionEvaluationSnapshot _lastEvaluation;
 
         public DecisionEngine(
             DecisionContext context,
@@ -116,6 +118,7 @@ namespace ADRL.AI.Decision
             _lastTraceFrame = DecisionTraceFrame.Empty;
             _lastTelemetry = DecisionTelemetrySnapshot.Empty;
             _lastAnalytics = DecisionAnalyticsSnapshot.Empty;
+            _lastEvaluation = DecisionEvaluationSnapshot.Empty;
         }
 
         /// <summary>The behaviour-memory service backing this engine's decisions.</summary>
@@ -271,6 +274,23 @@ namespace ADRL.AI.Decision
             _lastSnapshot = _lastSnapshot.WithDiagnostics(
                 _lastSnapshot.Diagnostics.WithAnalytics(_lastAnalytics));
 
+            // Phase 9.5: evaluate the quality of the completed decision. The
+            // single owner of evaluation computation derives the immutable
+            // decision-quality evaluation snapshot (overall score, grade,
+            // suitability, confidence, optimization, knowledge and consistency)
+            // from the analytics, telemetry, trace and explanation without any
+            // allocation beyond the snapshot itself; it is exposed as
+            // LastEvaluation and embedded in the last snapshot's diagnostics, so
+            // diagnostics, telemetry, analytics and evaluation stay synchronized
+            // without any behavioural change. Evaluation is observational only.
+            _lastEvaluation = DecisionEvaluationCalculator.Calculate(
+                _lastAnalytics,
+                _lastTelemetry,
+                _lastTraceFrame,
+                _lastExplanation);
+            _lastSnapshot = _lastSnapshot.WithDiagnostics(
+                _lastSnapshot.Diagnostics.WithEvaluation(_lastEvaluation));
+
             _stepCount++;
 
             return new DecisionResult(behaviour, command, assessment);
@@ -381,6 +401,36 @@ namespace ADRL.AI.Decision
         }
 
         /// <summary>
+        /// The immutable quality-evaluation snapshot computed from the decision
+        /// analytics, telemetry, trace and explanation - the overall score, grade
+        /// and component scores quantifying the quality of the decisions made. The
+        /// canonical <see cref="DecisionEvaluationSnapshot.Empty"/> snapshot before
+        /// any step. Observational only: it never influences decisions.
+        /// </summary>
+        public DecisionEvaluationSnapshot LastEvaluation => _lastEvaluation;
+
+        /// <summary>
+        /// The current evaluation snapshot, recomputed on demand from the current
+        /// analytics, telemetry, trace and explanation. Identical to
+        /// <see cref="LastEvaluation"/> after a decision step.
+        /// </summary>
+        public DecisionEvaluationSnapshot GetEvaluation()
+        {
+            var telemetry = _telemetryCollector.GetSnapshot();
+            return DecisionEvaluationCalculator.Calculate(
+                DecisionAnalyticsCalculator.Calculate(telemetry),
+                telemetry,
+                _lastTraceFrame,
+                _lastExplanation);
+        }
+
+        /// <summary>Clears the accumulated decision evaluation and its exposure.</summary>
+        public void ResetEvaluation()
+        {
+            _lastEvaluation = DecisionEvaluationSnapshot.Empty;
+        }
+
+        /// <summary>
         /// Read-only projection of the framework's running state, synchronized with
         /// the last built context snapshot.
         /// </summary>
@@ -400,6 +450,7 @@ namespace ADRL.AI.Decision
             _traceStore.Clear();
             ResetTelemetry();
             ResetAnalytics();
+            ResetEvaluation();
             _memoryService.Reset();
             _mission.Reset();
             _knowledgeUpdater.Reset();

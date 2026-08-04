@@ -122,6 +122,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 9.5 — Autonomous Decision Quality Evaluation Framework (2026-08-04)
+
+#### Deterministic Evaluation Layer (ADRL.AI.Decision.Evaluation)
+
+- **`DecisionEvaluationSnapshot`** (new) — immutable, deterministic decision-quality snapshot: `DecisionStep`, `DecisionTimestamp`, `DecisionQualityScore` (0-100), `BehaviourSuitabilityScore`, `ConfidenceQualityScore`, `OptimizationBenefitScore`, `MissionSuitabilityScore`, `KnowledgeCoverageScore`, `ConsistencyScore`, `EvaluationGrade` (Excellent/Good/Fair/Poor/Critical), `OverallStatus` (Optimal/Good/Acceptable/Deficient/Critical enum); all readonly, `Empty` canonical and valid
+- **`DecisionEvaluationMetrics`** (new, static) — the single owner of evaluation metric math: pure, stateless helpers for behaviour suitability (dominant behaviour share), mission suitability (dominant objective share), confidence quality (average decision confidence × 100), optimization benefit (optimized execution confidence × 100), knowledge coverage (knowledge utilization), consistency (complement of behaviour-distribution evenness), the weighted overall score, the canonical grade table and the status bands; every helper clamps to [0, 100] and degrades NaN/infinity to 0
+- **`DecisionEvaluationCalculator`** (new, static) — the single owner of evaluation computation: pure, stateless, `Calculate(DecisionAnalyticsSnapshot, DecisionTelemetrySnapshot, DecisionTraceFrame, DecisionExplanation)` derives the evaluation snapshot (step/timestamp from the trace, falling back to analytics) without caching, without LINQ and without allocation beyond the snapshot; a zero-count analytics input returns the canonical `Empty`; null or truncated inputs degrade gracefully, never exceptions
+- **`DecisionEvaluationFormatter`** (new, static) — pure, deterministic Decision Quality report (header, Overall Score `F1`, Grade, Behaviour Suitability, Mission Suitability, Optimization, Consistency, Knowledge, Confidence) with a fixed 22-column dotted label layout, invariant-culture floats, no timestamps; allocates only the final string
+- **`DecisionEvaluationValidator`** (new, static) — pure validation: no negatives, no NaN, no infinity, every score in [0, 100], grade matches the overall score, status matches it too, snapshot complete (grade present, step/timestamp non-negative); plain bools, never throws
+- **`DecisionDiagnostics`** — new `LastEvaluation` member + `WithEvaluation`; constructor extended with an optional parameter; `Empty` carries `DecisionEvaluationSnapshot.Empty`; `WithExplanation`/`WithTraceFrame`/`WithTelemetry`/`WithAnalytics` preserve the evaluation
+- **`DecisionEngine`** — after analytics, computes the evaluation snapshot via the `DecisionEvaluationCalculator` (single owner of evaluation computation), exposes `LastEvaluation` + `GetEvaluation()` + `ResetEvaluation()`, and recomposes the last snapshot's diagnostics with the evaluation so diagnostics, telemetry, analytics and evaluation stay synchronized; `Reset()` clears evaluation; fully backward compatible, zero behavioural change
+- `DroneSmokeTest` observes the evaluation and logs `evaluationObserved`, `qualityScore`, `evaluationGrade`, `evaluationValid`; observational only — **no PASS criteria change**
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionEvaluationTests` (20): calculator computes quality score; calculator empty for no decisions; calculator uniform distribution reduces consistency; calculator uses trace step and timestamp; calculator deterministic output; formatter deterministic; formatter contains sections; formatter empty output; validator accepts valid; validator rejects negative; validator rejects NaN/Infinity; validator rejects invalid grade/status; metrics suitability and coverage; metrics confidence and optimization; metrics consistency and grade; metrics overall quality weighted; engine evaluation after steps; deterministic evaluation; diagnostics carries evaluation; reset clears evaluation and behaviour unchanged
+
+#### Validation
+
+- EditMode suite: **301/301 passing** (281 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, movement/behaviour/reward/decision/optimization/determinism unchanged, decision/context/optimization/knowledge/explanation/trace/telemetry/analytics observed, **evaluation observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, telemetry, analytics, navigation, rewards, simulation, RL and training unchanged; evaluation is read-only and never influences decisions
+
 ### Phase 9.4 — Autonomous Decision Analytics Framework (2026-08-04)
 
 #### Deterministic Analytics Layer (ADRL.AI.Decision.Analytics)

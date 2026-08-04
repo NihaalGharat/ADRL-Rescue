@@ -409,6 +409,35 @@ gantt
 
 ---
 
+## Phase 9.5: Autonomous Decision Quality Evaluation Framework (Complete)
+
+**Goal:** Introduce a deterministic, read-only evaluation layer that scores the quality of every completed autonomous decision, answering "was the selected behaviour appropriate, was confidence reasonable, was optimization beneficial, was the decision consistent, was sufficient knowledge available, was mission selection appropriate?". The `DecisionEvaluationCalculator` is the single owner of evaluation computation — pure, stateless, reading the completed `DecisionAnalyticsSnapshot`, `DecisionTelemetrySnapshot`, `DecisionTraceFrame` and `DecisionExplanation` only and producing an immutable `DecisionEvaluationSnapshot` (overall quality score 0-100 with the canonical grade Excellent/Good/Fair/Poor/Critical, plus the six component scores via the pure `DecisionEvaluationMetrics` helpers: behaviour suitability, confidence quality, optimization benefit, mission suitability, knowledge coverage, consistency). Evaluation never influences runtime behaviour, decisions, prioritization, mission selection, optimization or execution. No RL, no learning, no planning, no navigation, no SLAM, no mapping, no swarm logic, no visualization.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 9.5.1 | `ADRL.AI.Decision.Evaluation` namespace — `DecisionEvaluationSnapshot.cs`, `DecisionEvaluationCalculator.cs`, `DecisionEvaluationMetrics.cs`, `DecisionEvaluationFormatter.cs`, `DecisionEvaluationValidator.cs` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 9.5.2 | `DecisionEvaluationSnapshot` — immutable decision-quality snapshot: step/timestamp, overall quality score (0-100), behaviour suitability, confidence quality, optimization benefit, mission suitability, knowledge coverage, consistency, evaluation grade (Excellent 90-100 / Good 75-89 / Fair 60-74 / Poor 40-59 / Critical 0-39), overall status enum; all readonly, `Empty` canonical | ✅ Complete |
+| 9.5.3 | `DecisionEvaluationMetrics` — single owner of evaluation metric math: pure deterministic helpers for each component (dominant-share suitability, confidence/optimization percentages, knowledge utilization, consistency as the complement of evenness), the weighted overall score (25/20/15/10/15/15), the grade table and the status bands; [0, 100] clamping, NaN/infinity degrade to 0 | ✅ Complete |
+| 9.5.4 | `DecisionEvaluationCalculator` — single owner of evaluation computation: pure, stateless, `Calculate(analytics, telemetry, trace, explanation)`; no caching, no LINQ, allocation only for the snapshot; step/timestamp from the trace with analytics fallback; zero-count analytics → canonical `Empty`; null/truncated inputs degrade gracefully, never throws | ✅ Complete |
+| 9.5.5 | `DecisionEvaluationFormatter` — pure deterministic Decision Quality report (Overall Score `F1`, Grade, Behaviour Suitability, Mission Suitability, Optimization, Consistency, Knowledge, Confidence) with a fixed 22-column dotted label layout, invariant-culture floats, no timestamps; allocates only the final string | ✅ Complete |
+| 9.5.6 | `DecisionEvaluationValidator` — pure validation: no negatives, no NaN, no infinity, scores in [0, 100], grade valid, status valid, snapshot complete; plain bools, never throws | ✅ Complete |
+| 9.5.7 | `DecisionDiagnostics` — new `LastEvaluation` member + `WithEvaluation`; constructor extended with an optional parameter; `Empty` carries `DecisionEvaluationSnapshot.Empty`; `WithExplanation`/`WithTraceFrame`/`WithTelemetry`/`WithAnalytics` preserve the evaluation | ✅ Complete |
+| 9.5.8 | `DecisionEngine` — after analytics, computes the evaluation snapshot via the `DecisionEvaluationCalculator` (single owner of evaluation computation), exposes `LastEvaluation` + `GetEvaluation()` + `ResetEvaluation()`, recomposes the last snapshot's diagnostics with the evaluation; `Reset` clears evaluation; backward compatible | ✅ Complete |
+| 9.5.9 | `DroneSmokeTest` — observes the evaluation (`evaluationObserved`, `qualityScore`, `evaluationGrade`, `evaluationValid`); observational only, **no PASS criteria change** | ✅ Complete |
+
+### Milestone
+
+- `DecisionEvaluationCalculator` is the sole owner of evaluation computation; `DecisionEvaluationMetrics` owns the metric math; snapshot, formatter and validator are pure/immutable projections; the engine remains the sole decision authority and computes the evaluation after analytics without any behavioural change
+- No duplicate evaluation systems, no hidden mutable state, no circular dependencies, no new Assembly Definitions; deterministic by construction (identical observations → identical evaluation → identical formatter output); backward compatible
+- `DecisionEvaluationTests` added (20); full EditMode suite **301/301 passing** (281 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: finite reward, **sumInvariant=True**, movement/behaviour/reward/decision/optimization/determinism unchanged, **evaluation observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, telemetry, analytics, navigation, rewards, simulation, RL and training unchanged; evaluation is read-only and never influences decisions
+- This phase completes the observability stack: 9.0 World Knowledge, 9.1 Explainability, 9.2 Trace & Replay, 9.3 Telemetry, 9.4 Analytics, 9.5 Quality Evaluation — positioning the project for Phase 10.x (Autonomous Training & Learning) toward the v1.0.0 release
+
+---
+
 ## Phase 9.4: Autonomous Decision Analytics Framework (Complete)
 
 **Goal:** Introduce a deterministic, read-only analytics layer that converts `DecisionTelemetrySnapshot` into engineering analytics for developers: health, balance, entropy and utilization metrics that answer "how healthy is the decision system?". The `DecisionAnalyticsCalculator` is the single owner of analytics computation — pure, stateless, reading the completed telemetry snapshot only and producing an immutable `DecisionAnalyticsSnapshot` (confidence averages as percentages, knowledge/memory utilization, behaviour/mission balance via normalized Shannon entropy, behaviour/mission Shannon entropy, and the weighted health score from the `DecisionHealthCalculator`). Analytics never influences runtime behaviour, decisions, prioritization, mission selection, optimization or execution. No RL, no learning, no planning, no navigation, no SLAM, no mapping, no swarm logic, no visualization.
@@ -653,6 +682,7 @@ gantt
 | v0.12.0 | Decision Trace & Replay | Deterministic replayable trace layer: frame + builder + bounded store + replay + replay validator, snapshot/diagnostics integration, smoke + integration validation (Phase 9.2) |
 | v0.13.0 | Decision Telemetry | Deterministic read-only telemetry layer: snapshot + single-owner collector + internal running statistics + formatter + validator, diagnostics integration, O(1) allocation-free observation, smoke + integration validation (Phase 9.3) |
 | v0.14.0 | Decision Analytics | Deterministic read-only analytics layer: snapshot + pure single-owner calculator + health calculator + formatter + validator, telemetry-driven health/balance/entropy/utilization metrics, diagnostics integration, smoke + integration validation (Phase 9.4) |
+| v0.15.0 | Decision Quality Evaluation | Deterministic read-only quality evaluation layer: snapshot + pure single-owner calculator + metrics + formatter + validator, overall quality score with grade/status and six component scores, diagnostics integration, smoke + integration validation (Phase 9.5) |
 | v1.0.0 | Release | Full stable release |
 
 ---
