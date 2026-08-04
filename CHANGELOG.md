@@ -122,6 +122,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 9.4 — Autonomous Decision Analytics Framework (2026-08-04)
+
+#### Deterministic Analytics Layer (ADRL.AI.Decision.Analytics)
+
+- **`DecisionAnalyticsSnapshot`** (new) — immutable, deterministic engineering-analytics snapshot computed from decision telemetry: `DecisionCount`, `AverageDecisionConfidence`, `AverageExecutionConfidence`, `AverageOptimizationConfidence`, `KnowledgeUtilizationRate`, `MemoryUtilizationRate`, `BehaviourBalanceScore`, `MissionBalanceScore`, `BehaviourEntropy`, `MissionEntropy`, `DecisionHealthScore`, `DecisionStep`, `DecisionTimestamp` and the `BehaviourAnalytics`/`MissionAnalytics` arrays (one owned entry per enum value in enum order, with count and share); all readonly, `Empty` canonical. Ratio metrics are percentages in [0, 100]; entropy is finite, non-negative Shannon entropy
+- **`DecisionAnalyticsCalculator`** (new, static) — the single owner of analytics computation: pure, stateless, `Calculate(DecisionTelemetrySnapshot)` derives the analytics snapshot (confidence averages scaled to percentages; utilization = record count relative to decision count, clamped; balance = normalized Shannon entropy/evenness; entropy = Shannon entropy; health = weighted combination) without caching, without LINQ and without allocation beyond the snapshot; the trace records the optimized execution profile's confidence as its optimization confidence, so execution and optimization averages carry the same signal; null/truncated telemetry degrades to zero-count analytics, never exceptions
+- **`DecisionHealthCalculator`** (new, static) — pure health-score helper with the suggested weighting (decision confidence 35%, execution confidence 25%, optimization confidence 15%, knowledge usage 10%, memory usage 10%, behaviour balance 5%), clamping the weighted sum to [0, 100]; deterministic
+- **`DecisionAnalyticsFormatter`** (new, static) — pure, deterministic report (Decision Analytics header, Health Score, Decision Confidence, Execution Confidence, Optimization, Knowledge Usage, Memory Usage, Behaviour Balance, Mission Balance, Behaviour Entropy, Mission Entropy, Total Decisions) with a fixed 20-column dotted label layout, invariant-culture floats and deterministic balance labels (Excellent/Good/Fair/Poor/Very Poor); allocates only the final string
+- **`DecisionAnalyticsValidator`** (new, static) — pure validation: no negatives, no NaN, no infinity, health score in [0, 100], entropy finite, balance in [0, 100], utilization in [0, 100], confidence in [0, 100], snapshot complete (analytics arrays present, one entry per enum value, count totals equal the decision count); plain bools, never throws
+- **`DecisionDiagnostics`** — new `LastAnalytics` member + `WithAnalytics`; constructor extended with an optional parameter; `Empty` carries `DecisionAnalyticsSnapshot.Empty`; `WithExplanation`/`WithTraceFrame`/`WithTelemetry` preserve analytics
+- **`DecisionEngine`** — after telemetry, computes the analytics snapshot via the `DecisionAnalyticsCalculator` (single owner of analytics computation), exposes `LastAnalytics` + `GetAnalytics()` + `ResetAnalytics()`, and recomposes the last snapshot's diagnostics with the analytics so diagnostics, telemetry and analytics stay synchronized; `Reset()` clears analytics; fully backward compatible, zero behavioural change
+- `DroneSmokeTest` observes the analytics and logs `analyticsObserved`, `decisionCount`, `healthScore`, `knowledgeUsage`, `memoryUsage`, `behaviourEntropy`, `missionEntropy`, `analyticsValid`; observational only — **no PASS criteria change**
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionAnalyticsTests` (20): calculator computes averages and health; calculator empty telemetry; calculator utilization rates; calculator balance and entropy; calculator deterministic output; formatter deterministic; formatter contains sections; formatter empty analytics; validator accepts valid; validator rejects negative; validator rejects NaN/Infinity; validator rejects out of range; health weighted computation; health clamped to range; health zero inputs; health perfect inputs; engine analytics after steps; deterministic analytics; diagnostics carries analytics; reset clears analytics and behaviour unchanged
+
+#### Validation
+
+- EditMode suite: **281/281 passing** (261 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, movement/behaviour/reward/decision/optimization/determinism unchanged, decision/context/optimization/knowledge/explanation/trace/telemetry observed, **analytics observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, telemetry, navigation, rewards, simulation, RL and training unchanged; analytics is read-only and never influences decisions
+
 ### Phase 9.3 — Autonomous Decision Telemetry Framework (2026-08-04)
 
 #### Deterministic Telemetry Layer (ADRL.AI.Decision.Telemetry)

@@ -1,6 +1,7 @@
 namespace ADRL.Training.Runtime
 {
     using ADRL.AI.Agents;
+    using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Decision.Telemetry;
@@ -39,6 +40,7 @@ namespace ADRL.Training.Runtime
         private bool _sawExplanation;
         private bool _sawTrace;
         private bool _sawTelemetry;
+        private bool _sawAnalytics;
         private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
@@ -73,6 +75,7 @@ namespace ADRL.Training.Runtime
             _sawExplanation = false;
             _sawTrace = false;
             _sawTelemetry = false;
+            _sawAnalytics = false;
 
             PlaceDeterministicProbe();
 
@@ -179,6 +182,14 @@ namespace ADRL.Training.Runtime
             if (_agent?.Decision != null
                 && _agent.Decision.LastTelemetry.DecisionCount > 0)
                 _sawTelemetry = true;
+
+            // Confirms the Phase 9.4 analytics framework computed analytics for a
+            // real decision step: the engine exposes analytics whose decision
+            // count advanced past the empty state. Observational only - it never
+            // gates the smoke PASS criteria.
+            if (_agent?.Decision != null
+                && _agent.Decision.LastAnalytics.DecisionCount > 0)
+                _sawAnalytics = true;
 
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
@@ -334,6 +345,22 @@ namespace ADRL.Training.Runtime
                 $"knowledgeRecords={telemetry.KnowledgeRecordCount} | memoryRecords={telemetry.MemoryRecordCount} | " +
                 $"candidateAverage={telemetry.AverageCandidateCount:F2} | behaviourDistribution={behaviourDistribution} | " +
                 $"telemetryValid={telemetryValid}");
+
+            // Phase 9.4 analytics observation (observational only - it never alters
+            // the PASS/FAIL exit code). Surfaces the engineering health summary of
+            // the decision pipeline and confirms the exported analytics snapshot
+            // validates.
+            var analytics = _agent?.Decision?.LastAnalytics ?? DecisionAnalyticsSnapshot.Empty;
+            var analyticsValid = _sawAnalytics
+                && analytics.DecisionCount > 0
+                && DecisionAnalyticsValidator.IsValid(analytics);
+
+            Debug.Log(
+                $"[DroneSmokeTest] analyticsObserved={_sawAnalytics} | decisionCount={analytics.DecisionCount} | " +
+                $"healthScore={analytics.DecisionHealthScore:F0} | " +
+                $"knowledgeUsage={analytics.KnowledgeUtilizationRate:F0} | memoryUsage={analytics.MemoryUtilizationRate:F0} | " +
+                $"behaviourEntropy={analytics.BehaviourEntropy:F2} | missionEntropy={analytics.MissionEntropy:F2} | " +
+                $"analyticsValid={analyticsValid}");
 
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.

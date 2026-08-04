@@ -409,6 +409,33 @@ gantt
 
 ---
 
+## Phase 9.4: Autonomous Decision Analytics Framework (Complete)
+
+**Goal:** Introduce a deterministic, read-only analytics layer that converts `DecisionTelemetrySnapshot` into engineering analytics for developers: health, balance, entropy and utilization metrics that answer "how healthy is the decision system?". The `DecisionAnalyticsCalculator` is the single owner of analytics computation — pure, stateless, reading the completed telemetry snapshot only and producing an immutable `DecisionAnalyticsSnapshot` (confidence averages as percentages, knowledge/memory utilization, behaviour/mission balance via normalized Shannon entropy, behaviour/mission Shannon entropy, and the weighted health score from the `DecisionHealthCalculator`). Analytics never influences runtime behaviour, decisions, prioritization, mission selection, optimization or execution. No RL, no learning, no planning, no navigation, no SLAM, no mapping, no swarm logic, no visualization.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 9.4.1 | `ADRL.AI.Decision.Analytics` namespace — `DecisionAnalyticsSnapshot.cs`, `DecisionAnalyticsCalculator.cs`, `DecisionHealthCalculator.cs`, `DecisionAnalyticsFormatter.cs`, `DecisionAnalyticsValidator.cs` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 9.4.2 | `DecisionAnalyticsSnapshot` — immutable engineering-analytics snapshot: decision count, confidence averages (decision/execution/optimization, [0, 100]), knowledge/memory utilization rates, behaviour/mission balance scores, behaviour/mission entropy, health score, step/timestamp, per-category `BehaviourAnalytics`/`MissionAnalytics` arrays (one owned entry per enum value in enum order); all readonly, `Empty` canonical | ✅ Complete |
+| 9.4.3 | `DecisionAnalyticsCalculator` — single owner of analytics computation: pure, stateless, `Calculate(DecisionTelemetrySnapshot)`; no caching, no LINQ, allocation only for the snapshot; confidence averages scaled to percentages, utilization = records/decisions clamped to [0, 100], balance = normalized Shannon entropy (evenness), entropy = Shannon entropy (natural log); O(n) where n is the enum count; null/truncated telemetry degrades to zero counts, never throws | ✅ Complete |
+| 9.4.4 | `DecisionHealthCalculator` — pure health-score helper: weighted combination (decision confidence 35%, execution confidence 25%, optimization confidence 15%, knowledge usage 10%, memory usage 10%, behaviour balance 5%), clamped to [0, 100]; deterministic | ✅ Complete |
+| 9.4.5 | `DecisionAnalyticsFormatter` — pure deterministic report: Decision Analytics header, Health Score, Decision Confidence, Execution Confidence, Optimization, Knowledge Usage, Memory Usage, Behaviour Balance, Mission Balance, Behaviour Entropy, Mission Entropy, Total Decisions; 20-column dotted labels, invariant-culture floats, deterministic balance labels (Excellent/Good/Fair/Poor/Very Poor); allocates only the final string | ✅ Complete |
+| 9.4.6 | `DecisionAnalyticsValidator` — pure validation: no negatives, no NaN, no infinity, health score in [0, 100], entropy finite, balance in [0, 100], utilization in [0, 100], confidence in [0, 100], snapshot complete (analytics arrays present, one entry per enum value, count totals equal the decision count); plain bools, never throws | ✅ Complete |
+| 9.4.7 | `DecisionDiagnostics` — new `LastAnalytics` member + `WithAnalytics`; constructor extended with an optional parameter; `Empty` carries `DecisionAnalyticsSnapshot.Empty`; `WithExplanation`/`WithTraceFrame`/`WithTelemetry` preserve analytics | ✅ Complete |
+| 9.4.8 | `DecisionEngine` — after telemetry, computes the analytics snapshot via the `DecisionAnalyticsCalculator` (single owner of analytics computation), exposes `LastAnalytics` + `GetAnalytics()` + `ResetAnalytics()`, recomposes the last snapshot's diagnostics with analytics; `Reset` clears analytics; backward compatible | ✅ Complete |
+| 9.4.9 | `DroneSmokeTest` — observes the analytics (`analyticsObserved`, `decisionCount`, `healthScore`, `knowledgeUsage`, `memoryUsage`, `behaviourEntropy`, `missionEntropy`, `analyticsValid`); observational only, **no PASS criteria change** | ✅ Complete |
+
+### Milestone
+- `DecisionAnalyticsCalculator` is the sole owner of analytics computation; `DecisionHealthCalculator` owns the weighted health score; snapshot, formatter and validator are pure/immutable projections; the engine remains the sole decision authority and computes analytics after telemetry without any behavioural change
+- No duplicate analytics systems, no hidden mutable state, no circular dependencies, no new Assembly Definitions; deterministic by construction (identical telemetry → identical analytics → identical formatter output); backward compatible
+- `DecisionAnalyticsTests` added (20); full EditMode suite **281/281 passing** (261 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: finite reward, **sumInvariant=True**, movement/behaviour/reward/decision/optimization/determinism unchanged, **analytics observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, telemetry, navigation, rewards, simulation, RL and training unchanged; analytics is read-only and never influences decisions
+
+---
+
 ## Phase 9.3: Autonomous Decision Telemetry Framework (Complete)
 
 **Goal:** Introduce a deterministic, read-only telemetry layer that continuously summarizes the health and performance of the autonomous decision pipeline (decisions executed, behaviour/mission distributions, average confidence, average optimization confidence, average candidate count, knowledge/memory utilization, execution multipliers, latest values) without ever influencing runtime behaviour. Telemetry is strictly observational: the `DecisionTelemetryCollector` is the single runtime owner, reads the completed `DecisionTraceFrame` only, and never modifies the engine, snapshot, explanation, trace, knowledge, memory, behaviour or command. No RL, no analytics, no visualization, no logging, no benchmarking, no path planning, no navigation, no SLAM, no mapping, no swarm logic.
@@ -625,6 +652,7 @@ gantt
 | v0.11.0 | Decision Explainability | Deterministic immutable explanation layer: reasons + explanation + builder + formatter + validator, scored-priority snapshot integration, synchronized diagnostics, smoke + integration validation (Phase 9.1) |
 | v0.12.0 | Decision Trace & Replay | Deterministic replayable trace layer: frame + builder + bounded store + replay + replay validator, snapshot/diagnostics integration, smoke + integration validation (Phase 9.2) |
 | v0.13.0 | Decision Telemetry | Deterministic read-only telemetry layer: snapshot + single-owner collector + internal running statistics + formatter + validator, diagnostics integration, O(1) allocation-free observation, smoke + integration validation (Phase 9.3) |
+| v0.14.0 | Decision Analytics | Deterministic read-only analytics layer: snapshot + pure single-owner calculator + health calculator + formatter + validator, telemetry-driven health/balance/entropy/utilization metrics, diagnostics integration, smoke + integration validation (Phase 9.4) |
 | v1.0.0 | Release | Full stable release |
 
 ---

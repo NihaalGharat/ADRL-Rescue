@@ -1,6 +1,7 @@
 namespace ADRL.AI.Decision
 {
     using ADRL.AI.DecisionMaking;
+    using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Context;
     using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
@@ -94,6 +95,15 @@ namespace ADRL.AI.Decision
         /// </summary>
         public readonly DecisionTelemetrySnapshot LastTelemetry;
 
+        /// <summary>
+        /// The immutable analytics snapshot computed from the decision telemetry,
+        /// or <see cref="DecisionAnalyticsSnapshot.Empty"/> before any step.
+        /// Carried so the diagnostics projection also exposes the engineering
+        /// analytics (health, balance, entropy, utilization) of the decision
+        /// pipeline - it is read-only and never influences decisions.
+        /// </summary>
+        public readonly DecisionAnalyticsSnapshot LastAnalytics;
+
         public DecisionDiagnostics(
             int stepCount,
             BehaviourState lastBehaviour,
@@ -110,7 +120,8 @@ namespace ADRL.AI.Decision
             float knowledgeTimestamp = 0f,
             DecisionExplanation lastExplanation = default,
             DecisionTraceFrame lastTraceFrame = null,
-            DecisionTelemetrySnapshot lastTelemetry = default)
+            DecisionTelemetrySnapshot lastTelemetry = default,
+            DecisionAnalyticsSnapshot lastAnalytics = default)
         {
             StepCount = stepCount;
             LastBehaviour = lastBehaviour;
@@ -131,6 +142,10 @@ namespace ADRL.AI.Decision
                 || lastTelemetry.MissionDistribution == null
                 ? DecisionTelemetrySnapshot.Empty
                 : lastTelemetry;
+            LastAnalytics = lastAnalytics.BehaviourAnalytics == null
+                || lastAnalytics.MissionAnalytics == null
+                ? DecisionAnalyticsSnapshot.Empty
+                : lastAnalytics;
         }
 
         /// <summary>An idle, zero-step diagnostics payload.</summary>
@@ -150,7 +165,8 @@ namespace ADRL.AI.Decision
             0f,
             DecisionExplanation.Empty,
             DecisionTraceFrame.Empty,
-            DecisionTelemetrySnapshot.Empty);
+            DecisionTelemetrySnapshot.Empty,
+            DecisionAnalyticsSnapshot.Empty);
 
         /// <summary>
         /// Returns a copy of this diagnostics payload carrying the given decision
@@ -177,7 +193,8 @@ namespace ADRL.AI.Decision
                 KnowledgeTimestamp,
                 lastExplanation,
                 LastTraceFrame,
-                LastTelemetry);
+                LastTelemetry,
+                LastAnalytics);
         }
 
         /// <summary>
@@ -205,7 +222,8 @@ namespace ADRL.AI.Decision
                 KnowledgeTimestamp,
                 LastExplanation,
                 lastTraceFrame,
-                LastTelemetry);
+                LastTelemetry,
+                LastAnalytics);
         }
 
         /// <summary>
@@ -234,6 +252,35 @@ namespace ADRL.AI.Decision
                 LastExplanation,
                 LastTraceFrame,
                 lastTelemetry);
+        }
+
+        /// <summary>
+        /// Returns a copy of this diagnostics payload carrying the given analytics
+        /// snapshot. The payload is immutable, so this never mutates the original -
+        /// it composes a fresh value with the analytics snapshot the engine
+        /// computes from the last telemetry snapshot, so diagnostics and analytics
+        /// stay synchronized without changing any decision behaviour.
+        /// </summary>
+        public DecisionDiagnostics WithAnalytics(DecisionAnalyticsSnapshot lastAnalytics)
+        {
+            return new DecisionDiagnostics(
+                StepCount,
+                LastBehaviour,
+                LastAssessment,
+                LastMissionTask,
+                LastWinning,
+                SelectedExecutor,
+                LastCommand,
+                DecisionTimestamp,
+                CandidateCount,
+                KnowledgeRecordCount,
+                NearestVictimDistance,
+                NearestHazardDistance,
+                KnowledgeTimestamp,
+                LastExplanation,
+                LastTraceFrame,
+                LastTelemetry,
+                lastAnalytics);
         }
 
         /// <summary>

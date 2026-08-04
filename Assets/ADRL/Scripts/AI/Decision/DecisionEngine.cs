@@ -1,5 +1,6 @@
 namespace ADRL.AI.Decision
 {
+    using ADRL.AI.Decision.Analytics;
     using ADRL.AI.Decision.Context;
     using ADRL.AI.Decision.Execution;
     using ADRL.AI.Decision.Explainability;
@@ -80,6 +81,7 @@ namespace ADRL.AI.Decision
         private DecisionExplanation _lastExplanation;
         private DecisionTraceFrame _lastTraceFrame;
         private DecisionTelemetrySnapshot _lastTelemetry;
+        private DecisionAnalyticsSnapshot _lastAnalytics;
 
         public DecisionEngine(
             DecisionContext context,
@@ -113,6 +115,7 @@ namespace ADRL.AI.Decision
             _lastExplanation = DecisionExplanation.Empty;
             _lastTraceFrame = DecisionTraceFrame.Empty;
             _lastTelemetry = DecisionTelemetrySnapshot.Empty;
+            _lastAnalytics = DecisionAnalyticsSnapshot.Empty;
         }
 
         /// <summary>The behaviour-memory service backing this engine's decisions.</summary>
@@ -256,6 +259,18 @@ namespace ADRL.AI.Decision
             _lastSnapshot = _lastSnapshot.WithDiagnostics(
                 _lastSnapshot.Diagnostics.WithTelemetry(_lastTelemetry));
 
+            // Phase 9.4: compute analytics for the observed telemetry. The single
+            // owner of analytics computation derives the immutable engineering
+            // analytics snapshot (health, balance, entropy, utilization) from the
+            // telemetry without any allocation beyond the snapshot itself; it is
+            // exposed as LastAnalytics and embedded in the last snapshot's
+            // diagnostics, so diagnostics, telemetry and analytics stay
+            // synchronized without any behavioural change. Analytics is
+            // observational only.
+            _lastAnalytics = DecisionAnalyticsCalculator.Calculate(_lastTelemetry);
+            _lastSnapshot = _lastSnapshot.WithDiagnostics(
+                _lastSnapshot.Diagnostics.WithAnalytics(_lastAnalytics));
+
             _stepCount++;
 
             return new DecisionResult(behaviour, command, assessment);
@@ -341,6 +356,31 @@ namespace ADRL.AI.Decision
         }
 
         /// <summary>
+        /// The immutable analytics snapshot computed from the decision telemetry -
+        /// the engineering health, balance, entropy and utilization summary of the
+        /// decision pipeline. The canonical <see cref="DecisionAnalyticsSnapshot.Empty"/>
+        /// snapshot before any step. Observational only: it never influences
+        /// decisions.
+        /// </summary>
+        public DecisionAnalyticsSnapshot LastAnalytics => _lastAnalytics;
+
+        /// <summary>
+        /// The current analytics snapshot, recomputed on demand from the
+        /// collector's telemetry. Identical to <see cref="LastAnalytics"/> after a
+        /// decision step.
+        /// </summary>
+        public DecisionAnalyticsSnapshot GetAnalytics()
+        {
+            return DecisionAnalyticsCalculator.Calculate(_telemetryCollector.GetSnapshot());
+        }
+
+        /// <summary>Clears the accumulated decision analytics and its exposure.</summary>
+        public void ResetAnalytics()
+        {
+            _lastAnalytics = DecisionAnalyticsSnapshot.Empty;
+        }
+
+        /// <summary>
         /// Read-only projection of the framework's running state, synchronized with
         /// the last built context snapshot.
         /// </summary>
@@ -359,6 +399,7 @@ namespace ADRL.AI.Decision
             _lastTraceFrame = DecisionTraceFrame.Empty;
             _traceStore.Clear();
             ResetTelemetry();
+            ResetAnalytics();
             _memoryService.Reset();
             _mission.Reset();
             _knowledgeUpdater.Reset();
