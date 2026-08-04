@@ -409,6 +409,33 @@ gantt
 
 ---
 
+## Phase 9.3: Autonomous Decision Telemetry Framework (Complete)
+
+**Goal:** Introduce a deterministic, read-only telemetry layer that continuously summarizes the health and performance of the autonomous decision pipeline (decisions executed, behaviour/mission distributions, average confidence, average optimization confidence, average candidate count, knowledge/memory utilization, execution multipliers, latest values) without ever influencing runtime behaviour. Telemetry is strictly observational: the `DecisionTelemetryCollector` is the single runtime owner, reads the completed `DecisionTraceFrame` only, and never modifies the engine, snapshot, explanation, trace, knowledge, memory, behaviour or command. No RL, no analytics, no visualization, no logging, no benchmarking, no path planning, no navigation, no SLAM, no mapping, no swarm logic.
+
+### Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 9.3.1 | `ADRL.AI.Decision.Telemetry` namespace — `DecisionTelemetrySnapshot.cs`, `DecisionTelemetryCollector.cs`, `DecisionTelemetryStatistics.cs`, `DecisionTelemetryFormatter.cs`, `DecisionTelemetryValidator.cs` in the existing `ADRL.AI` assembly (no new asmdef) | ✅ Complete |
+| 9.3.2 | `DecisionTelemetrySnapshot` — immutable runtime-telemetry snapshot: decision count, running averages (decision confidence, optimization confidence, candidate count, speed/turn multipliers), knowledge/memory record counts, current behaviour/mission/executor, latest step/timestamp, behaviour/mission distributions (one owned entry per enum value, zero-count included); all readonly, `Empty` canonical | ✅ Complete |
+| 9.3.3 | `DecisionTelemetryStatistics` (internal) — running accumulator: totals, averages, behaviour/mission counters (pre-sized arrays indexed by enum value), knowledge/memory counts, latest-value projection; O(1) allocation-free updates, no LINQ, never exposed publicly | ✅ Complete |
+| 9.3.4 | `DecisionTelemetryCollector` — single runtime owner of telemetry: `Observe` (O(1), allocation-free, null-safe), `GetSnapshot` (fresh immutable projection), `Reset`; reads the trace frame only, never influences runtime | ✅ Complete |
+| 9.3.5 | `DecisionTelemetryFormatter` — pure deterministic rendering: Decisions, Average Confidence, Average Optimization Confidence, Behaviour/Mission Distributions, Knowledge/Memory Records, Average Candidates, Execution Speed, Turn Multiplier, current values, latest clocks; invariant-culture floats, same telemetry → byte-identical output | ✅ Complete |
+| 9.3.6 | `DecisionTelemetryValidator` — pure validation: no negatives, no NaN/Infinity, distribution totals equal decision count, snapshot complete, counts valid, averages in range, current values valid; plain bools, never throws | ✅ Complete |
+| 9.3.7 | `DecisionDiagnostics` — new `LastTelemetry` member + `WithTelemetry`; constructor extended with an optional parameter; `Empty` carries `DecisionTelemetrySnapshot.Empty`; `WithExplanation`/`WithTraceFrame` preserve telemetry | ✅ Complete |
+| 9.3.8 | `DecisionEngine` — observes the trace frame after tracing via the collector, exposes `LastTelemetry` + `TelemetryCollector` + `GetTelemetry()` + `ResetTelemetry()`, recomposes the last snapshot's diagnostics with telemetry; `Reset` clears telemetry; backward compatible | ✅ Complete |
+| 9.3.9 | `DroneSmokeTest` — observes the telemetry (`telemetryObserved`, `decisionCount`, `averageConfidence`, `averageOptimizationConfidence`, `knowledgeRecords`, `memoryRecords`, `candidateAverage`, `behaviourDistribution`, `telemetryValid`); observational only, **no PASS criteria change** | ✅ Complete |
+
+### Milestone
+- `DecisionTelemetryCollector` is the sole owner of telemetry computation; the internal statistics accumulator drives O(1) allocation-free running totals; snapshot, formatter and validator are pure/immutable projections; the engine remains the sole decision authority and observes each step without any behavioural change
+- No duplicate telemetry systems, no hidden mutable state, no circular dependencies, no new Assembly Definitions; deterministic by construction (identical sequence → identical snapshot → identical formatter output); backward compatible
+- `DecisionTelemetryTests` added (20); full EditMode suite **261/261 passing** (241 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test PASSED, exit 0: finite reward, **sumInvariant=True**, movement/behaviour/optimization/determinism unchanged, **telemetry observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, navigation, rewards, simulation, RL and training unchanged; telemetry is read-only and never influences decisions
+
+---
+
 ## Phase 9.2: Autonomous Decision Trace & Replay Framework (Complete)
 
 **Goal:** Introduce a deterministic decision tracing system that records every autonomous decision into immutable, replayable trace frames, allowing exact replay, inspection, regression testing and debugging without changing runtime behaviour. Tracing is strictly observational: it reads the built `DecisionContextSnapshot` and its explanation only, never influences decision making, prioritization, mission selection, optimization or execution. No RL, no path planning, no navigation, no SLAM, no mapping, no swarm logic.
@@ -597,6 +624,7 @@ gantt
 | v0.10.0 | World Knowledge | Persistent world-knowledge layer: store + updater + query, snapshot integration, synchronized diagnostics, smoke + integration validation (Phase 9.0) |
 | v0.11.0 | Decision Explainability | Deterministic immutable explanation layer: reasons + explanation + builder + formatter + validator, scored-priority snapshot integration, synchronized diagnostics, smoke + integration validation (Phase 9.1) |
 | v0.12.0 | Decision Trace & Replay | Deterministic replayable trace layer: frame + builder + bounded store + replay + replay validator, snapshot/diagnostics integration, smoke + integration validation (Phase 9.2) |
+| v0.13.0 | Decision Telemetry | Deterministic read-only telemetry layer: snapshot + single-owner collector + internal running statistics + formatter + validator, diagnostics integration, O(1) allocation-free observation, smoke + integration validation (Phase 9.3) |
 | v1.0.0 | Release | Full stable release |
 
 ---

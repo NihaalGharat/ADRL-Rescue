@@ -3,6 +3,7 @@ namespace ADRL.Training.Runtime
     using ADRL.AI.Agents;
     using ADRL.AI.Decision.Explainability;
     using ADRL.AI.Decision.Knowledge;
+    using ADRL.AI.Decision.Telemetry;
     using ADRL.AI.Decision.Trace;
     using ADRL.AI.Rewards;
     using ADRL.Drone.Controllers;
@@ -37,6 +38,7 @@ namespace ADRL.Training.Runtime
         private bool _sawKnowledge;
         private bool _sawExplanation;
         private bool _sawTrace;
+        private bool _sawTelemetry;
         private GameObject _probe;
 
         /// <summary>Final PASS/FAIL result of the smoke test.</summary>
@@ -70,6 +72,7 @@ namespace ADRL.Training.Runtime
             _sawKnowledge = false;
             _sawExplanation = false;
             _sawTrace = false;
+            _sawTelemetry = false;
 
             PlaceDeterministicProbe();
 
@@ -168,6 +171,14 @@ namespace ADRL.Training.Runtime
                 && _agent.Decision.LastTraceFrame.DecisionStep > 0
                 && _agent.Decision.TraceStore.Count > 0)
                 _sawTrace = true;
+
+            // Confirms the Phase 9.3 telemetry framework observed a real decision
+            // step: the engine exposes telemetry whose decision count advanced past
+            // the empty state. Observational only - it never gates the smoke PASS
+            // criteria.
+            if (_agent?.Decision != null
+                && _agent.Decision.LastTelemetry.DecisionCount > 0)
+                _sawTelemetry = true;
 
             if (_elapsed >= MaxDuration || HasPassed())
                 Complete();
@@ -306,6 +317,24 @@ namespace ADRL.Training.Runtime
                 $"latestTraceStep={latestTraceStep} | latestBehaviour={latestBehaviour} | " +
                 $"latestMission={latestMission} | replayValid={replayValid}");
 
+            // Phase 9.3 telemetry observation (observational only - it never alters
+            // the PASS/FAIL exit code). Surfaces the running health and performance
+            // summary of the decision pipeline and confirms the exported snapshot
+            // validates.
+            var telemetry = _agent?.Decision?.LastTelemetry ?? DecisionTelemetrySnapshot.Empty;
+            var behaviourDistribution = FormatDistribution(telemetry);
+            var telemetryValid = _sawTelemetry
+                && telemetry.DecisionCount > 0
+                && DecisionTelemetryValidator.IsValid(telemetry);
+
+            Debug.Log(
+                $"[DroneSmokeTest] telemetryObserved={_sawTelemetry} | decisionCount={telemetry.DecisionCount} | " +
+                $"averageConfidence={telemetry.AverageDecisionConfidence:F3} | " +
+                $"averageOptimizationConfidence={telemetry.AverageOptimizationConfidence:F3} | " +
+                $"knowledgeRecords={telemetry.KnowledgeRecordCount} | memoryRecords={telemetry.MemoryRecordCount} | " +
+                $"candidateAverage={telemetry.AverageCandidateCount:F2} | behaviourDistribution={behaviourDistribution} | " +
+                $"telemetryValid={telemetryValid}");
+
             // Reward diagnostics (M5, Task 8). Observational only: it never alters
             // the pass/fail exit code, so existing smoke behaviour is preserved.
             // Surfaces reward regressions in CI output.
@@ -339,6 +368,31 @@ namespace ADRL.Training.Runtime
             if (Application.isBatchMode)
                 RequestEditorExit(Passed ? 0 : 1);
 #endif
+        }
+
+        /// <summary>
+        /// Renders the telemetry behaviour distribution as a deterministic
+        /// "Name:Count" pipe-separated summary for smoke output. Null or empty
+        /// distributions render as "(empty)".
+        /// </summary>
+        private static string FormatDistribution(DecisionTelemetrySnapshot telemetry)
+        {
+            var distribution = telemetry.BehaviourDistribution;
+            if (distribution == null || distribution.Length == 0)
+                return "(empty)";
+
+            var builder = new System.Text.StringBuilder();
+            for (var i = 0; i < distribution.Length; i++)
+            {
+                if (builder.Length > 0)
+                    builder.Append("|");
+
+                builder.Append(distribution[i].Behaviour.ToString());
+                builder.Append(":");
+                builder.Append(distribution[i].Count.ToString());
+            }
+
+            return builder.ToString();
         }
 
 #if UNITY_EDITOR

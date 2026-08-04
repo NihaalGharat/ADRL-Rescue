@@ -122,6 +122,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 9.3 — Autonomous Decision Telemetry Framework (2026-08-04)
+
+#### Deterministic Telemetry Layer (ADRL.AI.Decision.Telemetry)
+
+- **`DecisionTelemetrySnapshot`** (new) — immutable, deterministic snapshot of the decision pipeline's telemetry: `DecisionCount`, running averages (`AverageDecisionConfidence`, `AverageOptimizationConfidence`, `AverageCandidateCount`, `AverageExecutionSpeedMultiplier`, `AverageTurnRateMultiplier`), `KnowledgeRecordCount`, `MemoryRecordCount`, `CurrentBehaviour`, `CurrentMission`, `CurrentExecutor`, `LatestDecisionStep`, `LatestDecisionTimestamp` and the `BehaviourDistribution`/`MissionDistribution` (one owned entry per enum value, zero-count entries included); all readonly, `Empty` canonical
+- **`DecisionTelemetryStatistics`** (new, internal) — running accumulator owned only by the collector: running totals, running averages, behaviour/mission counters (pre-sized arrays indexed by enum value), knowledge/memory counts and the latest-value projection; updates are O(1) and allocation-free; no LINQ; never exposed publicly
+- **`DecisionTelemetryCollector`** (new) — the single runtime owner of telemetry: `Observe` (O(1), allocation-free, null-safe), `GetSnapshot` (fresh immutable projection), `Reset`; reads the completed trace frame only and never modifies the engine, snapshot, explanation, trace, knowledge, memory, behaviour or command
+- **`DecisionTelemetryFormatter`** (new) — pure, deterministic rendering of the snapshot (Decisions, Average Confidence, Average Optimization Confidence, Behaviour Distribution, Mission Distribution, Knowledge Records, Memory Records, Average Candidates, Execution Speed, Turn Multiplier, current values, latest clocks); floats rendered with the invariant culture, same telemetry → byte-identical output
+- **`DecisionTelemetryValidator`** (new) — pure validation: no negatives, no NaN/Infinity, distribution totals equal the decision count, snapshot complete, counts valid, averages in range, current values valid; plain bools, never throws
+- **`DecisionDiagnostics`** — new `LastTelemetry` member + `WithTelemetry`; constructor extended with an optional parameter; `Empty` carries `DecisionTelemetrySnapshot.Empty`; `WithExplanation`/`WithTraceFrame` preserve telemetry
+- **`DecisionEngine`** — after tracing, observes the trace frame via the `DecisionTelemetryCollector` (single owner of telemetry), exposes `LastTelemetry` + `TelemetryCollector` + `GetTelemetry()` + `ResetTelemetry()`, and recomposes the last snapshot's diagnostics with the telemetry so diagnostics and telemetry stay synchronized; `Reset()` clears telemetry; fully backward compatible, zero behavioural change
+- `DroneSmokeTest` observes the telemetry and logs `telemetryObserved`, `decisionCount`, `averageConfidence`, `averageOptimizationConfidence`, `knowledgeRecords`, `memoryRecords`, `candidateAverage`, `behaviourDistribution`, `telemetryValid`; observational only — **no PASS criteria change**
+
+#### Tests (ADRL.Tests.Editor.Decision)
+
+- New `DecisionTelemetryTests` (20): collector observe accumulates count; collector empty before observation; collector reset; collector null frame ignored; collector owned snapshot projection; statistics running averages; statistics behaviour distribution; statistics mission distribution; statistics latest values; formatter deterministic; formatter contains sections; formatter empty snapshot; validator accepts valid; validator rejects negative; validator rejects NaN/Infinity; validator rejects distribution mismatch; engine telemetry after steps; deterministic telemetry; diagnostics carries telemetry; reset clears telemetry and behaviour unchanged
+
+#### Validation
+
+- EditMode suite: **261/261 passing** (241 prior + 20 new), exit 0, zero compiler warnings
+- Runtime batch smoke test: PASSED, exit 0, finite reward, **sumInvariant=True**, movement/behaviour/optimization/determinism unchanged, decision/context/optimization/knowledge/explanation/trace observed, **telemetry observed and validated**
+- Mission logic, prioritization, selection, optimization, execution, knowledge, memory, explainability, tracing, navigation, rewards, simulation, RL and training unchanged; telemetry is read-only and never influences decisions
+
 ### Phase 9.2 — Autonomous Decision Trace & Replay Framework (2026-08-04)
 
 #### Deterministic Trace Layer (ADRL.AI.Decision.Trace)

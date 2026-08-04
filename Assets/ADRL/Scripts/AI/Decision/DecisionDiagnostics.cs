@@ -6,6 +6,7 @@ namespace ADRL.AI.Decision
     using ADRL.AI.Decision.Knowledge;
     using ADRL.AI.Decision.Mission;
     using ADRL.AI.Decision.Prioritization;
+    using ADRL.AI.Decision.Telemetry;
     using ADRL.AI.Decision.Trace;
     using UnityEngine;
 
@@ -84,6 +85,15 @@ namespace ADRL.AI.Decision
         /// </summary>
         public readonly DecisionTraceFrame LastTraceFrame;
 
+        /// <summary>
+        /// The immutable telemetry snapshot of all decision steps observed so far,
+        /// or <see cref="DecisionTelemetrySnapshot.Empty"/> before any step.
+        /// Carried so the diagnostics projection also exposes the health and
+        /// performance telemetry of the decision pipeline - it is read-only and
+        /// never influences decisions.
+        /// </summary>
+        public readonly DecisionTelemetrySnapshot LastTelemetry;
+
         public DecisionDiagnostics(
             int stepCount,
             BehaviourState lastBehaviour,
@@ -99,7 +109,8 @@ namespace ADRL.AI.Decision
             float nearestHazardDistance = 0f,
             float knowledgeTimestamp = 0f,
             DecisionExplanation lastExplanation = default,
-            DecisionTraceFrame lastTraceFrame = null)
+            DecisionTraceFrame lastTraceFrame = null,
+            DecisionTelemetrySnapshot lastTelemetry = default)
         {
             StepCount = stepCount;
             LastBehaviour = lastBehaviour;
@@ -116,6 +127,10 @@ namespace ADRL.AI.Decision
             KnowledgeTimestamp = knowledgeTimestamp;
             LastExplanation = lastExplanation;
             LastTraceFrame = lastTraceFrame ?? DecisionTraceFrame.Empty;
+            LastTelemetry = lastTelemetry.BehaviourDistribution == null
+                || lastTelemetry.MissionDistribution == null
+                ? DecisionTelemetrySnapshot.Empty
+                : lastTelemetry;
         }
 
         /// <summary>An idle, zero-step diagnostics payload.</summary>
@@ -134,7 +149,8 @@ namespace ADRL.AI.Decision
             0f,
             0f,
             DecisionExplanation.Empty,
-            DecisionTraceFrame.Empty);
+            DecisionTraceFrame.Empty,
+            DecisionTelemetrySnapshot.Empty);
 
         /// <summary>
         /// Returns a copy of this diagnostics payload carrying the given decision
@@ -160,7 +176,8 @@ namespace ADRL.AI.Decision
                 NearestHazardDistance,
                 KnowledgeTimestamp,
                 lastExplanation,
-                LastTraceFrame);
+                LastTraceFrame,
+                LastTelemetry);
         }
 
         /// <summary>
@@ -187,7 +204,36 @@ namespace ADRL.AI.Decision
                 NearestHazardDistance,
                 KnowledgeTimestamp,
                 LastExplanation,
-                lastTraceFrame);
+                lastTraceFrame,
+                LastTelemetry);
+        }
+
+        /// <summary>
+        /// Returns a copy of this diagnostics payload carrying the given telemetry
+        /// snapshot. The payload is immutable, so this never mutates the original -
+        /// it composes a fresh value with the telemetry snapshot the engine builds
+        /// from the last trace frame, so diagnostics and telemetry stay
+        /// synchronized without changing any decision behaviour.
+        /// </summary>
+        public DecisionDiagnostics WithTelemetry(DecisionTelemetrySnapshot lastTelemetry)
+        {
+            return new DecisionDiagnostics(
+                StepCount,
+                LastBehaviour,
+                LastAssessment,
+                LastMissionTask,
+                LastWinning,
+                SelectedExecutor,
+                LastCommand,
+                DecisionTimestamp,
+                CandidateCount,
+                KnowledgeRecordCount,
+                NearestVictimDistance,
+                NearestHazardDistance,
+                KnowledgeTimestamp,
+                LastExplanation,
+                LastTraceFrame,
+                lastTelemetry);
         }
 
         /// <summary>

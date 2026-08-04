@@ -8,6 +8,7 @@ namespace ADRL.AI.Decision
     using ADRL.AI.Decision.Mission;
     using ADRL.AI.Decision.Optimization;
     using ADRL.AI.Decision.Prioritization;
+    using ADRL.AI.Decision.Telemetry;
     using ADRL.AI.Decision.Trace;
     using ADRL.AI.DecisionMaking;
     using ADRL.Sensors.Interfaces;
@@ -71,12 +72,14 @@ namespace ADRL.AI.Decision
         private readonly DecisionExplanationBuilder _explanationBuilder;
         private readonly DecisionTraceBuilder _traceBuilder;
         private readonly DecisionTraceStore _traceStore;
+        private readonly DecisionTelemetryCollector _telemetryCollector;
 
         private int _stepCount;
         private DecisionRuntimeState _runtimeState;
         private DecisionContextSnapshot _lastSnapshot;
         private DecisionExplanation _lastExplanation;
         private DecisionTraceFrame _lastTraceFrame;
+        private DecisionTelemetrySnapshot _lastTelemetry;
 
         public DecisionEngine(
             DecisionContext context,
@@ -104,10 +107,12 @@ namespace ADRL.AI.Decision
             _explanationBuilder = new DecisionExplanationBuilder();
             _traceBuilder = new DecisionTraceBuilder();
             _traceStore = new DecisionTraceStore();
+            _telemetryCollector = new DecisionTelemetryCollector();
             _runtimeState = DecisionRuntimeState.Empty;
             _lastSnapshot = DecisionContextSnapshot.Empty;
             _lastExplanation = DecisionExplanation.Empty;
             _lastTraceFrame = DecisionTraceFrame.Empty;
+            _lastTelemetry = DecisionTelemetrySnapshot.Empty;
         }
 
         /// <summary>The behaviour-memory service backing this engine's decisions.</summary>
@@ -239,6 +244,18 @@ namespace ADRL.AI.Decision
                 _lastSnapshot.Diagnostics.WithTraceFrame(_lastTraceFrame));
             _traceStore.Append(_lastTraceFrame);
 
+            // Phase 9.3: observe telemetry for the completed decision. The trace
+            // frame is fed to the single owner of telemetry composition, which
+            // advances its running totals and latest-value projection without any
+            // allocation; the resulting immutable snapshot is exposed as
+            // LastTelemetry and embedded in the last snapshot's diagnostics, so
+            // diagnostics and telemetry stay synchronized without any behavioural
+            // change. Telemetry is observational only.
+            _telemetryCollector.Observe(_lastTraceFrame);
+            _lastTelemetry = _telemetryCollector.GetSnapshot();
+            _lastSnapshot = _lastSnapshot.WithDiagnostics(
+                _lastSnapshot.Diagnostics.WithTelemetry(_lastTelemetry));
+
             _stepCount++;
 
             return new DecisionResult(behaviour, command, assessment);
@@ -291,6 +308,39 @@ namespace ADRL.AI.Decision
         public DecisionTraceStore TraceStore => _traceStore;
 
         /// <summary>
+        /// The immutable telemetry snapshot of every decision step observed so far -
+        /// the running health and performance summary of the decision pipeline. The
+        /// canonical <see cref="DecisionTelemetrySnapshot.Empty"/> snapshot before
+        /// any step. Observational only: it never influences decisions.
+        /// </summary>
+        public DecisionTelemetrySnapshot LastTelemetry => _lastTelemetry;
+
+        /// <summary>
+        /// The single owner of decision telemetry, observing every completed
+        /// decision frame and producing immutable telemetry snapshots. Read-only
+        /// for consumers; the engine is the only writer. Cleared by
+        /// <see cref="ResetTelemetry"/> and <see cref="Reset"/>.
+        /// </summary>
+        public DecisionTelemetryCollector TelemetryCollector => _telemetryCollector;
+
+        /// <summary>
+        /// The current telemetry snapshot, built on demand from the collector's
+        /// running statistics. Identical to <see cref="LastTelemetry"/> after a
+        /// decision step.
+        /// </summary>
+        public DecisionTelemetrySnapshot GetTelemetry()
+        {
+            return _telemetryCollector.GetSnapshot();
+        }
+
+        /// <summary>Clears the accumulated decision telemetry and its exposure.</summary>
+        public void ResetTelemetry()
+        {
+            _telemetryCollector.Reset();
+            _lastTelemetry = DecisionTelemetrySnapshot.Empty;
+        }
+
+        /// <summary>
         /// Read-only projection of the framework's running state, synchronized with
         /// the last built context snapshot.
         /// </summary>
@@ -308,6 +358,7 @@ namespace ADRL.AI.Decision
             _lastExplanation = DecisionExplanation.Empty;
             _lastTraceFrame = DecisionTraceFrame.Empty;
             _traceStore.Clear();
+            ResetTelemetry();
             _memoryService.Reset();
             _mission.Reset();
             _knowledgeUpdater.Reset();
